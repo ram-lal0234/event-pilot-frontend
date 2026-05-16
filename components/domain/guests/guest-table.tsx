@@ -8,6 +8,15 @@ import type { GuestRecord, RsvpStatus } from "@/lib/api";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
@@ -37,6 +46,64 @@ function categoryVariant(category: GuestRecord["category"]) {
   }
 }
 
+function GuestQrDialog({ guest }: { guest: GuestRecord }) {
+  const qrCanvasId = `guest-qr-${guest.id}`;
+
+  const downloadQr = () => {
+    const canvas = document.getElementById(qrCanvasId) as HTMLCanvasElement | null;
+    if (!canvas) {
+      toast.error("QR code is not ready yet");
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.href = canvas.toDataURL("image/png");
+    link.download = `${guest.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "guest"}-qr.png`;
+    link.click();
+    toast.success("QR code downloaded");
+  };
+
+  return (
+    <Dialog>
+      <DialogTrigger
+        render={<Button variant="outline" size="sm" className="gap-2" type="button" />}
+      >
+        <QrCode className="size-4" />
+        Open QR Code
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{guest.name}</DialogTitle>
+          <DialogDescription>
+            Show this badge at the gate scanner or download it for printing.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid justify-items-center gap-4 rounded-xl border border-border bg-surface-container-low p-5">
+          <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
+            <QRCodeCanvas
+              id={qrCanvasId}
+              value={guest.qrCode}
+              size={220}
+              includeMargin
+            />
+          </div>
+          <p className="max-w-full break-all text-center text-xs text-muted-foreground">
+            {guest.qrCode}
+          </p>
+        </div>
+
+        <DialogFooter>
+          <Button className="gap-2" type="button" onClick={downloadQr}>
+            <Download className="size-4" />
+            Download QR
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function GuestDetailsSheet({
   guest,
   onTriggerIvr,
@@ -53,21 +120,6 @@ function GuestDetailsSheet({
   const [busy, setBusy] = useState(false);
   const [ivrBusy, setIvrBusy] = useState(false);
   const ivrDisabled = savedRsvpStatus !== "PENDING";
-  const qrCanvasId = `guest-qr-${guest.id}`;
-
-  const downloadQr = () => {
-    const canvas = document.getElementById(qrCanvasId) as HTMLCanvasElement | null;
-    if (!canvas) {
-      toast.error("QR code is not ready yet");
-      return;
-    }
-
-    const link = document.createElement("a");
-    link.href = canvas.toDataURL("image/png");
-    link.download = `${guest.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "guest"}-qr.png`;
-    link.click();
-    toast.success("QR code downloaded");
-  };
 
   const submitRsvp = async (event: FormEvent) => {
     event.preventDefault();
@@ -93,15 +145,15 @@ function GuestDetailsSheet({
       >
         <ChevronRight className="size-4 text-muted-foreground" />
       </SheetTrigger>
-      <SheetContent className="sm:max-w-lg">
-        <SheetHeader>
+      <SheetContent className="min-h-0 overflow-hidden sm:max-w-lg">
+        <SheetHeader className="shrink-0">
           <SheetTitle>{guest.name}</SheetTitle>
           <SheetDescription>
             Guest profile, pickup details, IVR status, and check-in context.
           </SheetDescription>
         </SheetHeader>
 
-        <div className="space-y-5 px-4">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-6">
           <section className="rounded-lg border border-border p-4">
             <p className="mb-3 text-[11px] font-semibold uppercase text-muted-foreground">
               Contact Info
@@ -190,29 +242,8 @@ function GuestDetailsSheet({
               <Radio className="size-4" />
               Trigger IVR
             </Button>
-          </section>
-
-          <section className="rounded-lg border border-border p-4">
-            <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase text-muted-foreground">
-              <QrCode className="size-4" />
-              Guest QR Code
-            </p>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <div className="w-fit rounded-lg border border-border bg-white p-3">
-                <QRCodeCanvas
-                  id={qrCanvasId}
-                  value={guest.qrCode}
-                  size={144}
-                  includeMargin
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="break-all text-xs text-muted-foreground">{guest.qrCode}</p>
-                <Button variant="outline" size="sm" className="mt-3 gap-2" type="button" onClick={downloadQr}>
-                  <Download className="size-4" />
-                  Download QR
-                </Button>
-              </div>
+            <div className="mt-3">
+              <GuestQrDialog guest={guest} />
             </div>
           </section>
 
