@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bed, Car, UserCheck, Users, Plus } from "lucide-react";
+import Link from "next/link";
+import { Activity, ArrowRight, Bed, Car, UserCheck, Users, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { StatCard } from "@/components/domain/stat-card";
-import { LiveOperationsFeed } from "@/components/domain/dashboard/live-operations-feed";
 import { ArrivalsTable } from "@/components/domain/dashboard/arrivals-table";
 import { QuickActions } from "@/components/domain/dashboard/quick-actions";
 import { arrivals } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type AuditRecord, type DashboardSummary } from "@/lib/api";
+import { scopedEventHref } from "@/lib/design-tokens";
 import { useApp } from "@/components/providers/app-provider";
 
 export default function DashboardPage() {
@@ -43,12 +45,18 @@ export default function DashboardPage() {
 
   const feedItems = useMemo(
     () =>
-      feed.map((item) => ({
+      feed.slice(0, 3).map((item) => ({
         id: item.id,
         title: item.action.replaceAll("_", " ").toLowerCase(),
         subtitle: `${item.entityType} ${item.entityId.slice(0, 8)}`,
         time: new Date(item.createdAt).toLocaleString(),
-        type: item.action.includes("CHECKED") ? "checkin" as const : "cab" as const,
+        type: item.action.includes("CHECK")
+          ? ("checkin" as const)
+          : item.action.includes("RSVP")
+            ? ("rsvp" as const)
+            : item.action.includes("CAB")
+              ? ("cab" as const)
+              : ("guest" as const),
       })),
     [feed]
   );
@@ -87,7 +95,42 @@ export default function DashboardPage() {
       </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <LiveOperationsFeed items={feedItems} />
+          <Card className="border-border shadow-none">
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <CardTitle className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Activity Preview
+              </CardTitle>
+              <Button
+                render={<Link href={scopedEventHref(currentEventId, "/live")} />}
+                nativeButton={false}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                View Live
+                <ArrowRight className="size-3.5" />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {feedItems.length ? (
+                <ul className="space-y-3">
+                  {feedItems.map((item) => (
+                    <li key={item.id} className="flex items-start gap-3 rounded-lg bg-surface-container-low p-3 text-sm">
+                      <Activity className="mt-0.5 size-4 shrink-0 text-primary" />
+                      <span className="min-w-0">
+                        <span className="block font-medium capitalize">{item.title}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{item.subtitle} · {item.time}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="rounded-lg bg-surface-container-low p-6 text-center text-sm text-muted-foreground">
+                  No activity yet. Live operations will appear once guests start responding.
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
         <div className="self-start">
           <QuickActions />

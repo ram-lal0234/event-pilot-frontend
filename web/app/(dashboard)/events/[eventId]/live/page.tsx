@@ -51,7 +51,15 @@ export default function LiveViewPage() {
         title: item.action.replaceAll("_", " ").toLowerCase(),
         subtitle: `${item.entityType} ${item.entityId.slice(0, 8)}`,
         time: new Date(item.createdAt).toLocaleString(),
-        type: item.action.includes("CHECK") ? ("checkin" as const) : ("cab" as const),
+        type: item.action.includes("CHECK")
+          ? ("checkin" as const)
+          : item.action.includes("RSVP")
+            ? ("rsvp" as const)
+            : item.action.includes("CAB")
+              ? ("cab" as const)
+              : item.action.includes("ROOM")
+                ? ("room" as const)
+                : ("guest" as const),
       })),
     [feed]
   );
@@ -72,7 +80,7 @@ export default function LiveViewPage() {
         }
       />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Live Activity" value={`${feed.length}`} subtext="Recent actions" icon={Activity} />
+        <StatCard label="Live Activity" value={`${feed.length}`} subtext="Recent actions from this event" icon={Activity} />
         <StatCard label="Check-in Progress" value={`${checkInPercent}%`} trend={`${summary?.checkedIn || 0}/${summary?.totalGuests || 0}`} icon={CheckCircle2} progress={checkInPercent} />
         <StatCard label="Pending Pickups" value={`${summary?.pendingPickups || 0}`} subtext="Confirmed without cab" icon={Car} />
         <StatCard label="Total Guests" value={`${summary?.totalGuests || 0}`} subtext="Guests in event" icon={Users} />

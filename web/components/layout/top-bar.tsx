@@ -102,7 +102,9 @@ export function TopBar({ mobileMenu }: TopBarProps) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <nav className="hidden min-w-0 items-center gap-2 overflow-x-auto md:flex lg:gap-4 xl:gap-6">
+        <div className="hidden h-6 w-px shrink-0 bg-border md:block" />
+
+        <nav className="hidden min-w-0 items-center gap-2 overflow-x-auto md:flex lg:gap-4 xl:gap-6" aria-label="Event insights">
           {eventViewItems.map((item) => {
             const active = isEventHrefActive(pathname, item.href);
 

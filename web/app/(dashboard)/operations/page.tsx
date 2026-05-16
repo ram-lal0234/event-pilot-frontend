@@ -73,8 +73,8 @@ export default function OperationsPage() {
   }, [load]);
 
   const rooms = useMemo(() => hotels.flatMap((hotel) => hotel.rooms || []), [hotels]);
-  const unassignedCabGuests = guests.filter((guest) => !guest.cabAssignments?.length);
-  const unassignedRoomGuests = guests.filter((guest) => !guest.roomAssignments?.length);
+  const unassignedCabGuests = guests.filter((guest) => guest.rsvpStatus === "CONFIRMED" && !guest.cabAssignments?.length);
+  const unassignedRoomGuests = guests.filter((guest) => guest.rsvpStatus === "CONFIRMED" && !guest.roomAssignments?.length);
   const loading = !eventsLoaded || eventsLoading || !operationsLoaded;
 
   const selectedCab = assignment?.mode === "cab"
@@ -532,9 +532,19 @@ function AssignmentSheet({
   const title = assignment?.mode === "cab"
     ? `Assign Guests to ${selectedCab?.vehicleNumber || "Cab"}`
     : `Assign Guests to Room ${selectedRoom?.roomNumber || ""}`;
-  const subtitle = assignment?.mode === "room" && selectedHotel
-    ? `${selectedHotel.name}, ${selectedHotel.location}`
+  const subtitle = assignment?.mode === "cab"
+    ? "Only confirmed guests without a cab assignment are shown."
+    : assignment?.mode === "room" && selectedHotel
+    ? `${selectedHotel.name}, ${selectedHotel.location}. Only confirmed guests without a room assignment are shown.`
     : "Select one or more unassigned guests.";
+  const visibleCount = 20;
+  const [visibleGuests, setVisibleGuests] = useState(visibleCount);
+  const pagedGuests = guests.slice(0, visibleGuests);
+  const hasMoreGuests = visibleGuests < guests.length;
+
+  const loadMoreGuests = () => {
+    setVisibleGuests((count) => Math.min(count + visibleCount, guests.length));
+  };
 
   const toggleGuest = (guestId: string) => {
     setSelectedGuestIds(
@@ -551,8 +561,16 @@ function AssignmentSheet({
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{subtitle}</SheetDescription>
         </SheetHeader>
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4">
-          {guests.map((guest) => (
+        <div
+          className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4"
+          onScroll={(event) => {
+            const target = event.currentTarget;
+            if (hasMoreGuests && target.scrollTop + target.clientHeight >= target.scrollHeight - 32) {
+              loadMoreGuests();
+            }
+          }}
+        >
+          {pagedGuests.map((guest) => (
             <label key={guest.id} className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3">
               <Checkbox
                 checked={selectedGuestIds.includes(guest.id)}
@@ -568,8 +586,15 @@ function AssignmentSheet({
           ))}
           {!guests.length && (
             <p className="rounded-lg bg-surface-container-low p-4 text-sm text-muted-foreground">
-              No unassigned guests available.
+              {assignment?.mode === "cab"
+                ? "No confirmed guests are waiting for cab assignment."
+                : "No confirmed guests are waiting for room assignment."}
             </p>
+          )}
+          {hasMoreGuests && (
+            <Button variant="outline" type="button" className="w-full" onClick={loadMoreGuests}>
+              Load more guests
+            </Button>
           )}
         </div>
         <SheetFooter>

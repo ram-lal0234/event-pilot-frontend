@@ -92,7 +92,7 @@ export default function AnalyticsPage() {
       />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total Guests" value={`${summary?.totalGuests || guests.length}`} subtext="Guest records" icon={Users} />
-        <StatCard label="Confirmed RSVP" value={`${summary?.confirmed || metrics.confirmed}`} subtext="Accepted guests" icon={CheckCircle2} />
+        <StatCard label="Confirmed RSVP" value={`${summary?.confirmed || metrics.confirmed}`} subtext={`${metrics.confirmed} accepted guests`} icon={CheckCircle2} />
         <StatCard label="Checked-in" value={`${summary?.checkedIn || metrics.checkedIn}`} subtext="Scanned guests" icon={Bed} />
         <StatCard label="Pending" value={`${metrics.pending}`} subtext="Awaiting RSVP" icon={Clock3} />
       </div>
@@ -111,8 +111,20 @@ export default function AnalyticsPage() {
             <CardTitle>Logistics Insights</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
-            <Utilization label="Cab Utilization" value={metrics.cabUtilization} caption={`${metrics.cabUsed}/${metrics.cabCapacity} seats filled`} icon={Car} />
-            <Utilization label="Room Occupancy" value={metrics.roomOccupancy} caption={`${metrics.roomUsed}/${metrics.roomCapacity} members assigned`} icon={Bed} />
+            <Utilization
+              label="Cab Utilization"
+              value={metrics.cabUtilization}
+              caption={metrics.cabUsed ? `${metrics.cabUsed}/${metrics.cabCapacity} seats filled` : "No cab assignments yet"}
+              icon={Car}
+              empty={!metrics.cabUsed}
+            />
+            <Utilization
+              label="Room Occupancy"
+              value={metrics.roomOccupancy}
+              caption={metrics.roomUsed ? `${metrics.roomUsed}/${metrics.roomCapacity} members assigned` : "No rooms assigned yet"}
+              icon={Bed}
+              empty={!metrics.roomUsed}
+            />
           </CardContent>
         </Card>
       </div>
@@ -138,7 +150,7 @@ function InsightCard({
           return (
             <div key={row.label}>
               <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="font-medium">{row.label}</span>
+                <span className="font-medium">{row.label} ({row.value})</span>
                 <span className="text-muted-foreground">{row.value} · {percent}%</span>
               </div>
               <Progress value={percent} className="h-2" />
@@ -155,11 +167,13 @@ function Utilization({
   value,
   caption,
   icon: Icon,
+  empty,
 }: {
   label: string;
   value: number;
   caption: string;
   icon: typeof Car;
+  empty?: boolean;
 }) {
   return (
     <div>
@@ -168,9 +182,9 @@ function Utilization({
           <Icon className="size-4 text-primary" />
           {label}
         </span>
-        <span className="font-semibold text-primary">{value}%</span>
+        <span className="font-semibold text-primary">{empty ? "No data" : `${value}%`}</span>
       </div>
-      <Progress value={value} className="h-2" />
+      {!empty && <Progress value={value} className="h-2" />}
       <p className="mt-2 text-xs text-muted-foreground">{caption}</p>
     </div>
   );

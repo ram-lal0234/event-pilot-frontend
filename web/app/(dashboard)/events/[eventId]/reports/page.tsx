@@ -145,9 +145,27 @@ export default function ReportsPage() {
           <CardTitle>Export Options</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-3">
-          <ReportButton icon={Users} label="Export Guest List" caption={`${guests.length} guests`} onClick={exportGuestList} disabled={!guests.length} />
-          <ReportButton icon={FileCheck2} label="Export Check-in Data" caption={`${summary.checkedIn} checked-in`} onClick={exportCheckins} disabled={!summary.checkedIn} />
-          <ReportButton icon={FileSpreadsheet} label="Export RSVP Summary" caption={`${summary.confirmed} confirmed`} onClick={exportRsvpSummary} disabled={!guests.length} />
+          <ReportButton
+            icon={Users}
+            label="Export Guest List"
+            caption={guests.length ? `${guests.length} guests` : "No guests yet"}
+            onClick={exportGuestList}
+            disabled={!guests.length}
+          />
+          <ReportButton
+            icon={FileCheck2}
+            label="Export Check-in Data"
+            caption={summary.checkedIn ? `${summary.checkedIn} checked-in` : "No check-ins yet"}
+            onClick={exportCheckins}
+            disabled={!summary.checkedIn}
+          />
+          <ReportButton
+            icon={FileSpreadsheet}
+            label="Export RSVP Summary"
+            caption={guests.length ? `${summary.confirmed} confirmed` : "No RSVP data yet"}
+            onClick={exportRsvpSummary}
+            disabled={!guests.length}
+          />
         </CardContent>
       </Card>
 
