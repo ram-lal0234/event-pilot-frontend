@@ -447,26 +447,19 @@ function LoginAmbientOrbs() {
   );
 }
 
-const FLOAT_FEATURES = [
-  { Icon: UserRoundCheck, label: "Smart RSVP tracking", className: "left-[6%] top-[54%]" },
-  { Icon: LayoutDashboard, label: "Operations dashboard", className: "right-[14%] top-[52%]" },
-  { Icon: ScanLine, label: "Real-time check-ins", className: "left-[26%] top-[74%]" },
-  { Icon: ListChecks, label: "Cab & hotel logistics", className: "right-[8%] top-[74%]" },
+const BRAND_FEATURES_LEFT = [
+  { Icon: UserRoundCheck, label: "Smart RSVP tracking" },
+  { Icon: ScanLine, label: "Real-time check-ins" },
 ] as const;
 
-function FloatingFeatureBadge({
-  Icon,
-  label,
-  className,
-}: {
-  Icon: LucideIcon;
-  label: string;
-  className: string;
-}) {
+const BRAND_FEATURES_RIGHT = [
+  { Icon: LayoutDashboard, label: "Operations dashboard" },
+  { Icon: ListChecks, label: "Cab & hotel logistics" },
+] as const;
+
+function FloatingFeatureBadge({ Icon, label }: { Icon: LucideIcon; label: string }) {
   return (
-    <div
-      className={`absolute z-10 max-w-[148px] rounded-xl border border-white/15 bg-white/[0.07] px-3 py-2.5 shadow-lg shadow-black/20 backdrop-blur-xl ${className}`}
-    >
+    <div className="z-10 w-full max-w-[148px] rounded-xl border border-white/15 bg-white/[0.07] px-3 py-2.5 shadow-lg shadow-black/20 backdrop-blur-xl">
       <Icon className="mb-1.5 size-4 text-sky-300" aria-hidden />
       <p className="text-[11px] font-semibold leading-snug text-white">{label}</p>
     </div>
@@ -498,11 +491,22 @@ function BrandPanel() {
           RSVP, transport, hotels, QR check-in, and live ops—purpose-built so your team executes smoothly from doorstep to ballroom.
         </p>
 
-        <div className="relative mt-auto min-h-[min(360px,38vh)] w-full shrink-0">
-          <div className="pointer-events-none absolute bottom-[18%] left-1/2 h-[200px] w-[200px] -translate-x-1/2 rounded-full bg-gradient-to-tr from-[#06b6d4]/30 via-[#6366f1]/35 to-[#a855f7]/30 blur-[50px]" />
-          {FLOAT_FEATURES.map(({ Icon, label, className }) => (
-            <FloatingFeatureBadge key={label} Icon={Icon} label={label} className={className} />
-          ))}
+        <div className="relative mt-auto flex min-h-[min(340px,36vh)] w-full shrink-0 items-end justify-between gap-6 pb-4 pt-8 xl:gap-10 xl:pb-6 xl:pt-12">
+          <div className="pointer-events-none absolute bottom-[12%] left-1/2 h-[200px] w-[200px] -translate-x-1/2 rounded-full bg-gradient-to-tr from-[#06b6d4]/30 via-[#6366f1]/35 to-[#a855f7]/30 blur-[50px]" />
+          <div className="relative z-10 flex min-w-0 flex-1 flex-col gap-[3.75rem] xl:gap-[4.5rem]">
+            {BRAND_FEATURES_LEFT.map(({ Icon, label }, row) => (
+              <div key={label} className={row === 1 ? "pl-[2.5rem] xl:pl-14" : ""}>
+                <FloatingFeatureBadge Icon={Icon} label={label} />
+              </div>
+            ))}
+          </div>
+          <div className="relative z-10 flex min-w-0 flex-1 flex-col items-end gap-[3.75rem] xl:gap-[4.5rem]">
+            {BRAND_FEATURES_RIGHT.map(({ Icon, label }, row) => (
+              <div key={label} className={row === 1 ? "pr-[2.5rem] xl:pr-14" : ""}>
+                <FloatingFeatureBadge Icon={Icon} label={label} />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
