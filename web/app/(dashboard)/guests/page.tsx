@@ -122,7 +122,6 @@ export default function GuestsPage() {
   const addGuest = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
-    setError("");
     setMessage("");
     try {
       await api.createGuest(token, {
@@ -139,8 +138,9 @@ export default function GuestsPage() {
       setGuestForm(emptyGuest);
       setMessage("Guest created");
       await loadGuests();
+      return null;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create guest");
+      return err instanceof Error ? err.message : "Could not create guest";
     } finally {
       setBusy(false);
     }
@@ -148,14 +148,14 @@ export default function GuestsPage() {
 
   const uploadCsv = async (csvToImport: string) => {
     setBusy(true);
-    setError("");
     setMessage("");
     try {
       const result = await api.uploadGuestCsv(token, currentEventId, csvToImport);
       setMessage(`${result.inserted} guests imported`);
       await loadGuests();
+      return null;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not upload CSV");
+      return err instanceof Error ? err.message : "Could not upload CSV";
     } finally {
       setBusy(false);
     }
@@ -277,9 +277,17 @@ function GuestSheet({
 }: {
   form: typeof emptyGuest;
   setForm: (form: typeof emptyGuest) => void;
-  onSubmit: (event: FormEvent) => void;
+  onSubmit: (event: FormEvent) => Promise<string | null>;
   busy: boolean;
 }) {
+  const [sheetError, setSheetError] = useState("");
+
+  const handleSubmit = async (event: FormEvent) => {
+    setSheetError("");
+    const errorMessage = await onSubmit(event);
+    setSheetError(errorMessage || "");
+  };
+
   return (
     <Sheet>
       <SheetTrigger
@@ -289,11 +297,16 @@ function GuestSheet({
         Add Guest
       </SheetTrigger>
       <SheetContent className="sm:max-w-md">
-        <form className="flex h-full flex-col" onSubmit={onSubmit}>
+        <form className="flex h-full flex-col" onSubmit={handleSubmit}>
           <SheetHeader>
             <SheetTitle>Add Guest</SheetTitle>
           </SheetHeader>
           <div className="space-y-3 px-4">
+            {sheetError && (
+              <p className="rounded-md bg-status-error-bg p-3 text-sm text-status-error">
+                {sheetError}
+              </p>
+            )}
             <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Name" required />
             <Input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="Phone" required />
             <Input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="Email" />
@@ -329,11 +342,12 @@ function CsvSheet({
 }: {
   csv: string;
   setCsv: (csv: string) => void;
-  uploadCsv: (csvToImport: string) => void;
+  uploadCsv: (csvToImport: string) => Promise<string | null>;
   busy: boolean;
 }) {
   const [pasteMode, setPasteMode] = useState(false);
   const [fileName, setFileName] = useState("");
+  const [sheetError, setSheetError] = useState("");
   const preview = useMemo(() => parseGuestCsv(csv), [csv]);
   const validRows = preview.filter((row) => row.valid && row.data);
   const invalidRows = preview.length - validRows.length;
@@ -350,8 +364,10 @@ function CsvSheet({
     downloadCsv(sampleCsv, "eventpilot-guests-sample.csv");
   };
 
-  const importValidRows = () => {
-    uploadCsv(buildGuestCsv(validRows.map((row) => row.data as CsvGuestRow)));
+  const importValidRows = async () => {
+    setSheetError("");
+    const errorMessage = await uploadCsv(buildGuestCsv(validRows.map((row) => row.data as CsvGuestRow)));
+    setSheetError(errorMessage || "");
   };
 
   return (
@@ -368,6 +384,12 @@ function CsvSheet({
         </SheetHeader>
 
         <div className="min-w-0 flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-4 pb-4">
+          {sheetError && (
+            <p className="rounded-md bg-status-error-bg p-3 text-sm text-status-error">
+              {sheetError}
+            </p>
+          )}
+
           <div className="grid min-w-0 gap-3 rounded-lg border border-dashed border-border bg-surface-container-low p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
             <div className="min-w-0">
               <p className="text-sm font-semibold">Upload File</p>
