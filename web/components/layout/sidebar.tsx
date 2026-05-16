@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { CalendarPlus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { brand, navItems } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
+import { CreateEventSheet } from "@/components/domain/events/create-event-sheet";
 
 export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
@@ -56,9 +57,14 @@ export function Sidebar({ className }: { className?: string }) {
         })}
       </nav>
       <div className="px-4">
-        <Button className="w-full" type="button">
-          + Create Event
-        </Button>
+        <CreateEventSheet
+          trigger={
+            <Button className="w-full gap-2" type="button">
+              <CalendarPlus className="size-4" />
+              Create Event
+            </Button>
+          }
+        />
       </div>
     </aside>
   );

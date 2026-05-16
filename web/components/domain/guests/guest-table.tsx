@@ -1,11 +1,10 @@
 "use client";
 
 import { Fragment } from "react";
-import { ChevronDown, ChevronRight, Link2, Phone } from "lucide-react";
-import type { Guest } from "@/types";
+import { ChevronRight, MapPin, Phone, Radio } from "lucide-react";
+import type { GuestRecord } from "@/lib/api";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -16,18 +15,22 @@ import {
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-function categoryVariant(category: Guest["category"]) {
+function categoryVariant(category: GuestRecord["category"]) {
   switch (category) {
     case "VIP":
       return "vip" as const;
-    case "SPEAKER":
-      return "speaker" as const;
     default:
       return "attendee" as const;
   }
 }
 
-function ExpandedRow({ guest }: { guest: Guest }) {
+function ExpandedRow({
+  guest,
+  onTriggerIvr,
+}: {
+  guest: GuestRecord;
+  onTriggerIvr: (guestId: string) => void;
+}) {
   return (
     <TableRow className="bg-surface-container-low hover:bg-surface-container-low">
       <TableCell colSpan={7} className="p-6">
@@ -42,34 +45,32 @@ function ExpandedRow({ guest }: { guest: Guest }) {
                 {guest.phone}
               </p>
             )}
-            {guest.linkedIn && (
-              <p className="mt-1 flex items-center gap-2 text-sm text-primary">
-                <Link2 className="size-4" />
-                {guest.linkedIn}
+            <p className="mt-1 text-sm text-muted-foreground">{guest.email || "No email"}</p>
+          </div>
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase text-muted-foreground">
+              Pickup
+            </p>
+            <p className="flex items-center gap-2 text-sm">
+              <MapPin className="size-4" />
+              {guest.pickupLocation || "Not provided"}
+            </p>
+            {guest.pickupLat && guest.pickupLng && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {guest.pickupLat}, {guest.pickupLng}
               </p>
             )}
           </div>
           <div>
             <p className="mb-2 text-[11px] font-semibold uppercase text-muted-foreground">
-              Dietary Requirements
+              IVR and QR
             </p>
-            <DietaryBadges dietary={guest.dietary} />
-          </div>
-          <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase text-muted-foreground">
-              Arrival Details
+            <p className="text-sm text-muted-foreground">
+              {guest.ivrRespondedAt ? `Responded ${new Date(guest.ivrRespondedAt).toLocaleString()}` : "No IVR response yet"}
             </p>
-            {guest.arrival && (
-              <>
-                <p className="text-sm font-medium">{guest.arrival.source}</p>
-                <p className="text-sm text-muted-foreground">{guest.arrival.time}</p>
-                <p className="text-sm text-muted-foreground">
-                  {guest.arrival.terminal} · {guest.arrival.gate}
-                </p>
-              </>
-            )}
-            <Button variant="outline" size="sm" className="mt-4" type="button">
-              Send Reminder Notification
+            <Button variant="outline" size="sm" className="mt-4 gap-2" type="button" onClick={() => onTriggerIvr(guest.id)}>
+              <Radio className="size-4" />
+              Trigger IVR
             </Button>
           </div>
         </div>
@@ -78,24 +79,13 @@ function ExpandedRow({ guest }: { guest: Guest }) {
   );
 }
 
-function DietaryBadges({ dietary }: { dietary?: string[] }) {
-  if (!dietary?.length) return null;
-  return (
-    <div className="flex flex-wrap gap-2">
-      {dietary.map((d) => (
-        <Badge
-          key={d}
-          variant="outline"
-          className="border-amber-200 bg-status-warning-bg text-amber-700"
-        >
-          {d}
-        </Badge>
-      ))}
-    </div>
-  );
-}
-
-export function GuestTable({ guests }: { guests: Guest[] }) {
+export function GuestTable({
+  guests,
+  onTriggerIvr,
+}: {
+  guests: GuestRecord[];
+  onTriggerIvr: (guestId: string) => void;
+}) {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <Table>
@@ -142,35 +132,31 @@ export function GuestTable({ guests }: { guests: Guest[] }) {
                   <span className="flex items-center gap-2 text-sm">
                     <span
                       className={`size-2 rounded-full ${
-                        guest.rsvpStatus === "confirmed"
+                        guest.rsvpStatus === "CONFIRMED"
                           ? "bg-status-success"
                           : "bg-status-warning"
                       }`}
                     />
-                    {guest.rsvpStatus === "confirmed" ? "Confirmed" : "Pending"}
+                    {guest.rsvpStatus}
                   </span>
                 </TableCell>
                 <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
-                  {guest.operations ?? "—"}
+                  Group {guest.groupSize} · {guest.pickupLocation || "No pickup"}
                 </TableCell>
                 <TableCell>
                   <StatusBadge
                     variant={
-                      guest.checkInStatus === "checked-in" ? "success" : "neutral"
+                      guest.checkins?.length ? "success" : "neutral"
                     }
                   >
-                    {guest.checkInStatus === "checked-in" ? "CHECKED-IN" : "PENDING"}
+                    {guest.checkins?.length ? "CHECKED-IN" : "PENDING"}
                   </StatusBadge>
                 </TableCell>
                 <TableCell>
-                  {guest.expanded ? (
-                    <ChevronDown className="size-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="size-4 text-muted-foreground" />
-                  )}
+                  <ChevronRight className="size-4 text-muted-foreground" />
                 </TableCell>
               </TableRow>
-              {guest.expanded && <ExpandedRow guest={guest} />}
+              <ExpandedRow guest={guest} onTriggerIvr={onTriggerIvr} />
             </Fragment>
           ))}
         </TableBody>

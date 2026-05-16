@@ -1,15 +1,31 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
+import { AppProvider, EmptyEventState, useApp } from "@/components/providers/app-provider";
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }: { children: ReactNode }) {
+  return (
+    <AppProvider>
+      <AuthenticatedShell>{children}</AuthenticatedShell>
+    </AppProvider>
+  );
+}
+
+function AuthenticatedShell({ children }: { children: ReactNode }) {
+  const { currentEvent } = useApp();
+
+  if (!currentEvent) {
+    return <EmptyEventState />;
+  }
+
   return (
     <div className="min-h-screen">
       <div className="hidden md:block">

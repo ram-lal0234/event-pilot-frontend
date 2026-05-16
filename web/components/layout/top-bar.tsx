@@ -8,12 +8,12 @@ import {
   ChevronDown,
   HelpCircle,
   QrCode,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { currentEvent } from "@/lib/design-tokens";
-import { userAvatar } from "@/lib/mock-data";
+import { useApp } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +26,7 @@ const tabs = ["Live View", "Analytics", "Reports"] as const;
 export function TopBar() {
   const pathname = usePathname();
   const isDashboard = pathname === "/";
+  const { currentEvent, events, setCurrentEventId, user, logout } = useApp();
 
   return (
     <header className="fixed top-0 right-0 z-40 flex h-16 w-full items-center justify-between border-b border-border bg-card px-4 md:w-[calc(100%-16rem)] md:px-8">
@@ -33,11 +34,15 @@ export function TopBar() {
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded border border-border bg-surface-container-low px-4 py-1.5 text-sm font-semibold text-text-main">
             <Calendar className="size-4 text-primary" />
-            {currentEvent.name}
+            {currentEvent?.name}
             <ChevronDown className="size-4 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem>{currentEvent.name}</DropdownMenuItem>
+            {events.map((event) => (
+              <DropdownMenuItem key={event.id} onClick={() => setCurrentEventId(event.id)}>
+                {event.name}
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
         <nav className="hidden items-center gap-6 md:flex">
@@ -71,10 +76,20 @@ export function TopBar() {
           <Button variant="ghost" size="icon" type="button" aria-label="Help">
             <HelpCircle className="size-5 text-muted-foreground" />
           </Button>
-          <Avatar className="size-8 border border-border">
-            <AvatarImage src={userAvatar} alt="User" />
-            <AvatarFallback>U</AvatarFallback>
-          </Avatar>
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Avatar className="size-8 border border-border">
+                <AvatarFallback>{user.email[0]?.toUpperCase() || "U"}</AvatarFallback>
+              </Avatar>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem className="text-muted-foreground">{user.email}</DropdownMenuItem>
+              <DropdownMenuItem onClick={logout}>
+                <LogOut className="size-4" />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>

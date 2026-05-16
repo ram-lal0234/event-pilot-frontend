@@ -7,8 +7,8 @@ import {
 } from "lucide-react";
 
 export const brand = {
-  name: "EventFlow Pro",
-  tagline: "Enterprise Management",
+  name: "EventPilot AI",
+  tagline: "CamRSVP",
 } as const;
 
 export const colors = {
@@ -39,8 +39,3 @@ export const navItems: NavItem[] = [
   { label: "Operations", href: "/operations", icon: Truck },
   { label: "Check-In", href: "/check-in", icon: ScanLine },
 ];
-
-export const currentEvent = {
-  id: "evt-1",
-  name: "Global Tech Summit 2024",
-} as const;
