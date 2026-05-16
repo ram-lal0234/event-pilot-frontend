@@ -13,7 +13,7 @@ import {
 import {
   ArrowLeft,
   ArrowRight,
-  AtSign,
+  Mail,
   CalendarPlus,
   Clock3,
   HelpCircle,
@@ -25,6 +25,7 @@ import {
   Users,
 } from "lucide-react";
 import { api, ApiError, type AuthUser, type EventRecord } from "@/lib/api";
+import { GoogleIcon } from "@/components/icons/google-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -261,21 +262,19 @@ function LoginScreen({
               </div>
 
               <div className="space-y-3">
-                <label className="ml-1 text-sm font-medium text-[#c7c4d8]" htmlFor="email">
+                <label className="ml-1 flex items-center gap-2 text-sm font-medium text-[#c7c4d8]" htmlFor="email">
+                  <Mail className="size-4 text-[#918fa1]" aria-hidden />
                   Email Address
                 </label>
-                <div className="group relative">
-                  <AtSign className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-[#918fa1] transition-colors group-focus-within:text-[#c3c0ff]" />
-                  <Input
-                    className="h-12 border-[#464555]/50 bg-black/20 pl-13 pr-4 text-[#dae2fd] placeholder:text-[#918fa1] focus-visible:border-[#c3c0ff] focus-visible:ring-[#c3c0ff]/20"
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="name@company.com"
-                    required
-                  />
-                </div>
+                <Input
+                  className="h-12 border-[#464555]/50 bg-black/20 px-4 text-[#dae2fd] placeholder:text-[#918fa1] focus-visible:border-[#c3c0ff] focus-visible:ring-[#c3c0ff]/20"
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="name@company.com"
+                  required
+                />
               </div>
 
               {message && <p className="mt-4 rounded-lg border border-[#00a2e6]/20 bg-[#00a2e6]/10 p-3 text-sm text-[#89ceff]">{message}</p>}
@@ -290,12 +289,12 @@ function LoginScreen({
                 <ArrowRight className="size-4" />
               </Button>
 
-              <AuthDivider label="OR CONTINUE WITH" />
+              <AuthDivider label="OR" />
               <Button
                 className="flex h-12 w-full items-center justify-center gap-3 rounded-lg bg-white px-4 text-sm font-semibold text-[#131b2e] transition-all hover:bg-neutral-100 active:scale-[0.98]"
                 type="button"
               >
-                <GoogleMark />
+                <GoogleIcon />
                 Continue with Google
               </Button>
 
@@ -506,14 +505,6 @@ function AuthDivider({ label }: { label: string }) {
       <span className="mx-4 flex-shrink text-xs font-semibold uppercase tracking-widest text-[#464555]">{label}</span>
       <div className="flex-grow border-t border-[#464555]/30" />
     </div>
-  );
-}
-
-function GoogleMark() {
-  return (
-    <span className="grid size-5 place-items-center rounded-full bg-white text-sm font-bold text-[#4285f4]">
-      G
-    </span>
   );
 }
 
