@@ -19,7 +19,35 @@ import type { LucideIcon } from "lucide-react";
 import { GoogleIcon } from "@/components/icons/google-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api, type AuthUser } from "@/lib/api";
+import { api, ApiError, type AuthUser } from "@/lib/api";
+import { cn } from "@/lib/utils";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function emailFormatErrorMessage(trimmed: string): string | null {
+  if (!trimmed) return "Enter the email associated with your account.";
+  if (!trimmed.includes("@"))
+    return "Add an \"@\" between your name and provider—for example deepak@gmail.com.";
+  if (!EMAIL_RE.test(trimmed)) return "That email doesn’t look quite right. Check the spelling and domain.";
+  return null;
+}
+
+function userFacingAuthMessage(error: unknown): string {
+  if (error instanceof ApiError) return error.message;
+  if (error instanceof Error) {
+    const m = error.message.toLowerCase();
+    if (
+      error.name === "TypeError" ||
+      m.includes("failed to fetch") ||
+      m.includes("network error") ||
+      m.includes("load failed")
+    ) {
+      return "We couldn’t reach the server. Check your connection and try again.";
+    }
+    return error.message;
+  }
+  return "Something went wrong. Try again.";
+}
 
 type LoginScreenProps = {
   onAuthenticated: (result: { accessToken: string; user: AuthUser }) => void;
@@ -31,6 +59,7 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
   const [step, setStep] = useState<"email" | "otp">("email");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [emailFieldError, setEmailFieldError] = useState("");
   const [busy, setBusy] = useState(false);
   const [otpCountdownSec, setOtpCountdownSec] = useState(0);
 
@@ -52,61 +81,101 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
 
   const otpCode = otp.replace(/\s/g, "");
 
+  const clearOtpAlerts = () => {
+    setError("");
+  };
+
+  const applyOtpFromDigits = (digits: string) => {
+    clearOtpAlerts();
+    setOtp(digits);
+    document.getElementById(`otp-${Math.min(digits.length, 5)}`)?.focus();
+  };
+
   const requestOtp = async (event: FormEvent) => {
     event.preventDefault();
-    setBusy(true);
+    setEmailFieldError("");
+    setMessage("");
     setError("");
+
+    const trimmed = email.trim();
+    const fmt = emailFormatErrorMessage(trimmed);
+    if (fmt) {
+      setEmailFieldError(fmt);
+      return;
+    }
+    if (trimmed !== email) setEmail(trimmed);
+
+    setBusy(true);
     try {
-      const result = await api.requestOtp(email);
-      setMessage(result.otp ? `Development OTP: ${result.otp}` : "OTP sent to email");
+      const result = await api.requestOtp(trimmed);
+      setMessage(
+        result.otp
+          ? `Your one-time password is shown here during development:\n${result.otp}`
+          : "We've sent you a verification code."
+      );
       setStep("otp");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not request OTP");
+      setError(userFacingAuthMessage(err));
     } finally {
       setBusy(false);
     }
   };
 
   const updateOtpDigit = (index: number, value: string) => {
+    clearOtpAlerts();
     const digit = value.replace(/\D/g, "").slice(-1);
     const next = otp.padEnd(6, " ").split("");
     next[index] = digit || " ";
     setOtp(next.join("").trimEnd());
-    if (digit) {
-      document.getElementById(`otp-${index + 1}`)?.focus();
-    }
+    if (digit) document.getElementById(`otp-${index + 1}`)?.focus();
   };
 
   const verifyOtp = async (event: FormEvent) => {
     event.preventDefault();
+    if (otpCode.length < 6) return;
     setBusy(true);
-    setError("");
+    clearOtpAlerts();
     try {
-      const result = await api.verifyOtp(email, otpCode);
+      const result = await api.verifyOtp(email.trim(), otpCode);
       onAuthenticated(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not verify OTP");
+      setError(userFacingAuthMessage(err));
     } finally {
       setBusy(false);
     }
   };
 
   const resendOtp = async () => {
-    setError("");
     setBusy(true);
+    setError("");
     try {
-      const result = await api.requestOtp(email);
-      setMessage(result.otp ? `Development OTP: ${result.otp}` : "OTP sent to email");
+      const result = await api.requestOtp(email.trim());
+      setMessage(
+        result.otp
+          ? `A new development code:\n${result.otp}`
+          : "We've sent another verification code."
+      );
       setOtpCountdownSec(8 * 60 + 9);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not resend OTP");
+      setError(userFacingAuthMessage(err));
     } finally {
       setBusy(false);
     }
   };
 
+
   const glassSurface =
     "relative w-full max-w-[440px] overflow-hidden rounded-2xl border border-white/[0.13] bg-gradient-to-br from-white/[0.11] via-white/[0.04] to-white/[0.02] shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_32px_100px_-32px_rgba(59,130,246,0.5),0_0_80px_-40px_rgba(139,92,246,0.35)] backdrop-blur-2xl";
+
+  const emailHasIssue = Boolean(emailFieldError || error);
+  const emailAriaDescribedBy =
+    emailFieldError && error
+      ? "email-format-msg email-api-msg"
+      : emailFieldError
+        ? "email-format-msg"
+        : error
+          ? "email-api-msg"
+          : undefined;
 
   return (
     <main className="relative isolate h-dvh min-h-0 overflow-hidden bg-[#05070a] text-[#e8eaf6]">
@@ -142,7 +211,7 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain scroll-smooth [-webkit-overflow-scrolling:touch] px-4 pb-10 pt-4 sm:px-8 sm:pb-12 lg:py-12">
               <div className="mx-auto flex w-full max-w-[440px] flex-col justify-start gap-0 lg:justify-start">
                 {step === "email" ? (
-                  <form className={`${glassSurface} p-5 sm:p-8`} onSubmit={requestOtp}>
+                  <form noValidate className={`${glassSurface} p-5 sm:p-8`} onSubmit={requestOtp}>
                     <div className="pointer-events-none absolute left-6 right-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/35 to-transparent sm:left-10 sm:right-10" />
                     <div className="mb-8 text-center lg:text-left">
                       <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#93c5fd]/90">Sign in</p>
@@ -159,24 +228,41 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                       <div className="relative">
                         <Mail className="pointer-events-none absolute left-4 top-1/2 size-[1.125rem] -translate-y-1/2 text-[#6b7aa8]" aria-hidden />
                         <Input
-                          className="h-12 border-white/15 bg-black/35 pl-11 pr-4 text-[0.9375rem] text-white placeholder:text-[#62708f] focus-visible:border-sky-400/60 focus-visible:ring-sky-500/25"
+                          aria-invalid={emailHasIssue}
+                          aria-describedby={emailAriaDescribedBy}
+                          className={cn(
+                            "h-12 border-white/15 bg-black/35 pl-11 pr-4 text-[0.9375rem] text-white placeholder:text-[#62708f]",
+                            emailHasIssue
+                              ? "border-rose-500/65 ring-2 ring-inset ring-rose-500/25 focus-visible:border-rose-400/75 focus-visible:ring-rose-500/30"
+                              : "focus-visible:border-sky-400/60 focus-visible:ring-sky-500/25"
+                          )}
                           id="email"
-                          type="email"
+                          type="text"
+                          inputMode="email"
+                          autoCapitalize="off"
+                          autoCorrect="off"
+                          spellCheck={false}
                           value={email}
-                          onChange={(e) => setEmail(e.target.value)}
+                          onChange={(e) => {
+                            setEmail(e.target.value);
+                            setEmailFieldError("");
+                            setError("");
+                          }}
                           placeholder="you@company.com"
                           autoComplete="email"
-                          required
                         />
                       </div>
+                      {emailFieldError ? (
+                        <p id="email-format-msg" role="alert" className="text-[13px] leading-snug text-rose-300">
+                          {emailFieldError}
+                        </p>
+                      ) : null}
+                      {error ? (
+                        <p id="email-api-msg" role="alert" className="text-[13px] leading-snug text-rose-300">
+                          {error}
+                        </p>
+                      ) : null}
                     </div>
-
-                    {message && (
-                      <p className="mt-4 rounded-xl border border-sky-500/25 bg-sky-500/10 px-3 py-2.5 text-sm text-sky-100">{message}</p>
-                    )}
-                    {error && (
-                      <p className="mt-4 rounded-xl border border-rose-500/25 bg-rose-950/40 px-3 py-2.5 text-sm text-rose-100">{error}</p>
-                    )}
 
                     <Button
                       type="submit"
@@ -209,7 +295,7 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                     <LoginFormFootnotes />
                   </form>
                 ) : (
-                  <form className={`${glassSurface} p-5 sm:p-8`} onSubmit={verifyOtp}>
+                  <form noValidate className={`${glassSurface} p-5 sm:p-8`} onSubmit={verifyOtp}>
                     <div className="pointer-events-none absolute left-6 right-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/35 to-transparent sm:left-10 sm:right-10" />
                     <div className="-ml-2 mb-4">
                       <Button
@@ -219,7 +305,9 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                         onClick={() => {
                           setStep("email");
                           setOtp("");
-                          setError("");
+                          setMessage("");
+                          clearOtpAlerts();
+                          setEmailFieldError("");
                         }}
                       >
                         <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
@@ -238,14 +326,20 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                       </p>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-wide text-[#8898c8]">Step 2 · OTP code</label>
+                    <fieldset
+                      className="space-y-2"
+                      aria-describedby={
+                        [message ? "otp-help-msg" : "", error ? "otp-error-msg" : ""].filter(Boolean).join(" ") ||
+                        undefined
+                      }
+                    >
+                      <legend className="text-xs font-semibold uppercase tracking-wide text-[#8898c8]">Step 2 · OTP code</legend>
                       <div className="flex justify-center gap-2 sm:gap-3 lg:justify-start">
                         {Array.from({ length: 6 }).map((_, index) => (
                           <Input
                             key={index}
                             id={`otp-${index}`}
-                            className="aspect-square max-h-[52px] min-h-[48px] w-full max-w-[48px] rounded-xl border-white/14 bg-black/45 p-0 text-center text-xl font-semibold tracking-tight text-[#bae6fd] shadow-inner focus-visible:border-sky-400/70 focus-visible:ring-[3px] focus-visible:ring-sky-500/35 sm:h-14 sm:max-h-[56px] sm:max-w-[52px] sm:text-2xl"
+                            className="aspect-square max-h-[52px] min-h-[48px] w-full max-w-[48px] rounded-xl border border-white/14 bg-black/45 p-0 text-center text-xl font-semibold tracking-tight text-[#bae6fd] shadow-inner focus-visible:border-sky-400/70 focus-visible:ring-[3px] focus-visible:ring-sky-500/35 sm:h-14 sm:max-h-[56px] sm:max-w-[52px] sm:text-2xl"
                             maxLength={1}
                             inputMode="numeric"
                             autoComplete={index === 0 ? "one-time-code" : "off"}
@@ -259,8 +353,7 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                             onPaste={(e) => {
                               e.preventDefault();
                               const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-                              setOtp(digits);
-                              document.getElementById(`otp-${Math.min(digits.length, 5)}`)?.focus();
+                              applyOtpFromDigits(digits);
                             }}
                           />
                         ))}
@@ -280,14 +373,17 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                           Resend OTP
                         </button>
                       </div>
-                    </div>
-
-                    {message && (
-                      <p className="mt-4 rounded-xl border border-sky-500/25 bg-sky-500/10 px-3 py-2.5 text-sm text-sky-100 lg:text-left">{message}</p>
-                    )}
-                    {error && (
-                      <p className="mt-4 rounded-xl border border-rose-500/25 bg-rose-950/45 px-3 py-2.5 text-sm text-rose-100 lg:text-left">{error}</p>
-                    )}
+                      {message ? (
+                        <p id="otp-help-msg" className="text-[13px] leading-snug text-sky-200/92 whitespace-pre-line">
+                          {message}
+                        </p>
+                      ) : null}
+                      {error ? (
+                        <p id="otp-error-msg" role="alert" className="text-[13px] leading-snug text-rose-300">
+                          {error}
+                        </p>
+                      ) : null}
+                    </fieldset>
 
                     <Button
                       type="submit"
