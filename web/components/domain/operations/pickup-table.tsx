@@ -71,9 +71,9 @@ export function PickupTable({ pickups }: { pickups: Pickup[] }) {
                   </TableCell>
                   <TableCell className="text-right">
                     {pickup.driverStatus === "unassigned" && (
-                      <button type="button" className="text-sm font-medium text-primary">
+                      <Button variant="link" type="button" className="h-auto p-0">
                         Assign Driver
-                      </button>
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>

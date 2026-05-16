@@ -5,6 +5,7 @@ import { Bed, Car, Hotel, Plus, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/domain/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -202,10 +203,10 @@ export default function OperationsPage() {
             })}
           </div>
           <form className="grid gap-2 rounded-lg bg-surface-container-low p-3 md:grid-cols-4" onSubmit={createRoom}>
-            <select className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm" value={roomForm.hotelId} onChange={(event) => setRoomForm({ ...roomForm, hotelId: event.target.value })} required>
+            <Select value={roomForm.hotelId} onChange={(event) => setRoomForm({ ...roomForm, hotelId: event.target.value })} required>
               <option value="">Hotel</option>
               {hotels.map((hotel) => <option key={hotel.id} value={hotel.id}>{hotel.name}</option>)}
-            </select>
+            </Select>
             <Input value={roomForm.roomNumber} onChange={(event) => setRoomForm({ ...roomForm, roomNumber: event.target.value })} placeholder="Room" required />
             <Input type="number" min={1} value={roomForm.capacity} onChange={(event) => setRoomForm({ ...roomForm, capacity: Number(event.target.value) })} placeholder="Capacity" required />
             <Button type="submit" disabled={busy} className="gap-2"><Plus className="size-4" />Room</Button>
@@ -253,14 +254,14 @@ function AssignmentForm({
 }) {
   return (
     <form className="grid gap-2 rounded-lg border border-border p-3 md:grid-cols-[1fr_1fr_auto]" onSubmit={onSubmit}>
-      <select className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm" value={firstValue} onChange={(event) => onFirstChange(event.target.value)} required>
+      <Select value={firstValue} onChange={(event) => onFirstChange(event.target.value)} required>
         <option value="">{firstLabel}</option>
         {firstOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select>
-      <select className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm" value={guestValue} onChange={(event) => onGuestChange(event.target.value)} required>
+      </Select>
+      <Select value={guestValue} onChange={(event) => onGuestChange(event.target.value)} required>
         <option value="">{title}</option>
         {guests.map((guest) => <option key={guest.id} value={guest.id}>{guest.name} ({guest.groupSize})</option>)}
-      </select>
+      </Select>
       <Button type="submit" disabled={busy}>Assign</Button>
     </form>
   );

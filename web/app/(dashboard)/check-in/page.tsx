@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { QrCode, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { api, type CheckinLocationType, type GuestRecord } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
 
@@ -54,14 +55,13 @@ export default function CheckInPage() {
             </div>
             <div className="mx-auto grid w-full max-w-xl gap-3">
               <Input value={qrCode} onChange={(event) => setQrCode(event.target.value)} placeholder="guest:event-id:uuid" required />
-              <select
-                className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+              <Select
                 value={locationType}
                 onChange={(event) => setLocationType(event.target.value as CheckinLocationType)}
               >
                 <option value="EVENT_GATE">Event gate</option>
                 <option value="HOTEL">Hotel</option>
-              </select>
+              </Select>
               <Button className="gap-2" type="submit" disabled={busy}>
                 <Search className="size-4" />
                 Validate and Check In

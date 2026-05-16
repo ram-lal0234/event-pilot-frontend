@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bed, Car, UserCheck, Users, Plus } from "lucide-react";
 import { StatCard } from "@/components/domain/stat-card";
 import { LiveOperationsFeed } from "@/components/domain/dashboard/live-operations-feed";
 import { ArrivalsTable } from "@/components/domain/dashboard/arrivals-table";
+import { QuickActions } from "@/components/domain/dashboard/quick-actions";
 import { arrivals } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { api, type AuditRecord, type DashboardSummary } from "@/lib/api";
@@ -81,13 +82,8 @@ export default function DashboardPage() {
         <div className="lg:col-span-2">
           <LiveOperationsFeed items={feedItems} />
         </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-base font-semibold">Quick Actions</p>
-          <div className="mt-4 grid gap-2">
-            <QuickLink href="/guests">Add Guests</QuickLink>
-            <QuickLink href="/check-in">Open Check-In</QuickLink>
-            <QuickLink href="/operations">Assign Logistics</QuickLink>
-          </div>
+        <div className="self-start">
+          <QuickActions />
         </div>
       </div>
       <ArrivalsTable arrivals={arrivals} />
@@ -99,16 +95,5 @@ export default function DashboardPage() {
         <Plus className="size-6" />
       </Button>
     </div>
-  );
-}
-
-function QuickLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <a
-      href={href}
-      className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-background px-2.5 text-sm font-medium hover:bg-muted"
-    >
-      {children}
-    </a>
   );
 }

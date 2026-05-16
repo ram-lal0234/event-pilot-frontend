@@ -29,9 +29,9 @@ export function HotelPanel({ data }: { data: HotelData }) {
                   <span className="font-medium">{r.room}</span>
                   <span className="text-muted-foreground"> · {r.type}</span>
                 </span>
-                <button type="button" className="text-sm font-medium text-primary">
+                <Button variant="link" type="button" className="h-auto p-0">
                   Assign
-                </button>
+                </Button>
               </li>
             ))}
           </ul>

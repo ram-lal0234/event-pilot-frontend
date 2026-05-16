@@ -6,6 +6,8 @@ import { PageHeader } from "@/components/domain/page-header";
 import { GuestTable } from "@/components/domain/guests/guest-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Sheet,
   SheetContent,
@@ -158,7 +160,7 @@ function GuestSheet({
   return (
     <Sheet>
       <SheetTrigger
-        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground"
+        render={<Button className="gap-2" type="button" />}
       >
         <Plus className="size-4" />
         Add Guest
@@ -172,15 +174,14 @@ function GuestSheet({
             <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Name" required />
             <Input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="Phone" required />
             <Input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="Email" />
-            <select
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+            <Select
               value={form.category}
               onChange={(event) => setForm({ ...form, category: event.target.value as GuestCategory })}
             >
               <option value="GENERAL">General</option>
               <option value="FAMILY">Family</option>
               <option value="VIP">VIP</option>
-            </select>
+            </Select>
             <Input type="number" min={1} value={form.groupSize} onChange={(event) => setForm({ ...form, groupSize: Number(event.target.value) })} placeholder="Group size" />
             <Input value={form.pickupLocation} onChange={(event) => setForm({ ...form, pickupLocation: event.target.value })} placeholder="Pickup location" />
             <div className="grid grid-cols-2 gap-2">
@@ -211,7 +212,7 @@ function CsvSheet({
   return (
     <Sheet>
       <SheetTrigger
-        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-sm font-medium"
+        render={<Button variant="outline" className="gap-2" type="button" />}
       >
         <FileUp className="size-4" />
         CSV
@@ -221,8 +222,8 @@ function CsvSheet({
           <SheetTitle>Upload Guest CSV</SheetTitle>
         </SheetHeader>
         <div className="px-4">
-          <textarea
-            className="min-h-72 w-full rounded-lg border border-input bg-transparent p-3 font-mono text-sm"
+          <Textarea
+            className="min-h-72 font-mono text-sm"
             value={csv}
             onChange={(event) => setCsv(event.target.value)}
           />

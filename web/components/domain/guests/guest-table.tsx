@@ -5,6 +5,7 @@ import { ChevronRight, MapPin, Phone, Radio } from "lucide-react";
 import type { GuestRecord } from "@/lib/api";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -105,7 +106,7 @@ export function GuestTable({
             <Fragment key={guest.id}>
               <TableRow>
                 <TableCell>
-                  <input type="checkbox" className="rounded border-border" readOnly />
+                  <Checkbox readOnly />
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-3">

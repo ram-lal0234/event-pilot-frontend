@@ -3,10 +3,12 @@
 import type { ReactNode } from "react";
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AuthGuard } from "@/components/auth/auth-guard";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
-import { AppProvider, EmptyEventState, useApp } from "@/components/providers/app-provider";
+import { AppProvider } from "@/components/providers/app-provider";
 import { SidebarProvider, useSidebar } from "@/components/layout/sidebar-context";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -22,16 +24,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 
 function AuthenticatedShell({ children }: { children: ReactNode }) {
-  const { currentEvent } = useApp();
-
-  if (!currentEvent) {
-    return <EmptyEventState />;
-  }
-
   return (
-    <SidebarProvider>
-      <AppShellInner>{children}</AppShellInner>
-    </SidebarProvider>
+    <AuthGuard>
+      <SidebarProvider>
+        <AppShellInner>{children}</AppShellInner>
+      </SidebarProvider>
+    </AuthGuard>
   );
 }
 
@@ -55,7 +53,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
           <div className="md:hidden">
             <Sheet>
               <SheetTrigger
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-card shadow-sm"
+                render={<Button variant="outline" size="icon" className="size-9 shrink-0 bg-card shadow-sm" />}
                 aria-label="Open menu"
               >
                 <Menu className="size-5" />
@@ -70,7 +68,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
       <main
         className={cn(
-          "min-h-screen bg-background pb-8 pt-14 transition-[margin] duration-200 ease-out sm:pt-16",
+          "min-h-screen bg-background pb-8 pt-[calc(3.5rem-1px)] transition-[margin] duration-200 ease-out sm:pt-[calc(4rem-1px)]",
           sidebarOpen ? "md:ml-64" : "md:ml-0"
         )}
       >

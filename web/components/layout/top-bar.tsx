@@ -65,7 +65,15 @@ export function TopBar({ mobileMenu }: TopBarProps) {
         </Button>
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex max-w-[min(100%,11rem)] min-w-0 items-center gap-2 rounded border border-border bg-surface-container-low px-2 py-1.5 text-left text-xs font-semibold text-text-main sm:max-w-[18rem] sm:py-2 sm:text-sm sm:leading-tight lg:max-w-none">
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="outline"
+                className="max-w-[min(100%,11rem)] min-w-0 justify-start gap-2 bg-surface-container-low px-2 py-1.5 text-left text-xs font-semibold text-text-main sm:max-w-[18rem] sm:py-2 sm:text-sm sm:leading-tight lg:max-w-none"
+                type="button"
+              />
+            }
+          >
             <Calendar className="size-4 shrink-0 text-primary" />
             <span className="truncate">{currentEvent?.name}</span>
             <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
@@ -97,13 +105,13 @@ export function TopBar({ mobileMenu }: TopBarProps) {
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-2 md:gap-3 lg:gap-4">
-        <Link
-          href="/check-in"
+        <Button
+          render={<Link href="/check-in" />}
           className="inline-flex h-8 items-center gap-2 rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground sm:px-3 sm:text-sm"
         >
           <QrCode className="size-4 shrink-0" />
           <span className="hidden sm:inline">Check-In Mode</span>
-        </Link>
+        </Button>
         <div className="flex items-center gap-0 border-l border-border pl-2 sm:gap-2 sm:pl-3 md:gap-4 md:pl-4">
           <Button
             variant="ghost"
@@ -124,13 +132,21 @@ export function TopBar({ mobileMenu }: TopBarProps) {
             <HelpCircle className="size-[1.125rem] text-muted-foreground sm:size-5" />
           </Button>
           <DropdownMenu>
-            <DropdownMenuTrigger>
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" size="icon" className="size-9 rounded-full" type="button" />}
+            >
               <Avatar className="size-8 border border-border">
                 <AvatarFallback>{user.email[0]?.toUpperCase() || "U"}</AvatarFallback>
               </Avatar>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem className="text-muted-foreground">{user.email}</DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-64 max-w-[calc(100vw-1rem)]">
+              <DropdownMenuItem
+                className="min-w-0 cursor-default text-muted-foreground focus:bg-transparent"
+                title={user.email}
+                onSelect={(event) => event.preventDefault()}
+              >
+                <span className="block min-w-0 truncate">{user.email}</span>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={logout}>
                 <LogOut className="size-4" />
                 Logout

@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -21,18 +20,20 @@ type SidebarContextValue = {
 const SidebarContext = createContext<SidebarContextValue | null>(null);
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpenState] = useState(true);
-
-  useEffect(() => {
+  const [sidebarOpen, setSidebarOpenState] = useState(() => {
+    if (typeof window === "undefined") {
+      return true;
+    }
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored !== null) {
-        setSidebarOpenState(stored === "true");
+        return stored === "true";
       }
     } catch {
       // ignore storage errors (private mode)
     }
-  }, []);
+    return true;
+  });
 
   const setSidebarOpen = useCallback((open: boolean) => {
     setSidebarOpenState(open);
