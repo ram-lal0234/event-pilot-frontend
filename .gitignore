@@ -37,3 +37,7 @@ next-env.d.ts
 
 # Stitch API temp responses
 .stitch-*.json
+
+# Next.js app in web/
+web/node_modules
+web/.next
