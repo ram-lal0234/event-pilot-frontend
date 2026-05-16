@@ -11,7 +11,6 @@ import {
   ListChecks,
   Loader2,
   Mail,
-  MailCheck,
   Rocket,
   ScanLine,
   UserRoundCheck,
@@ -114,7 +113,7 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
       <LoginAmbientOrbs />
 
       <div className="relative z-[1] flex h-full min-h-0 flex-col lg:flex-row">
-        <BrandPanel compact={step === "otp"} />
+        <BrandPanel />
 
         <section className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden lg:w-1/2 lg:max-w-none">
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(160deg,rgba(15,23,42,0.5)_0%,rgba(5,7,10,0.92)_50%,rgba(5,7,10,1)_100%)] lg:bg-[linear-gradient(200deg,rgba(30,27,75,0.25)_0%,rgba(5,7,10,0.94)_55%,rgba(5,7,10,1)_100%)]" />
@@ -212,89 +211,95 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                 ) : (
                   <form className={`${glassSurface} p-5 sm:p-8`} onSubmit={verifyOtp}>
                     <div className="pointer-events-none absolute left-6 right-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/35 to-transparent sm:left-10 sm:right-10" />
-                    <Button
-                      variant="link"
-                      className="group mb-6 -ml-2 inline-flex items-center gap-2 px-2 text-sm font-medium text-[#9fb0d9] hover:text-white"
-                      type="button"
-                      onClick={() => {
-                        setStep("email");
-                        setOtp("");
-                        setError("");
-                      }}
-                    >
-                      <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
-                      Change email
-                    </Button>
-
-                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#8898c8]">Step 2 · OTP Verification</div>
-                    <div className="mx-auto mb-8 max-w-sm text-center">
-                      <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full border border-sky-400/25 bg-gradient-to-br from-[#2563eb]/35 to-purple-600/25 shadow-[0_0_48px_-12px_rgba(59,130,246,0.55)]">
-                        <MailCheck className="size-8 text-sky-200" />
-                      </div>
-                      <h2 className="text-xl font-semibold text-white sm:text-2xl">Verify your email</h2>
-                      <p className="mt-2 break-all text-sm text-[#9fb0d9]">Enter the code sent to {email}</p>
-                    </div>
-
-                    <div className="flex justify-center gap-2 sm:gap-3">
-                      {Array.from({ length: 6 }).map((_, index) => (
-                        <Input
-                          key={index}
-                          id={`otp-${index}`}
-                          className="aspect-square max-h-[52px] min-h-[48px] w-full max-w-[48px] rounded-xl border-white/14 bg-black/45 p-0 text-center text-xl font-semibold tracking-tight text-[#bae6fd] shadow-inner focus-visible:border-sky-400/70 focus-visible:ring-[3px] focus-visible:ring-sky-500/35 sm:h-14 sm:max-h-[56px] sm:max-w-[52px] sm:text-2xl"
-                          maxLength={1}
-                          inputMode="numeric"
-                          autoComplete={index === 0 ? "one-time-code" : "off"}
-                          value={otp[index] || ""}
-                          onChange={(e) => updateOtpDigit(index, e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Backspace" && !otp[index]) {
-                              document.getElementById(`otp-${index - 1}`)?.focus();
-                            }
-                          }}
-                          onPaste={(e) => {
-                            e.preventDefault();
-                            const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-                            setOtp(digits);
-                            document.getElementById(`otp-${Math.min(digits.length, 5)}`)?.focus();
-                          }}
-                        />
-                      ))}
-                    </div>
-
-                    <div className="mt-4 flex flex-col items-center justify-between gap-2 text-xs text-[#8b98bc] sm:flex-row sm:text-sm">
-                      <div className="flex items-center gap-2 tabular-nums">
-                        <Clock3 className="size-4 text-sky-400/70" aria-hidden />
-                        <span>Countdown:</span>
-                        <span className="font-semibold text-[#c7d9ff]">{formatHms(otpCountdownSec)}</span>
-                      </div>
-                      <button
+                    <div className="-ml-2 mb-4">
+                      <Button
+                        variant="link"
+                        className="group inline-flex items-center gap-2 px-2 text-sm font-medium text-[#9fb0d9] hover:text-white"
                         type="button"
-                        className={`font-semibold transition-colors ${otpCountdownSec === 0 ? "cursor-pointer text-sky-300 hover:text-white" : "cursor-not-allowed opacity-55"}`}
-                        disabled={otpCountdownSec > 0 || busy}
-                        onClick={() => void resendOtp()}
+                        onClick={() => {
+                          setStep("email");
+                          setOtp("");
+                          setError("");
+                        }}
                       >
-                        Resend OTP
-                      </button>
+                        <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
+                        Change email
+                      </Button>
+                    </div>
+
+                    <div className="mb-8 text-center lg:text-left">
+                      <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#93c5fd]/90">Verify</p>
+                      <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Check your inbox</h1>
+                      <p className="mt-2 max-w-md text-sm leading-relaxed text-[#9fb0d9]">
+                        Enter the 6-digit code we sent to{" "}
+                        <span className="font-medium text-[#c7d5f0]" title={email}>
+                          {email}
+                        </span>
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold uppercase tracking-wide text-[#8898c8]">Step 2 · OTP code</label>
+                      <div className="flex justify-center gap-2 sm:gap-3 lg:justify-start">
+                        {Array.from({ length: 6 }).map((_, index) => (
+                          <Input
+                            key={index}
+                            id={`otp-${index}`}
+                            className="aspect-square max-h-[52px] min-h-[48px] w-full max-w-[48px] rounded-xl border-white/14 bg-black/45 p-0 text-center text-xl font-semibold tracking-tight text-[#bae6fd] shadow-inner focus-visible:border-sky-400/70 focus-visible:ring-[3px] focus-visible:ring-sky-500/35 sm:h-14 sm:max-h-[56px] sm:max-w-[52px] sm:text-2xl"
+                            maxLength={1}
+                            inputMode="numeric"
+                            autoComplete={index === 0 ? "one-time-code" : "off"}
+                            value={otp[index] || ""}
+                            onChange={(e) => updateOtpDigit(index, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Backspace" && !otp[index]) {
+                                document.getElementById(`otp-${index - 1}`)?.focus();
+                              }
+                            }}
+                            onPaste={(e) => {
+                              e.preventDefault();
+                              const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+                              setOtp(digits);
+                              document.getElementById(`otp-${Math.min(digits.length, 5)}`)?.focus();
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <div className="flex w-full flex-col gap-2 pt-1 text-xs text-[#8b98bc] sm:flex-row sm:items-center sm:justify-between sm:text-sm">
+                        <div className="flex items-center justify-center gap-2 tabular-nums sm:justify-start">
+                          <Clock3 className="size-4 text-sky-400/70" aria-hidden />
+                          <span>Countdown:</span>
+                          <span className="font-semibold text-[#c7d9ff]">{formatHms(otpCountdownSec)}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className={`text-center font-semibold transition-colors sm:text-right ${otpCountdownSec === 0 ? "cursor-pointer text-sky-300 hover:text-white" : "cursor-not-allowed opacity-55"}`}
+                          disabled={otpCountdownSec > 0 || busy}
+                          onClick={() => void resendOtp()}
+                        >
+                          Resend OTP
+                        </button>
+                      </div>
                     </div>
 
                     {message && (
-                      <p className="mt-5 rounded-xl border border-sky-500/25 bg-sky-500/10 px-3 py-2.5 text-center text-sm text-sky-100">{message}</p>
+                      <p className="mt-4 rounded-xl border border-sky-500/25 bg-sky-500/10 px-3 py-2.5 text-sm text-sky-100 lg:text-left">{message}</p>
                     )}
                     {error && (
-                      <p className="mt-5 rounded-xl border border-rose-500/25 bg-rose-950/45 px-3 py-2.5 text-center text-sm text-rose-100">{error}</p>
+                      <p className="mt-4 rounded-xl border border-rose-500/25 bg-rose-950/45 px-3 py-2.5 text-sm text-rose-100 lg:text-left">{error}</p>
                     )}
 
                     <Button
                       type="submit"
                       disabled={busy || otpCode.length < 6}
-                      className="mt-7 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#2563eb] text-[15px] font-semibold text-white shadow-[0_0_32px_-4px_rgba(37,99,235,0.85)] transition-all hover:bg-[#1d4ed8] disabled:opacity-50"
+                      className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#2563eb] text-[15px] font-semibold text-white shadow-[0_0_32px_-4px_rgba(37,99,235,0.85)] transition-all hover:bg-[#1d4ed8] disabled:opacity-50"
                     >
                       {busy ? <Loader2 className="size-5 animate-spin" /> : null}
                       Verify &amp; Continue
                       {!busy ? <ArrowRight className="size-4" /> : null}
                     </Button>
 
-                    <LoginFormFootnotes />
+                    <LoginFormFootnotes showTrustLine={false} />
                   </form>
                 )}
               </div>
@@ -306,7 +311,7 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
   );
 }
 
-function LoginFormFootnotes() {
+function LoginFormFootnotes({ showTrustLine = true }: { showTrustLine?: boolean }) {
   return (
     <footer className="mt-8 border-t border-white/10 pt-6">
       <div className="flex flex-col items-center gap-4 text-center">
@@ -324,9 +329,11 @@ function LoginFormFootnotes() {
             Terms of Service
           </Link>
         </nav>
-        <p className="text-xs leading-relaxed text-[#8890a8]">
-          Trusted for managing modern events &amp; guest experiences.
-        </p>
+        {showTrustLine ? (
+          <p className="text-xs leading-relaxed text-[#8890a8]">
+            Trusted for managing modern events &amp; guest experiences.
+          </p>
+        ) : null}
         <p className="text-[10px] text-[#5c637a]">© 2024–2026 EventPilot AI. All rights reserved.</p>
       </div>
     </footer>
@@ -370,40 +377,7 @@ function FloatingFeatureBadge({
   );
 }
 
-function BrandPanel({ compact }: { compact: boolean }) {
-  if (compact) {
-    return (
-      <section className="relative hidden h-full w-[min(100%,340px)] shrink-0 flex-col justify-between overflow-hidden border-r border-white/10 bg-[#060a14]/85 p-8 backdrop-blur-2xl lg:flex">
-        <LoginAmbientOrbs />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/55" />
-        <div className="relative z-10">
-          <div className="mb-8 flex items-center gap-2.5">
-            <div className="grid size-9 place-items-center rounded-lg bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6] shadow-md shadow-blue-600/25">
-              <Rocket className="size-[1.125rem] text-white" />
-            </div>
-            <span className="bg-gradient-to-r from-white to-[#dbc7ff] bg-clip-text text-base font-bold text-transparent">
-              EventPilot AI
-            </span>
-          </div>
-          <p className="max-w-[13rem] text-sm font-medium leading-snug text-[#b8c9ef]">
-            Guest lists, check-ins &amp; logistics—streamlined on event day.
-          </p>
-        </div>
-        <div className="relative z-10 grid gap-2">
-          {FLOAT_FEATURES.slice(0, 3).map(({ Icon, label }) => (
-            <div
-              key={label}
-              className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 backdrop-blur-md"
-            >
-              <Icon className="size-4 shrink-0 text-sky-300" />
-              <span className="text-[11px] font-semibold text-white">{label}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-    );
-  }
-
+function BrandPanel() {
   return (
     <section className="relative hidden h-full flex-1 flex-col overflow-hidden border-r border-white/10 lg:flex lg:max-w-[52%]">
       <LoginAmbientOrbs />
