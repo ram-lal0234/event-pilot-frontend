@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { ChevronRight, MapPin, Phone, Radio } from "lucide-react";
+import { ChevronRight, Download, MapPin, Phone, QrCode, Radio } from "lucide-react";
 import { toast } from "sonner";
+import { QRCodeCanvas } from "qrcode.react";
 import type { GuestRecord, RsvpStatus } from "@/lib/api";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,21 @@ function GuestDetailsSheet({
   const [busy, setBusy] = useState(false);
   const [ivrBusy, setIvrBusy] = useState(false);
   const ivrDisabled = savedRsvpStatus !== "PENDING";
+  const qrCanvasId = `guest-qr-${guest.id}`;
+
+  const downloadQr = () => {
+    const canvas = document.getElementById(qrCanvasId) as HTMLCanvasElement | null;
+    if (!canvas) {
+      toast.error("QR code is not ready yet");
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.href = canvas.toDataURL("image/png");
+    link.download = `${guest.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "guest"}-qr.png`;
+    link.click();
+    toast.success("QR code downloaded");
+  };
 
   const submitRsvp = async (event: FormEvent) => {
     event.preventDefault();
@@ -174,6 +190,30 @@ function GuestDetailsSheet({
               <Radio className="size-4" />
               Trigger IVR
             </Button>
+          </section>
+
+          <section className="rounded-lg border border-border p-4">
+            <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase text-muted-foreground">
+              <QrCode className="size-4" />
+              Guest QR Code
+            </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="w-fit rounded-lg border border-border bg-white p-3">
+                <QRCodeCanvas
+                  id={qrCanvasId}
+                  value={guest.qrCode}
+                  size={144}
+                  includeMargin
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="break-all text-xs text-muted-foreground">{guest.qrCode}</p>
+                <Button variant="outline" size="sm" className="mt-3 gap-2" type="button" onClick={downloadQr}>
+                  <Download className="size-4" />
+                  Download QR
+                </Button>
+              </div>
+            </div>
           </section>
 
           <section className="grid grid-cols-2 gap-3 text-sm">
