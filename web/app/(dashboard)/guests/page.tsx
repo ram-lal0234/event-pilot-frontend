@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { z } from "zod";
 import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, FileUp, Plus, RefreshCw, Upload, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/domain/page-header";
 import { GuestTable } from "@/components/domain/guests/guest-table";
 import { Button } from "@/components/ui/button";
@@ -69,8 +70,6 @@ export default function GuestsPage() {
   const [guests, setGuests] = useState<GuestRecord[]>([]);
   const [guestForm, setGuestForm] = useState(emptyGuest);
   const [csv, setCsv] = useState("name,phone,email,category,group_size,pickup_location\n");
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [guestsLoaded, setGuestsLoaded] = useState(false);
   const [page, setPage] = useState(1);
@@ -96,9 +95,8 @@ export default function GuestsPage() {
       }
       setGuests(result.items);
       setPagination(result.pagination);
-      setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load guests");
+      toast.error(err instanceof Error ? err.message : "Could not load guests");
     } finally {
       setGuestsLoaded(true);
     }
@@ -122,7 +120,6 @@ export default function GuestsPage() {
   const addGuest = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
-    setMessage("");
     try {
       await api.createGuest(token, {
         eventId: currentEventId,
@@ -136,7 +133,7 @@ export default function GuestsPage() {
         pickupLng: guestForm.pickupLng ? Number(guestForm.pickupLng) : undefined,
       });
       setGuestForm(emptyGuest);
-      setMessage("Guest created");
+      toast.success("Guest created");
       await loadGuests();
       return null;
     } catch (err) {
@@ -148,10 +145,9 @@ export default function GuestsPage() {
 
   const uploadCsv = async (csvToImport: string) => {
     setBusy(true);
-    setMessage("");
     try {
       const result = await api.uploadGuestCsv(token, currentEventId, csvToImport);
-      setMessage(`${result.inserted} guests imported`);
+      toast.success(`${result.inserted} guests imported`);
       await loadGuests();
       return null;
     } catch (err) {
@@ -163,7 +159,6 @@ export default function GuestsPage() {
 
   const exportGuests = async () => {
     setBusy(true);
-    setError("");
     try {
       const allGuests = await api.listGuests(token, currentEventId);
       const csvExport = buildGuestExportCsv(allGuests);
@@ -172,8 +167,9 @@ export default function GuestsPage() {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
       downloadCsv(csvExport, `${safeEventName || "event"}-guests.csv`);
+      toast.success("Guest export downloaded");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not export guests");
+      toast.error(err instanceof Error ? err.message : "Could not export guests");
     } finally {
       setBusy(false);
     }
@@ -182,16 +178,15 @@ export default function GuestsPage() {
   const triggerIvr = async (guestId: string) => {
     try {
       await api.triggerIvr(token, guestId);
-      setMessage("IVR job queued");
+      toast.success("IVR job queued");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not queue IVR");
+      toast.error(err instanceof Error ? err.message : "Could not queue IVR");
     }
   };
 
   const updateGuestRsvp = async (guestId: string, payload: { rsvpStatus: GuestRecord["rsvpStatus"]; groupSize: number }) => {
     try {
       await api.updateGuestRsvp(token, guestId, payload);
-      setMessage("RSVP updated");
       await loadGuests();
       return null;
     } catch (err) {
@@ -226,8 +221,6 @@ export default function GuestsPage() {
           </>
         }
       />
-      {message && <p className="mb-3 rounded-md bg-status-success-bg p-3 text-sm text-status-success">{message}</p>}
-      {error && <p className="mb-3 rounded-md bg-status-error-bg p-3 text-sm text-status-error">{error}</p>}
       <GuestTable guests={guests} onTriggerIvr={triggerIvr} onUpdateRsvp={updateGuestRsvp} />
       <GuestFooter
         stats={stats}
@@ -291,12 +284,9 @@ function GuestSheet({
   onSubmit: (event: FormEvent) => Promise<string | null>;
   busy: boolean;
 }) {
-  const [sheetError, setSheetError] = useState("");
-
   const handleSubmit = async (event: FormEvent) => {
-    setSheetError("");
     const errorMessage = await onSubmit(event);
-    setSheetError(errorMessage || "");
+    if (errorMessage) toast.error(errorMessage);
   };
 
   return (
@@ -313,11 +303,6 @@ function GuestSheet({
             <SheetTitle>Add Guest</SheetTitle>
           </SheetHeader>
           <div className="space-y-3 px-4">
-            {sheetError && (
-              <p className="rounded-md bg-status-error-bg p-3 text-sm text-status-error">
-                {sheetError}
-              </p>
-            )}
             <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Name" required />
             <Input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="Phone" required />
             <Input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="Email" />
@@ -358,7 +343,6 @@ function CsvSheet({
 }) {
   const [pasteMode, setPasteMode] = useState(false);
   const [fileName, setFileName] = useState("");
-  const [sheetError, setSheetError] = useState("");
   const preview = useMemo(() => parseGuestCsv(csv), [csv]);
   const validRows = preview.filter((row) => row.valid && row.data);
   const invalidRows = preview.length - validRows.length;
@@ -376,9 +360,8 @@ function CsvSheet({
   };
 
   const importValidRows = async () => {
-    setSheetError("");
     const errorMessage = await uploadCsv(buildGuestCsv(validRows.map((row) => row.data as CsvGuestRow)));
-    setSheetError(errorMessage || "");
+    if (errorMessage) toast.error(errorMessage);
   };
 
   return (
@@ -395,12 +378,6 @@ function CsvSheet({
         </SheetHeader>
 
         <div className="min-w-0 flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-4 pb-4">
-          {sheetError && (
-            <p className="rounded-md bg-status-error-bg p-3 text-sm text-status-error">
-              {sheetError}
-            </p>
-          )}
-
           <div className="grid min-w-0 gap-3 rounded-lg border border-dashed border-border bg-surface-container-low p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
             <div className="min-w-0">
               <p className="text-sm font-semibold">Upload File</p>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bed, Car, CheckCircle2, Clock3, RefreshCw, Users } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/domain/page-header";
 import { StatCard } from "@/components/domain/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +19,6 @@ export default function AnalyticsPage() {
   const [cabs, setCabs] = useState<CabRecord[]>([]);
   const [hotels, setHotels] = useState<HotelRecord[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     if (!currentEventId) return;
@@ -34,9 +34,8 @@ export default function AnalyticsPage() {
       setGuests(guestResult);
       setCabs(cabResult);
       setHotels(hotelResult);
-      setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load analytics");
+      toast.error(err instanceof Error ? err.message : "Could not load analytics");
     } finally {
       setLoaded(true);
     }
@@ -91,8 +90,6 @@ export default function AnalyticsPage() {
           </Button>
         }
       />
-      {error && <p className="rounded-md bg-status-error-bg p-3 text-sm text-status-error">{error}</p>}
-
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total Guests" value={`${summary?.totalGuests || guests.length}`} subtext="Guest records" icon={Users} />
         <StatCard label="Confirmed RSVP" value={`${summary?.confirmed || metrics.confirmed}`} subtext="Accepted guests" icon={CheckCircle2} />

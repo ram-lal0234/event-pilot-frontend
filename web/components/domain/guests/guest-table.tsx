@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { ChevronRight, MapPin, Phone, Radio } from "lucide-react";
+import { toast } from "sonner";
 import type { GuestRecord, RsvpStatus } from "@/lib/api";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { Button } from "@/components/ui/button";
@@ -46,24 +47,25 @@ function GuestDetailsSheet({
 }) {
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus>(guest.rsvpStatus);
   const [groupSize, setGroupSize] = useState(guest.groupSize);
+  const [savedRsvpStatus, setSavedRsvpStatus] = useState<RsvpStatus>(guest.rsvpStatus);
+  const [savedGroupSize, setSavedGroupSize] = useState(guest.groupSize);
   const [busy, setBusy] = useState(false);
   const [ivrBusy, setIvrBusy] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const ivrDisabled = savedRsvpStatus !== "PENDING";
 
   const submitRsvp = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
-    setError("");
-    setMessage("");
     const errorMessage = await onUpdateRsvp(guest.id, {
       rsvpStatus,
       groupSize: Number(groupSize),
     });
     if (errorMessage) {
-      setError(errorMessage);
+      toast.error(errorMessage);
     } else {
-      setMessage("Manual RSVP saved");
+      setSavedRsvpStatus(rsvpStatus);
+      setSavedGroupSize(Number(groupSize));
+      toast.success("Manual RSVP saved");
     }
     setBusy(false);
   };
@@ -84,9 +86,6 @@ function GuestDetailsSheet({
         </SheetHeader>
 
         <div className="space-y-5 px-4">
-          {message && <p className="rounded-md bg-status-success-bg p-3 text-sm text-status-success">{message}</p>}
-          {error && <p className="rounded-md bg-status-error-bg p-3 text-sm text-status-error">{error}</p>}
-
           <section className="rounded-lg border border-border p-4">
             <p className="mb-3 text-[11px] font-semibold uppercase text-muted-foreground">
               Contact Info
@@ -151,7 +150,11 @@ function GuestDetailsSheet({
               IVR and QR
             </p>
             <p className="text-sm text-muted-foreground">
-              {guest.ivrRespondedAt ? `Responded ${new Date(guest.ivrRespondedAt).toLocaleString()}` : "No IVR response yet"}
+              {ivrDisabled
+                ? `IVR disabled because RSVP is ${savedRsvpStatus.toLowerCase()}.`
+                : guest.ivrRespondedAt
+                  ? `Responded ${new Date(guest.ivrRespondedAt).toLocaleString()}`
+                  : "No IVR response yet"}
             </p>
             <Button
               variant="outline"
@@ -160,7 +163,9 @@ function GuestDetailsSheet({
               type="button"
               loading={ivrBusy}
               loadingText="Queueing IVR"
+              disabled={ivrDisabled}
               onClick={async () => {
+                if (ivrDisabled) return;
                 setIvrBusy(true);
                 await onTriggerIvr(guest.id);
                 setIvrBusy(false);
@@ -178,11 +183,11 @@ function GuestDetailsSheet({
             </div>
             <div className="rounded-lg bg-surface-container-low p-3">
               <p className="text-[11px] font-semibold uppercase text-muted-foreground">Group</p>
-              <p className="mt-1 font-semibold">{guest.groupSize}</p>
+              <p className="mt-1 font-semibold">{savedGroupSize}</p>
             </div>
             <div className="rounded-lg bg-surface-container-low p-3">
               <p className="text-[11px] font-semibold uppercase text-muted-foreground">RSVP</p>
-              <p className="mt-1 font-semibold">{guest.rsvpStatus}</p>
+              <p className="mt-1 font-semibold">{savedRsvpStatus}</p>
             </div>
             <div className="rounded-lg bg-surface-container-low p-3">
               <p className="text-[11px] font-semibold uppercase text-muted-foreground">Check-In</p>
@@ -272,7 +277,12 @@ export function GuestTable({
                 </StatusBadge>
               </TableCell>
               <TableCell>
-                <GuestDetailsSheet guest={guest} onTriggerIvr={onTriggerIvr} onUpdateRsvp={onUpdateRsvp} />
+                <GuestDetailsSheet
+                  key={`${guest.id}-${guest.rsvpStatus}-${guest.groupSize}`}
+                  guest={guest}
+                  onTriggerIvr={onTriggerIvr}
+                  onUpdateRsvp={onUpdateRsvp}
+                />
               </TableCell>
             </TableRow>
           )) : (

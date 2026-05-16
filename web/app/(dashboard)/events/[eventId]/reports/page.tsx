@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Download, FileCheck2, FileSpreadsheet, RefreshCw, Users } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/domain/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +29,6 @@ export default function ReportsPage() {
   const { token, currentEventId, currentEvent, eventsLoaded, eventsLoading } = useApp();
   const [guests, setGuests] = useState<GuestRecord[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState("");
   const [history, setHistory] = useState<ReportHistory[]>([]);
 
   const load = useCallback(async () => {
@@ -37,9 +37,8 @@ export default function ReportsPage() {
     try {
       const guestResult = await api.listGuests(token, currentEventId);
       setGuests(guestResult);
-      setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load reports data");
+      toast.error(err instanceof Error ? err.message : "Could not load reports data");
     } finally {
       setLoaded(true);
     }
@@ -86,6 +85,7 @@ export default function ReportsPage() {
     );
     downloadCsv(csv, `${safeEventName}-guest-list.csv`);
     recordDownload("Guest List", guests.length);
+    toast.success("Guest list downloaded");
   };
 
   const exportCheckins = () => {
@@ -104,6 +104,7 @@ export default function ReportsPage() {
     );
     downloadCsv(csv, `${safeEventName}-checkins.csv`);
     recordDownload("Check-in Data", checkedInGuests.length);
+    toast.success("Check-in report downloaded");
   };
 
   const exportRsvpSummary = () => {
@@ -119,6 +120,7 @@ export default function ReportsPage() {
     );
     downloadCsv(csv, `${safeEventName}-rsvp-summary.csv`);
     recordDownload("RSVP Summary", 5);
+    toast.success("RSVP summary downloaded");
   };
 
   const loading = !eventsLoaded || eventsLoading || !loaded;
@@ -138,8 +140,6 @@ export default function ReportsPage() {
           </Button>
         }
       />
-      {error && <p className="rounded-md bg-status-error-bg p-3 text-sm text-status-error">{error}</p>}
-
       <Card className="border-border shadow-none">
         <CardHeader>
           <CardTitle>Export Options</CardTitle>

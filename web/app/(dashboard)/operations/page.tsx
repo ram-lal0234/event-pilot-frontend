@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Bed, Car, Hotel, Plus, RefreshCw, Users } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/domain/page-header";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,8 +36,6 @@ export default function OperationsPage() {
   const [cabs, setCabs] = useState<CabRecord[]>([]);
   const [hotels, setHotels] = useState<HotelRecord[]>([]);
   const [guests, setGuests] = useState<GuestRecord[]>([]);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [operationsLoaded, setOperationsLoaded] = useState(false);
 
@@ -62,9 +61,8 @@ export default function OperationsPage() {
       setCabs(cabResult);
       setHotels(hotelResult);
       setGuests(guestResult);
-      setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load operations");
+      toast.error(err instanceof Error ? err.message : "Could not load operations");
     } finally {
       setOperationsLoaded(true);
     }
@@ -92,14 +90,12 @@ export default function OperationsPage() {
 
   const submit = async (task: () => Promise<unknown>, success: string) => {
     setBusy(true);
-    setError("");
-    setMessage("");
     try {
       await task();
-      setMessage(success);
+      toast.success(success);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Operation failed");
+      toast.error(err instanceof Error ? err.message : "Operation failed");
     } finally {
       setBusy(false);
     }
@@ -159,9 +155,6 @@ export default function OperationsPage() {
           </Button>
         }
       />
-      {message && <p className="rounded-md bg-status-success-bg p-3 text-sm text-status-success">{message}</p>}
-      {error && <p className="rounded-md bg-status-error-bg p-3 text-sm text-status-error">{error}</p>}
-
       <Tabs defaultValue="assignments" className="gap-5">
         <TabsList className="max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="assignments">

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Activity, Car, CheckCircle2, RefreshCw, Users } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/domain/page-header";
 import { StatCard } from "@/components/domain/stat-card";
 import { LiveOperationsFeed } from "@/components/domain/dashboard/live-operations-feed";
@@ -15,7 +16,6 @@ export default function LiveViewPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [feed, setFeed] = useState<AuditRecord[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState("");
 
   const load = async () => {
     if (!currentEventId) return;
@@ -27,9 +27,8 @@ export default function LiveViewPage() {
       ]);
       setSummary(summaryResult);
       setFeed(feedResult);
-      setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load live view");
+      toast.error(err instanceof Error ? err.message : "Could not load live view");
     } finally {
       setLoaded(true);
     }
@@ -72,8 +71,6 @@ export default function LiveViewPage() {
           </Button>
         }
       />
-      {error && <p className="rounded-md bg-status-error-bg p-3 text-sm text-status-error">{error}</p>}
-
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Live Activity" value={`${feed.length}`} subtext="Recent actions" icon={Activity} />
         <StatCard label="Check-in Progress" value={`${checkInPercent}%`} trend={`${summary?.checkedIn || 0}/${summary?.totalGuests || 0}`} icon={CheckCircle2} progress={checkInPercent} />

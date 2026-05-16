@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { QrCode, Search } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -14,22 +15,18 @@ export default function CheckInPage() {
   const [qrCode, setQrCode] = useState("");
   const [locationType, setLocationType] = useState<CheckinLocationType>("EVENT_GATE");
   const [guest, setGuest] = useState<GuestRecord | null>(null);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   const scan = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
-    setError("");
-    setMessage("");
     try {
       const result = await api.scanQr(token, { qrCode, method: "QR", locationType });
       setGuest(result.guest);
-      setMessage("Check-in completed");
+      toast.success("Check-in completed");
       setQrCode("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not check in guest");
+      toast.error(err instanceof Error ? err.message : "Could not check in guest");
     } finally {
       setBusy(false);
     }
@@ -78,8 +75,6 @@ export default function CheckInPage() {
       <div>
         <div className="rounded-lg border border-border bg-card p-5">
           <h2 className="font-semibold">Guest Confirmation</h2>
-          {message && <p className="mt-3 rounded-md bg-status-success-bg p-2 text-sm text-status-success">{message}</p>}
-          {error && <p className="mt-3 rounded-md bg-status-error-bg p-2 text-sm text-status-error">{error}</p>}
           {guest ? (
             <div className="mt-5 space-y-4">
               <div className="flex size-12 items-center justify-center rounded-lg bg-status-success text-white">

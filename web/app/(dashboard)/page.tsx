@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Bed, Car, UserCheck, Users, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { StatCard } from "@/components/domain/stat-card";
 import { LiveOperationsFeed } from "@/components/domain/dashboard/live-operations-feed";
 import { ArrivalsTable } from "@/components/domain/dashboard/arrivals-table";
@@ -16,7 +17,7 @@ export default function DashboardPage() {
   const { token, currentEventId, eventsLoaded, eventsLoading } = useApp();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [feed, setFeed] = useState<AuditRecord[]>([]);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(false);
   const loading = !eventsLoaded || eventsLoading || (Boolean(currentEventId) && !summary && !error);
 
   useEffect(() => {
@@ -28,9 +29,12 @@ export default function DashboardPage() {
       .then(([summaryResult, feedResult]) => {
         setSummary(summaryResult);
         setFeed(feedResult);
-        setError("");
+        setError(false);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Could not load dashboard"));
+      .catch((err) => {
+        setError(true);
+        toast.error(err instanceof Error ? err.message : "Could not load dashboard");
+      });
   }, [currentEventId, token]);
 
   const checkInPercent = summary?.totalGuests
@@ -53,7 +57,6 @@ export default function DashboardPage() {
     <DashboardSkeleton />
   ) : (
     <div className="space-y-6">
-      {error && <p className="rounded-md bg-status-error-bg p-3 text-sm text-status-error">{error}</p>}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Check-in Progress"
