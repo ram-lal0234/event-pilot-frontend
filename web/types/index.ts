@@ -84,7 +84,7 @@ export interface FeedItem {
   title: string;
   subtitle: string;
   time: string;
-  type: "checkin" | "cab" | "alert" | "room";
+  type: "checkin" | "cab" | "alert" | "room" | "guest" | "rsvp";
 }
 
 export interface DashboardStats {

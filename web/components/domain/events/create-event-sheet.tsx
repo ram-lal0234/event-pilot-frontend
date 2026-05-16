@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent, type ReactElement } from "react";
 import { CalendarPlus } from "lucide-react";
+import { toast } from "sonner";
 import { useApp } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,21 +21,20 @@ export function CreateEventSheet({ trigger }: { trigger: ReactElement }) {
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
   const [location, setLocation] = useState("");
-  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
-    setError("");
     try {
       await createEvent({ name, date, location });
       setName("");
       setDate("");
       setLocation("");
       setOpen(false);
+      toast.success("Event created");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create event");
+      toast.error(err instanceof Error ? err.message : "Could not create event");
     } finally {
       setBusy(false);
     }
@@ -64,10 +64,9 @@ export function CreateEventSheet({ trigger }: { trigger: ReactElement }) {
               <span>Location</span>
               <Input value={location} onChange={(event) => setLocation(event.target.value)} required />
             </label>
-            {error && <p className="rounded-md bg-status-error-bg p-2 text-sm text-status-error">{error}</p>}
           </div>
           <SheetFooter>
-            <Button type="submit" disabled={busy}>Create Event</Button>
+            <Button type="submit" loading={busy} loadingText="Creating event">Create Event</Button>
           </SheetFooter>
         </form>
       </SheetContent>

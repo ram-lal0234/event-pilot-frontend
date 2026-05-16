@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import {
   Bell,
@@ -16,8 +16,10 @@ import {
 import { cn } from "@/lib/utils";
 import { useApp } from "@/components/providers/app-provider";
 import { useSidebar } from "@/components/layout/sidebar-context";
+import { eventViewItems, isEventHrefActive, scopedEventHref } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,17 +27,26 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const tabs = ["Live View", "Analytics", "Reports"] as const;
-
 interface TopBarProps {
   mobileMenu: ReactNode;
 }
 
 export function TopBar({ mobileMenu }: TopBarProps) {
   const pathname = usePathname();
-  const isDashboard = pathname === "/";
-  const { currentEvent, events, setCurrentEventId, user, logout } = useApp();
+  const router = useRouter();
+  const { currentEvent, currentEventId, events, eventsLoaded, eventsLoading, setCurrentEventId, user, logout } = useApp();
   const { sidebarOpen, toggleSidebar } = useSidebar();
+  const workspaceLoading = !eventsLoaded || eventsLoading;
+
+  const selectEvent = (eventId: string) => {
+    setCurrentEventId(eventId);
+    const eventRouteMatch = pathname.match(/^\/events\/[^/]+(\/.*)$/);
+    if (eventRouteMatch) {
+      router.replace(`/events/${eventId}${eventRouteMatch[1]}`);
+      return;
+    }
+    router.replace(scopedEventHref(eventId, pathname));
+  };
 
   return (
     <header
@@ -75,38 +86,50 @@ export function TopBar({ mobileMenu }: TopBarProps) {
             }
           >
             <Calendar className="size-4 shrink-0 text-primary" />
-            <span className="truncate">{currentEvent?.name}</span>
+            {workspaceLoading ? (
+              <Skeleton className="h-4 w-20" />
+            ) : (
+              <span className="truncate">{currentEvent?.name}</span>
+            )}
             <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             {events.map((event) => (
-              <DropdownMenuItem key={event.id} onClick={() => setCurrentEventId(event.id)}>
+              <DropdownMenuItem key={event.id} onClick={() => selectEvent(event.id)}>
                 {event.name}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <nav className="hidden md:flex md:gap-3 lg:gap-6 xl:gap-8">
-          {tabs.map((tab) => (
-            <span
-              key={tab}
-              className={cn(
-                "cursor-default whitespace-nowrap text-sm transition-colors",
-                tab === "Live View" && isDashboard
-                  ? "border-b-2 border-primary pb-1 font-semibold text-primary"
-                  : "text-muted-foreground"
-              )}
-            >
-              {tab}
-            </span>
-          ))}
+        <div className="hidden h-6 w-px shrink-0 bg-border md:block" />
+
+        <nav className="hidden min-w-0 items-center gap-2 overflow-x-auto md:flex lg:gap-4 xl:gap-6" aria-label="Event insights">
+          {eventViewItems.map((item) => {
+            const active = isEventHrefActive(pathname, item.href);
+
+            return (
+              <Link
+                key={item.href}
+                href={scopedEventHref(currentEventId, item.href)}
+                className={cn(
+                  "whitespace-nowrap border-b-2 pb-1 text-sm transition-colors",
+                  active
+                    ? "border-primary font-semibold text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-2 md:gap-3 lg:gap-4">
         <Button
-          render={<Link href="/check-in" />}
+          render={<Link href={scopedEventHref(currentEventId, "/check-in")} />}
+          nativeButton={false}
           className="inline-flex h-8 items-center gap-2 rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground sm:px-3 sm:text-sm"
         >
           <QrCode className="size-4 shrink-0" />

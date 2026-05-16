@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -24,6 +25,7 @@ import {
   ScanLine,
   Users,
 } from "lucide-react";
+import { toast } from "sonner";
 import { api, ApiError, type AuthUser, type EventRecord } from "@/lib/api";
 import { AuthFooter } from "@/components/auth/auth-footer";
 import { GoogleIcon } from "@/components/icons/google-icon";
@@ -58,20 +60,40 @@ export function useApp() {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() =>
-    typeof window === "undefined" ? null : window.localStorage.getItem(TOKEN_KEY)
-  );
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    if (typeof window === "undefined") return null;
-    const storedUser = window.localStorage.getItem(USER_KEY);
-    return storedUser ? (JSON.parse(storedUser) as AuthUser) : null;
-  });
+  const router = useRouter();
+  const [authReady, setAuthReady] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsLoaded, setEventsLoaded] = useState(false);
-  const [currentEventId, setCurrentEventIdState] = useState(() =>
-    typeof window === "undefined" ? "" : window.localStorage.getItem(EVENT_KEY) || ""
-  );
+  const [currentEventId, setCurrentEventIdState] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    void Promise.resolve().then(() => {
+      if (!active) return;
+
+      const storedToken = window.localStorage.getItem(TOKEN_KEY);
+      const storedUser = window.localStorage.getItem(USER_KEY);
+      const storedEventId = window.localStorage.getItem(EVENT_KEY) || "";
+
+      setToken(storedToken);
+      try {
+        setUser(storedUser ? (JSON.parse(storedUser) as AuthUser) : null);
+      } catch {
+        window.localStorage.removeItem(USER_KEY);
+        setUser(null);
+      }
+      setCurrentEventIdState(storedEventId);
+      setAuthReady(true);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const logout = useCallback(() => {
     window.localStorage.removeItem(TOKEN_KEY);
@@ -147,6 +169,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [currentEventId, events]
   );
 
+  if (!authReady) {
+    return null;
+  }
+
   if (!token || !user) {
     return (
       <LoginScreen
@@ -157,6 +183,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setEventsLoaded(false);
           setToken(accessToken);
           setUser(authedUser);
+          router.replace("/");
         }}
       />
     );
@@ -187,20 +214,17 @@ function LoginScreen({
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"email" | "otp">("email");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   const requestOtp = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
-    setError("");
     try {
       const result = await api.requestOtp(email);
-      setMessage(result.otp ? `Development OTP: ${result.otp}` : "OTP sent to email");
+      toast.success(result.otp ? `Development OTP: ${result.otp}` : "OTP sent to email");
       setStep("otp");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not request OTP");
+      toast.error(err instanceof Error ? err.message : "Could not request OTP");
     } finally {
       setBusy(false);
     }
@@ -220,12 +244,11 @@ function LoginScreen({
   const verifyOtp = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
-    setError("");
     try {
       const result = await api.verifyOtp(email, otp);
       onAuthenticated(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not verify OTP");
+      toast.error(err instanceof Error ? err.message : "Could not verify OTP");
     } finally {
       setBusy(false);
     }
@@ -279,13 +302,11 @@ function LoginScreen({
                 />
               </div>
 
-              {message && <p className="mt-4 rounded-lg border border-[#00a2e6]/20 bg-[#00a2e6]/10 p-3 text-sm text-[#89ceff]">{message}</p>}
-              {error && <p className="mt-4 rounded-lg border border-[#ffb4ab]/20 bg-[#93000a]/30 p-3 text-sm text-[#ffb4ab]">{error}</p>}
-
               <Button
                 className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#4f46e5] px-4 text-sm font-semibold text-[#dad7ff] shadow-lg shadow-indigo-500/20 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
                 type="submit"
-                disabled={busy}
+                loading={busy}
+                loadingText="Sending OTP"
               >
                 Send OTP
                 <ArrowRight className="size-4" />
@@ -313,7 +334,6 @@ function LoginScreen({
                 onClick={() => {
                   setStep("email");
                   setOtp("");
-                  setError("");
                 }}
               >
                 <ArrowLeft className="size-4" />
@@ -350,13 +370,12 @@ function LoginScreen({
                 ))}
               </div>
 
-              {message && <p className="mt-4 rounded-lg border border-[#00a2e6]/20 bg-[#00a2e6]/10 p-3 text-sm text-[#89ceff]">{message}</p>}
-              {error && <p className="mt-4 rounded-lg border border-[#ffb4ab]/20 bg-[#93000a]/30 p-3 text-sm text-[#ffb4ab]">{error}</p>}
-
               <Button
                 className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#4f46e5] px-4 text-sm font-semibold text-[#dad7ff] transition-all hover:shadow-[0_0_20px_rgba(137,206,255,0.3)] active:scale-95 disabled:opacity-60"
                 type="submit"
-                disabled={busy || otp.length < 6}
+                disabled={otp.length < 6}
+                loading={busy}
+                loadingText="Verifying"
               >
                 Verify & Continue
                 <ArrowRight className="size-4" />
@@ -516,17 +535,16 @@ export function EmptyEventState() {
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
   const [location, setLocation] = useState("");
-  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
-    setError("");
     try {
       await createEvent({ name, date, location });
+      toast.success("Event created");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create event");
+      toast.error(err instanceof Error ? err.message : "Could not create event");
     } finally {
       setBusy(false);
     }
@@ -547,9 +565,8 @@ export function EmptyEventState() {
           <Input type="datetime-local" value={date} onChange={(event) => setDate(event.target.value)} required />
           <Input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Location" required />
         </div>
-        {error && <p className="mt-3 rounded-md bg-status-error-bg p-2 text-sm text-status-error">{error}</p>}
         <div className="mt-5 flex gap-2">
-          <Button className="flex-1" type="submit" disabled={busy}>Create Event</Button>
+          <Button className="flex-1" type="submit" loading={busy} loadingText="Creating event">Create Event</Button>
           <Button variant="outline" type="button" onClick={logout}>Logout</Button>
         </div>
       </form>

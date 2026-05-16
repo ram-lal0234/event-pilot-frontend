@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarPlus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { brand, navItems } from "@/lib/design-tokens";
+import { brand, isEventHrefActive, navItems, scopedEventHref } from "@/lib/design-tokens";
+import { useApp } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
 import { CreateEventSheet } from "@/components/domain/events/create-event-sheet";
 
 export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
+  const { currentEventId } = useApp();
 
   return (
     <aside
@@ -33,16 +35,13 @@ export function Sidebar({ className }: { className?: string }) {
       </div>
       <nav className="flex flex-1 flex-col gap-1 px-3">
         {navItems.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
+          const isActive = isEventHrefActive(pathname, item.href);
           const Icon = item.icon;
 
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={scopedEventHref(currentEventId, item.href)}
               className={cn(
                 "flex items-center gap-3 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
                 isActive

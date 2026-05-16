@@ -72,7 +72,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
           sidebarOpen ? "md:ml-64" : "md:ml-0"
         )}
       >
-        <div className="mx-auto max-w-[1440px] px-3 sm:px-4 lg:px-8">
+        <div className="mx-auto max-w-[1440px] px-3 pt-6 sm:px-4 lg:px-8">
           {children}
         </div>
       </main>
