@@ -8,14 +8,16 @@ import { ArrivalsTable } from "@/components/domain/dashboard/arrivals-table";
 import { QuickActions } from "@/components/domain/dashboard/quick-actions";
 import { arrivals } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api, type AuditRecord, type DashboardSummary } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
 
 export default function DashboardPage() {
-  const { token, currentEventId } = useApp();
+  const { token, currentEventId, eventsLoaded, eventsLoading } = useApp();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [feed, setFeed] = useState<AuditRecord[]>([]);
   const [error, setError] = useState("");
+  const loading = !eventsLoaded || eventsLoading || (Boolean(currentEventId) && !summary && !error);
 
   useEffect(() => {
     if (!currentEventId) return;
@@ -47,7 +49,9 @@ export default function DashboardPage() {
     [feed]
   );
 
-  return (
+  return loading ? (
+    <DashboardSkeleton />
+  ) : (
     <div className="space-y-6">
       {error && <p className="rounded-md bg-status-error-bg p-3 text-sm text-status-error">{error}</p>}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -94,6 +98,48 @@ export default function DashboardPage() {
       >
         <Plus className="size-6" />
       </Button>
+    </div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="rounded-xl border border-border bg-card p-6">
+            <div className="flex items-start justify-between">
+              <div className="space-y-4">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-9 w-24" />
+                <Skeleton className="h-4 w-40" />
+              </div>
+              <Skeleton className="size-6 rounded-full" />
+            </div>
+            <Skeleton className="mt-6 h-1.5 w-full" />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="rounded-xl border border-border bg-card p-6 lg:col-span-2">
+          <Skeleton className="h-4 w-40" />
+          <div className="mt-8 space-y-4">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} className="h-12 w-full" />
+            ))}
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <Skeleton className="h-5 w-36" />
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-24 w-full" />
+            ))}
+          </div>
+          <Skeleton className="mt-5 h-16 w-full" />
+        </div>
+      </div>
+      <Skeleton className="h-72 w-full rounded-xl" />
     </div>
   );
 }

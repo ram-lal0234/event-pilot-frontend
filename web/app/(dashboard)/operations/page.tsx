@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   api,
   type CabRecord,
@@ -17,13 +18,14 @@ import {
 import { useApp } from "@/components/providers/app-provider";
 
 export default function OperationsPage() {
-  const { token, currentEventId } = useApp();
+  const { token, currentEventId, eventsLoaded, eventsLoading } = useApp();
   const [cabs, setCabs] = useState<CabRecord[]>([]);
   const [hotels, setHotels] = useState<HotelRecord[]>([]);
   const [guests, setGuests] = useState<GuestRecord[]>([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [operationsLoaded, setOperationsLoaded] = useState(false);
 
   const [cabForm, setCabForm] = useState({ driverName: "", vehicleNumber: "", capacity: 4 });
   const [hotelForm, setHotelForm] = useState({ name: "", location: "" });
@@ -32,8 +34,12 @@ export default function OperationsPage() {
   const [roomAssign, setRoomAssign] = useState({ roomId: "", guestId: "" });
 
   const load = useCallback(async () => {
-    if (!currentEventId) return;
+    if (!currentEventId) {
+      setOperationsLoaded(false);
+      return;
+    }
     try {
+      setOperationsLoaded(false);
       const [cabResult, hotelResult, guestResult] = await Promise.all([
         api.listCabs(token, currentEventId),
         api.listHotels(token, currentEventId),
@@ -45,6 +51,8 @@ export default function OperationsPage() {
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load operations");
+    } finally {
+      setOperationsLoaded(true);
     }
   }, [currentEventId, token]);
 
@@ -55,6 +63,7 @@ export default function OperationsPage() {
   const rooms = useMemo(() => hotels.flatMap((hotel) => hotel.rooms || []), [hotels]);
   const unassignedCabGuests = guests.filter((guest) => !guest.cabAssignments?.length);
   const unassignedRoomGuests = guests.filter((guest) => !guest.roomAssignments?.length);
+  const loading = !eventsLoaded || eventsLoading || !operationsLoaded;
 
   const submit = async (task: () => Promise<unknown>, success: string) => {
     setBusy(true);
@@ -99,7 +108,9 @@ export default function OperationsPage() {
     submit(() => api.assignRoom(token, roomAssign), "Guest assigned to room");
   };
 
-  return (
+  return loading ? (
+    <OperationsSkeleton />
+  ) : (
     <div className="space-y-6">
       <PageHeader
         title="Operations Hub"
@@ -225,6 +236,41 @@ export default function OperationsPage() {
           />
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function OperationsSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-end justify-between gap-4">
+        <div className="space-y-3">
+          <Skeleton className="h-8 w-52" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <Skeleton className="h-8 w-24" />
+      </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="rounded-xl border border-border bg-card p-5 xl:col-span-2">
+          <Skeleton className="h-6 w-28" />
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="h-28 w-full" />
+            ))}
+          </div>
+          <Skeleton className="mt-5 h-16 w-full" />
+          <Skeleton className="mt-3 h-16 w-full" />
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5">
+          <Skeleton className="h-6 w-24" />
+          <div className="mt-6 space-y-3">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-16 w-full" />
+            ))}
+          </div>
+        </div>
+      </div>
+      <Skeleton className="h-72 w-full rounded-xl" />
     </div>
   );
 }

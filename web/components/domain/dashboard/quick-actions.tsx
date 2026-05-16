@@ -30,6 +30,7 @@ export function QuickActions() {
             <Button
               key={action.label}
               render={<Link href={action.href} />}
+              nativeButton={false}
               variant="outline"
               className="h-24 flex-col items-center justify-center gap-2 rounded-md bg-muted/40 px-2 py-4 text-center hover:bg-muted"
             >

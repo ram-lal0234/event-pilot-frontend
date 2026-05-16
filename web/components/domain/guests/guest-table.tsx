@@ -1,11 +1,18 @@
 "use client";
 
-import { Fragment } from "react";
 import { ChevronRight, MapPin, Phone, Radio } from "lucide-react";
 import type { GuestRecord } from "@/lib/api";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   Table,
   TableBody,
@@ -25,7 +32,7 @@ function categoryVariant(category: GuestRecord["category"]) {
   }
 }
 
-function ExpandedRow({
+function GuestDetailsSheet({
   guest,
   onTriggerIvr,
 }: {
@@ -33,11 +40,23 @@ function ExpandedRow({
   onTriggerIvr: (guestId: string) => void;
 }) {
   return (
-    <TableRow className="bg-surface-container-low hover:bg-surface-container-low">
-      <TableCell colSpan={7} className="p-6">
-        <div className="grid gap-6 md:grid-cols-3">
-          <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase text-muted-foreground">
+    <Sheet>
+      <SheetTrigger
+        render={<Button variant="ghost" size="icon" type="button" aria-label={`View ${guest.name}`} />}
+      >
+        <ChevronRight className="size-4 text-muted-foreground" />
+      </SheetTrigger>
+      <SheetContent className="sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>{guest.name}</SheetTitle>
+          <SheetDescription>
+            Guest profile, pickup details, IVR status, and check-in context.
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="space-y-5 px-4">
+          <section className="rounded-lg border border-border p-4">
+            <p className="mb-3 text-[11px] font-semibold uppercase text-muted-foreground">
               Contact Info
             </p>
             {guest.phone && (
@@ -47,9 +66,10 @@ function ExpandedRow({
               </p>
             )}
             <p className="mt-1 text-sm text-muted-foreground">{guest.email || "No email"}</p>
-          </div>
-          <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase text-muted-foreground">
+          </section>
+
+          <section className="rounded-lg border border-border p-4">
+            <p className="mb-3 text-[11px] font-semibold uppercase text-muted-foreground">
               Pickup
             </p>
             <p className="flex items-center gap-2 text-sm">
@@ -61,9 +81,10 @@ function ExpandedRow({
                 {guest.pickupLat}, {guest.pickupLng}
               </p>
             )}
-          </div>
-          <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase text-muted-foreground">
+          </section>
+
+          <section className="rounded-lg border border-border p-4">
+            <p className="mb-3 text-[11px] font-semibold uppercase text-muted-foreground">
               IVR and QR
             </p>
             <p className="text-sm text-muted-foreground">
@@ -73,10 +94,31 @@ function ExpandedRow({
               <Radio className="size-4" />
               Trigger IVR
             </Button>
-          </div>
+          </section>
+
+          <section className="grid grid-cols-2 gap-3 text-sm">
+            <div className="rounded-lg bg-surface-container-low p-3">
+              <p className="text-[11px] font-semibold uppercase text-muted-foreground">Category</p>
+              <p className="mt-1 font-semibold">{guest.category}</p>
+            </div>
+            <div className="rounded-lg bg-surface-container-low p-3">
+              <p className="text-[11px] font-semibold uppercase text-muted-foreground">Group</p>
+              <p className="mt-1 font-semibold">{guest.groupSize}</p>
+            </div>
+            <div className="rounded-lg bg-surface-container-low p-3">
+              <p className="text-[11px] font-semibold uppercase text-muted-foreground">RSVP</p>
+              <p className="mt-1 font-semibold">{guest.rsvpStatus}</p>
+            </div>
+            <div className="rounded-lg bg-surface-container-low p-3">
+              <p className="text-[11px] font-semibold uppercase text-muted-foreground">Check-In</p>
+              <p className="mt-1 font-semibold">
+                {guest.checkins?.length ? "Checked-in" : "Pending"}
+              </p>
+            </div>
+          </section>
         </div>
-      </TableCell>
-    </TableRow>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -102,64 +144,67 @@ export function GuestTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {guests.map((guest) => (
-            <Fragment key={guest.id}>
-              <TableRow>
-                <TableCell>
-                  <Checkbox readOnly />
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="size-9">
-                      <AvatarFallback>
-                        {guest.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-text-main">{guest.name}</p>
-                      <p className="text-xs text-muted-foreground">{guest.email}</p>
-                    </div>
+          {guests.length ? guests.map((guest) => (
+            <TableRow key={guest.id}>
+              <TableCell>
+                <Checkbox readOnly />
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-3">
+                  <Avatar className="size-9">
+                    <AvatarFallback>
+                      {guest.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium text-text-main">{guest.name}</p>
+                    <p className="text-xs text-muted-foreground">{guest.email}</p>
                   </div>
-                </TableCell>
-                <TableCell>
-                  <StatusBadge variant={categoryVariant(guest.category)}>
-                    {guest.category}
-                  </StatusBadge>
-                </TableCell>
-                <TableCell>
-                  <span className="flex items-center gap-2 text-sm">
-                    <span
-                      className={`size-2 rounded-full ${
-                        guest.rsvpStatus === "CONFIRMED"
-                          ? "bg-status-success"
-                          : "bg-status-warning"
-                      }`}
-                    />
-                    {guest.rsvpStatus}
-                  </span>
-                </TableCell>
-                <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
-                  Group {guest.groupSize} · {guest.pickupLocation || "No pickup"}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge
-                    variant={
-                      guest.checkins?.length ? "success" : "neutral"
-                    }
-                  >
-                    {guest.checkins?.length ? "CHECKED-IN" : "PENDING"}
-                  </StatusBadge>
-                </TableCell>
-                <TableCell>
-                  <ChevronRight className="size-4 text-muted-foreground" />
-                </TableCell>
-              </TableRow>
-              <ExpandedRow guest={guest} onTriggerIvr={onTriggerIvr} />
-            </Fragment>
-          ))}
+                </div>
+              </TableCell>
+              <TableCell>
+                <StatusBadge variant={categoryVariant(guest.category)}>
+                  {guest.category}
+                </StatusBadge>
+              </TableCell>
+              <TableCell>
+                <span className="flex items-center gap-2 text-sm">
+                  <span
+                    className={`size-2 rounded-full ${
+                      guest.rsvpStatus === "CONFIRMED"
+                        ? "bg-status-success"
+                        : "bg-status-warning"
+                    }`}
+                  />
+                  {guest.rsvpStatus}
+                </span>
+              </TableCell>
+              <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
+                Group {guest.groupSize} · {guest.pickupLocation || "No pickup"}
+              </TableCell>
+              <TableCell>
+                <StatusBadge
+                  variant={
+                    guest.checkins?.length ? "success" : "neutral"
+                  }
+                >
+                  {guest.checkins?.length ? "CHECKED-IN" : "PENDING"}
+                </StatusBadge>
+              </TableCell>
+              <TableCell>
+                <GuestDetailsSheet guest={guest} onTriggerIvr={onTriggerIvr} />
+              </TableCell>
+            </TableRow>
+          )) : (
+            <TableRow>
+              <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                No guests found.
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
     </div>

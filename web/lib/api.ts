@@ -48,6 +48,18 @@ export type GuestRecord = {
   roomAssignments?: { id: string; roomId: string; assignedMembers: number }[];
 };
 
+export type PaginationMeta = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
+export type PaginatedGuests = {
+  items: GuestRecord[];
+  pagination: PaginationMeta;
+};
+
 export type DashboardSummary = {
   totalGuests: number;
   confirmed: number;
@@ -73,7 +85,10 @@ export type CabRecord = {
   vehicleNumber: string;
   capacity: number;
   usedSeats: number;
-  assignments?: { id: string; guest: { id: string; name: string; groupSize: number } }[];
+  assignments?: {
+    id: string;
+    guest: { id: string; name: string; groupSize: number };
+  }[];
 };
 
 export type HotelRecord = {
@@ -97,13 +112,18 @@ export type RoomRecord = {
 };
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:4000/api";
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
+  "http://localhost:4000/api";
 
 export class ApiError extends Error {
   code?: string;
   details?: { message: string; path: string }[];
 
-  constructor(message: string, code?: string, details?: { message: string; path: string }[]) {
+  constructor(
+    message: string,
+    code?: string,
+    details?: { message: string; path: string }[],
+  ) {
     super(message);
     this.code = code;
     this.details = details;
@@ -112,7 +132,7 @@ export class ApiError extends Error {
 
 async function request<T>(
   path: string,
-  options: RequestInit & { token?: string | null } = {}
+  options: RequestInit & { token?: string | null } = {},
 ): Promise<T> {
   const headers = new Headers(options.headers);
 
@@ -129,13 +149,15 @@ async function request<T>(
     headers,
   });
 
-  const envelope = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
+  const envelope = (await response
+    .json()
+    .catch(() => null)) as ApiEnvelope<T> | null;
 
   if (!response.ok || !envelope?.success) {
     throw new ApiError(
       envelope?.message || `Request failed with status ${response.status}`,
       envelope?.code,
-      envelope?.details
+      envelope?.details,
     );
   }
 
@@ -161,15 +183,21 @@ export const api = {
     });
   },
   verifyOtp(email: string, otp: string) {
-    return request<{ user: AuthUser; accessToken: string }>("/auth/verify-otp", {
-      method: "POST",
-      body: JSON.stringify({ email, otp }),
-    });
+    return request<{ user: AuthUser; accessToken: string }>(
+      "/auth/verify-otp",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, otp }),
+      },
+    );
   },
   listEvents(token: string) {
     return request<EventRecord[]>("/events", { token });
   },
-  createEvent(token: string, payload: { name: string; date: string; location: string }) {
+  createEvent(
+    token: string,
+    payload: { name: string; date: string; location: string },
+  ) {
     return request<EventRecord>("/events", {
       method: "POST",
       token,
@@ -177,13 +205,28 @@ export const api = {
     });
   },
   dashboardSummary(token: string, eventId: string) {
-    return request<DashboardSummary>(`/dashboard/summary${query({ eventId })}`, { token });
+    return request<DashboardSummary>(
+      `/dashboard/summary${query({ eventId })}`,
+      { token },
+    );
   },
   dashboardFeed(token: string, eventId: string) {
-    return request<AuditRecord[]>(`/dashboard/feed${query({ eventId })}`, { token });
+    return request<AuditRecord[]>(`/dashboard/feed${query({ eventId })}`, {
+      token,
+    });
   },
   listGuests(token: string, eventId: string) {
     return request<GuestRecord[]>(`/guests${query({ eventId })}`, { token });
+  },
+  listGuestsPage(
+    token: string,
+    eventId: string,
+    params: { page: number; pageSize: number },
+  ) {
+    return request<PaginatedGuests>(
+      `/guests${query({ eventId, page: params.page, pageSize: params.pageSize })}`,
+      { token },
+    );
   },
   createGuest(
     token: string,
@@ -197,7 +240,7 @@ export const api = {
       pickupLocation?: string;
       pickupLat?: number;
       pickupLng?: number;
-    }
+    },
   ) {
     return request<GuestRecord>("/guests", {
       method: "POST",
@@ -213,7 +256,7 @@ export const api = {
         token,
         headers: { "Content-Type": "text/csv" },
         body: csv,
-      }
+      },
     );
   },
   triggerIvr(token: string, guestId: string) {
@@ -223,7 +266,14 @@ export const api = {
       body: JSON.stringify({ guestId }),
     });
   },
-  scanQr(token: string, payload: { qrCode: string; method: CheckinMethod; locationType: CheckinLocationType }) {
+  scanQr(
+    token: string,
+    payload: {
+      qrCode: string;
+      method: CheckinMethod;
+      locationType: CheckinLocationType;
+    },
+  ) {
     return request<{ guest: GuestRecord; checkin: unknown }>("/checkin/scan", {
       method: "POST",
       token,
@@ -233,7 +283,15 @@ export const api = {
   listCabs(token: string, eventId: string) {
     return request<CabRecord[]>(`/cabs${query({ eventId })}`, { token });
   },
-  createCab(token: string, payload: { eventId: string; driverName: string; vehicleNumber: string; capacity: number }) {
+  createCab(
+    token: string,
+    payload: {
+      eventId: string;
+      driverName: string;
+      vehicleNumber: string;
+      capacity: number;
+    },
+  ) {
     return request<CabRecord>("/cabs", {
       method: "POST",
       token,
@@ -250,14 +308,20 @@ export const api = {
   listHotels(token: string, eventId: string) {
     return request<HotelRecord[]>(`/hotels${query({ eventId })}`, { token });
   },
-  createHotel(token: string, payload: { eventId: string; name: string; location: string }) {
+  createHotel(
+    token: string,
+    payload: { eventId: string; name: string; location: string },
+  ) {
     return request<HotelRecord>("/hotels", {
       method: "POST",
       token,
       body: JSON.stringify(payload),
     });
   },
-  createRoom(token: string, payload: { hotelId: string; roomNumber: string; capacity: number }) {
+  createRoom(
+    token: string,
+    payload: { hotelId: string; roomNumber: string; capacity: number },
+  ) {
     return request<RoomRecord>("/hotels/rooms", {
       method: "POST",
       token,

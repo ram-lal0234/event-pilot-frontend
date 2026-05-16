@@ -5,11 +5,12 @@ import { QrCode, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api, type CheckinLocationType, type GuestRecord } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
 
 export default function CheckInPage() {
-  const { token } = useApp();
+  const { token, eventsLoaded, eventsLoading } = useApp();
   const [qrCode, setQrCode] = useState("");
   const [locationType, setLocationType] = useState<CheckinLocationType>("EVENT_GATE");
   const [guest, setGuest] = useState<GuestRecord | null>(null);
@@ -33,6 +34,10 @@ export default function CheckInPage() {
       setBusy(false);
     }
   };
+
+  if (!eventsLoaded || eventsLoading) {
+    return <CheckInSkeleton />;
+  }
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -96,6 +101,35 @@ export default function CheckInPage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function CheckInSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="lg:col-span-2">
+        <div className="relative flex min-h-[520px] flex-col overflow-hidden rounded-xl border border-border bg-card">
+          <div className="border-b border-border p-5">
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-10" />
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-28" />
+                <Skeleton className="h-4 w-56" />
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-1 flex-col justify-center gap-5 p-6">
+            <Skeleton className="mx-auto size-40 rounded-xl" />
+            <div className="mx-auto grid w-full max-w-xl gap-3">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <Skeleton className="h-80 w-full rounded-lg" />
     </div>
   );
 }

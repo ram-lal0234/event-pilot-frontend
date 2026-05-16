@@ -18,6 +18,7 @@ import { useApp } from "@/components/providers/app-provider";
 import { useSidebar } from "@/components/layout/sidebar-context";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,8 +35,9 @@ interface TopBarProps {
 export function TopBar({ mobileMenu }: TopBarProps) {
   const pathname = usePathname();
   const isDashboard = pathname === "/";
-  const { currentEvent, events, setCurrentEventId, user, logout } = useApp();
+  const { currentEvent, events, eventsLoaded, eventsLoading, setCurrentEventId, user, logout } = useApp();
   const { sidebarOpen, toggleSidebar } = useSidebar();
+  const workspaceLoading = !eventsLoaded || eventsLoading;
 
   return (
     <header
@@ -75,7 +77,11 @@ export function TopBar({ mobileMenu }: TopBarProps) {
             }
           >
             <Calendar className="size-4 shrink-0 text-primary" />
-            <span className="truncate">{currentEvent?.name}</span>
+            {workspaceLoading ? (
+              <Skeleton className="h-4 w-20" />
+            ) : (
+              <span className="truncate">{currentEvent?.name}</span>
+            )}
             <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
@@ -107,6 +113,7 @@ export function TopBar({ mobileMenu }: TopBarProps) {
       <div className="flex shrink-0 items-center gap-1 sm:gap-2 md:gap-3 lg:gap-4">
         <Button
           render={<Link href="/check-in" />}
+          nativeButton={false}
           className="inline-flex h-8 items-center gap-2 rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground sm:px-3 sm:text-sm"
         >
           <QrCode className="size-4 shrink-0" />

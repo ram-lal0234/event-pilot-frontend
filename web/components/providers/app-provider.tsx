@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -58,20 +59,40 @@ export function useApp() {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() =>
-    typeof window === "undefined" ? null : window.localStorage.getItem(TOKEN_KEY)
-  );
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    if (typeof window === "undefined") return null;
-    const storedUser = window.localStorage.getItem(USER_KEY);
-    return storedUser ? (JSON.parse(storedUser) as AuthUser) : null;
-  });
+  const router = useRouter();
+  const [authReady, setAuthReady] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsLoaded, setEventsLoaded] = useState(false);
-  const [currentEventId, setCurrentEventIdState] = useState(() =>
-    typeof window === "undefined" ? "" : window.localStorage.getItem(EVENT_KEY) || ""
-  );
+  const [currentEventId, setCurrentEventIdState] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    void Promise.resolve().then(() => {
+      if (!active) return;
+
+      const storedToken = window.localStorage.getItem(TOKEN_KEY);
+      const storedUser = window.localStorage.getItem(USER_KEY);
+      const storedEventId = window.localStorage.getItem(EVENT_KEY) || "";
+
+      setToken(storedToken);
+      try {
+        setUser(storedUser ? (JSON.parse(storedUser) as AuthUser) : null);
+      } catch {
+        window.localStorage.removeItem(USER_KEY);
+        setUser(null);
+      }
+      setCurrentEventIdState(storedEventId);
+      setAuthReady(true);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const logout = useCallback(() => {
     window.localStorage.removeItem(TOKEN_KEY);
@@ -147,6 +168,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [currentEventId, events]
   );
 
+  if (!authReady) {
+    return null;
+  }
+
   if (!token || !user) {
     return (
       <LoginScreen
@@ -157,6 +182,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setEventsLoaded(false);
           setToken(accessToken);
           setUser(authedUser);
+          router.replace("/");
         }}
       />
     );
