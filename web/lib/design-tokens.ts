@@ -39,3 +39,23 @@ export const navItems: NavItem[] = [
   { label: "Operations", href: "/operations", icon: Truck },
   { label: "Check-In", href: "/check-in", icon: ScanLine },
 ];
+
+export const eventViewItems = [
+  { label: "Live View", href: "/live" },
+  { label: "Analytics", href: "/analytics" },
+  { label: "Reports", href: "/reports" },
+] as const;
+
+export function scopedEventHref(eventId: string, href: string) {
+  if (!eventId) return href;
+  if (href === "/") return `/events/${eventId}/dashboard`;
+  return `/events/${eventId}${href}`;
+}
+
+export function isEventHrefActive(pathname: string, href: string) {
+  if (href === "/") {
+    return pathname === "/" || /^\/events\/[^/]+\/dashboard$/.test(pathname);
+  }
+
+  return pathname === href || new RegExp(`^/events/[^/]+${href}$`).test(pathname);
+}

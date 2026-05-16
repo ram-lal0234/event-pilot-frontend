@@ -67,7 +67,7 @@ export default function CheckInPage() {
                 <option value="EVENT_GATE">Event gate</option>
                 <option value="HOTEL">Hotel</option>
               </Select>
-              <Button className="gap-2" type="submit" disabled={busy}>
+              <Button className="gap-2" type="submit" loading={busy} loadingText="Checking in">
                 <Search className="size-4" />
                 Validate and Check In
               </Button>

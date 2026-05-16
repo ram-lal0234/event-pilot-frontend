@@ -265,7 +265,7 @@ function CreateCabCard({
           <Input value={form.driverName} onChange={(event) => setForm({ ...form, driverName: event.target.value })} placeholder="Driver" required />
           <Input value={form.vehicleNumber} onChange={(event) => setForm({ ...form, vehicleNumber: event.target.value })} placeholder="Vehicle" required />
           <Input type="number" min={1} value={form.capacity} onChange={(event) => setForm({ ...form, capacity: Number(event.target.value) })} placeholder="Capacity" required />
-          <Button type="submit" disabled={busy} className="gap-2"><Plus className="size-4" />Cab</Button>
+          <Button type="submit" loading={busy} loadingText="Creating cab" className="gap-2"><Plus className="size-4" />Cab</Button>
         </form>
       </CardContent>
     </Card>
@@ -332,7 +332,7 @@ function CreateHotelCard({
         <form className="space-y-2" onSubmit={onSubmit}>
           <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Hotel name" required />
           <Input value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} placeholder="Location" required />
-          <Button className="w-full gap-2" type="submit" disabled={busy}><Plus className="size-4" />Hotel</Button>
+          <Button className="w-full gap-2" type="submit" loading={busy} loadingText="Creating hotel"><Plus className="size-4" />Hotel</Button>
         </form>
       </CardContent>
     </Card>
@@ -368,7 +368,7 @@ function CreateRoomCard({
           </Select>
           <Input value={form.roomNumber} onChange={(event) => setForm({ ...form, roomNumber: event.target.value })} placeholder="Room number" required />
           <Input type="number" min={1} value={form.capacity} onChange={(event) => setForm({ ...form, capacity: Number(event.target.value) })} placeholder="Capacity" required />
-          <Button className="w-full gap-2" type="submit" disabled={busy || !hotels.length}><Plus className="size-4" />Room</Button>
+          <Button className="w-full gap-2" type="submit" disabled={!hotels.length} loading={busy} loadingText="Creating room"><Plus className="size-4" />Room</Button>
         </form>
       </CardContent>
     </Card>
@@ -580,7 +580,7 @@ function AssignmentSheet({
           )}
         </div>
         <SheetFooter>
-          <Button type="button" onClick={onSubmit} disabled={busy || !selectedGuestIds.length}>
+          <Button type="button" onClick={onSubmit} disabled={!selectedGuestIds.length} loading={busy} loadingText="Assigning guests">
             Assign {selectedGuestIds.length} Guest{selectedGuestIds.length === 1 ? "" : "s"}
           </Button>
         </SheetFooter>

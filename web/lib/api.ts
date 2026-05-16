@@ -259,6 +259,17 @@ export const api = {
       },
     );
   },
+  updateGuestRsvp(
+    token: string,
+    guestId: string,
+    payload: { rsvpStatus: RsvpStatus; groupSize: number },
+  ) {
+    return request<GuestRecord>(`/guests/${guestId}/rsvp`, {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
   triggerIvr(token: string, guestId: string) {
     return request<{ queued: boolean }>("/ivr/call", {
       method: "POST",

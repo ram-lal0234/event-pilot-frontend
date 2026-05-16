@@ -1,10 +1,13 @@
 "use client";
 
+import { useState, type FormEvent } from "react";
 import { ChevronRight, MapPin, Phone, Radio } from "lucide-react";
-import type { GuestRecord } from "@/lib/api";
+import type { GuestRecord, RsvpStatus } from "@/lib/api";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -35,10 +38,36 @@ function categoryVariant(category: GuestRecord["category"]) {
 function GuestDetailsSheet({
   guest,
   onTriggerIvr,
+  onUpdateRsvp,
 }: {
   guest: GuestRecord;
   onTriggerIvr: (guestId: string) => void;
+  onUpdateRsvp: (guestId: string, payload: { rsvpStatus: RsvpStatus; groupSize: number }) => Promise<string | null>;
 }) {
+  const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus>(guest.rsvpStatus);
+  const [groupSize, setGroupSize] = useState(guest.groupSize);
+  const [busy, setBusy] = useState(false);
+  const [ivrBusy, setIvrBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const submitRsvp = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setMessage("");
+    const errorMessage = await onUpdateRsvp(guest.id, {
+      rsvpStatus,
+      groupSize: Number(groupSize),
+    });
+    if (errorMessage) {
+      setError(errorMessage);
+    } else {
+      setMessage("Manual RSVP saved");
+    }
+    setBusy(false);
+  };
+
   return (
     <Sheet>
       <SheetTrigger
@@ -55,6 +84,9 @@ function GuestDetailsSheet({
         </SheetHeader>
 
         <div className="space-y-5 px-4">
+          {message && <p className="rounded-md bg-status-success-bg p-3 text-sm text-status-success">{message}</p>}
+          {error && <p className="rounded-md bg-status-error-bg p-3 text-sm text-status-error">{error}</p>}
+
           <section className="rounded-lg border border-border p-4">
             <p className="mb-3 text-[11px] font-semibold uppercase text-muted-foreground">
               Contact Info
@@ -66,6 +98,37 @@ function GuestDetailsSheet({
               </p>
             )}
             <p className="mt-1 text-sm text-muted-foreground">{guest.email || "No email"}</p>
+          </section>
+
+          <section className="rounded-lg border border-border p-4">
+            <p className="mb-3 text-[11px] font-semibold uppercase text-muted-foreground">
+              Manual RSVP
+            </p>
+            <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_auto]" onSubmit={submitRsvp}>
+              <Select
+                value={rsvpStatus}
+                onChange={(event) => setRsvpStatus(event.target.value as RsvpStatus)}
+                aria-label="RSVP status"
+              >
+                <option value="PENDING">Pending</option>
+                <option value="CONFIRMED">Confirmed</option>
+                <option value="DECLINED">Declined</option>
+              </Select>
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                value={groupSize}
+                onChange={(event) => setGroupSize(Number(event.target.value))}
+                aria-label="Group size"
+              />
+              <Button type="submit" loading={busy} loadingText="Saving RSVP">
+                Save
+              </Button>
+            </form>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Use this when the guest confirms directly with staff.
+            </p>
           </section>
 
           <section className="rounded-lg border border-border p-4">
@@ -90,7 +153,19 @@ function GuestDetailsSheet({
             <p className="text-sm text-muted-foreground">
               {guest.ivrRespondedAt ? `Responded ${new Date(guest.ivrRespondedAt).toLocaleString()}` : "No IVR response yet"}
             </p>
-            <Button variant="outline" size="sm" className="mt-4 gap-2" type="button" onClick={() => onTriggerIvr(guest.id)}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4 gap-2"
+              type="button"
+              loading={ivrBusy}
+              loadingText="Queueing IVR"
+              onClick={async () => {
+                setIvrBusy(true);
+                await onTriggerIvr(guest.id);
+                setIvrBusy(false);
+              }}
+            >
               <Radio className="size-4" />
               Trigger IVR
             </Button>
@@ -125,9 +200,11 @@ function GuestDetailsSheet({
 export function GuestTable({
   guests,
   onTriggerIvr,
+  onUpdateRsvp,
 }: {
   guests: GuestRecord[];
   onTriggerIvr: (guestId: string) => void;
+  onUpdateRsvp: (guestId: string, payload: { rsvpStatus: RsvpStatus; groupSize: number }) => Promise<string | null>;
 }) {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -195,7 +272,7 @@ export function GuestTable({
                 </StatusBadge>
               </TableCell>
               <TableCell>
-                <GuestDetailsSheet guest={guest} onTriggerIvr={onTriggerIvr} />
+                <GuestDetailsSheet guest={guest} onTriggerIvr={onTriggerIvr} onUpdateRsvp={onUpdateRsvp} />
               </TableCell>
             </TableRow>
           )) : (

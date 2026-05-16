@@ -311,7 +311,8 @@ function LoginScreen({
               <Button
                 className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#4f46e5] px-4 text-sm font-semibold text-[#dad7ff] shadow-lg shadow-indigo-500/20 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
                 type="submit"
-                disabled={busy}
+                loading={busy}
+                loadingText="Sending OTP"
               >
                 Send OTP
                 <ArrowRight className="size-4" />
@@ -382,7 +383,9 @@ function LoginScreen({
               <Button
                 className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#4f46e5] px-4 text-sm font-semibold text-[#dad7ff] transition-all hover:shadow-[0_0_20px_rgba(137,206,255,0.3)] active:scale-95 disabled:opacity-60"
                 type="submit"
-                disabled={busy || otp.length < 6}
+                disabled={otp.length < 6}
+                loading={busy}
+                loadingText="Verifying"
               >
                 Verify & Continue
                 <ArrowRight className="size-4" />
@@ -575,7 +578,7 @@ export function EmptyEventState() {
         </div>
         {error && <p className="mt-3 rounded-md bg-status-error-bg p-2 text-sm text-status-error">{error}</p>}
         <div className="mt-5 flex gap-2">
-          <Button className="flex-1" type="submit" disabled={busy}>Create Event</Button>
+          <Button className="flex-1" type="submit" loading={busy} loadingText="Creating event">Create Event</Button>
           <Button variant="outline" type="button" onClick={logout}>Logout</Button>
         </div>
       </form>

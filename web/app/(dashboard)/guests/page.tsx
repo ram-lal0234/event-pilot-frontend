@@ -188,6 +188,17 @@ export default function GuestsPage() {
     }
   };
 
+  const updateGuestRsvp = async (guestId: string, payload: { rsvpStatus: GuestRecord["rsvpStatus"]; groupSize: number }) => {
+    try {
+      await api.updateGuestRsvp(token, guestId, payload);
+      setMessage("RSVP updated");
+      await loadGuests();
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : "Could not update RSVP";
+    }
+  };
+
   return loading ? (
     <GuestsSkeleton />
   ) : (
@@ -201,7 +212,7 @@ export default function GuestsPage() {
               <RefreshCw className="size-4" />
               Refresh
             </Button>
-            <Button variant="outline" type="button" className="gap-2" onClick={exportGuests} disabled={!pagination.total || busy}>
+            <Button variant="outline" type="button" className="gap-2" onClick={exportGuests} disabled={!pagination.total} loading={busy} loadingText="Exporting">
               <Download className="size-4" />
               Export
             </Button>
@@ -217,7 +228,7 @@ export default function GuestsPage() {
       />
       {message && <p className="mb-3 rounded-md bg-status-success-bg p-3 text-sm text-status-success">{message}</p>}
       {error && <p className="mb-3 rounded-md bg-status-error-bg p-3 text-sm text-status-error">{error}</p>}
-      <GuestTable guests={guests} onTriggerIvr={triggerIvr} />
+      <GuestTable guests={guests} onTriggerIvr={triggerIvr} onUpdateRsvp={updateGuestRsvp} />
       <GuestFooter
         stats={stats}
         page={currentPage}
@@ -326,7 +337,7 @@ function GuestSheet({
             </div>
           </div>
           <SheetFooter>
-            <Button type="submit" disabled={busy}>Create Guest</Button>
+            <Button type="submit" loading={busy} loadingText="Creating guest">Create Guest</Button>
           </SheetFooter>
         </form>
       </SheetContent>
@@ -509,7 +520,7 @@ function CsvSheet({
           </div>
         </div>
         <SheetFooter className="border-t border-border bg-popover">
-          <Button className="w-full" type="button" onClick={importValidRows} disabled={busy || !canImport}>
+          <Button className="w-full" type="button" onClick={importValidRows} disabled={!canImport} loading={busy} loadingText="Importing guests">
             Import {validRows.length} Guests
           </Button>
         </SheetFooter>

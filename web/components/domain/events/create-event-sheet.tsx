@@ -67,7 +67,7 @@ export function CreateEventSheet({ trigger }: { trigger: ReactElement }) {
             {error && <p className="rounded-md bg-status-error-bg p-2 text-sm text-status-error">{error}</p>}
           </div>
           <SheetFooter>
-            <Button type="submit" disabled={busy}>Create Event</Button>
+            <Button type="submit" loading={busy} loadingText="Creating event">Create Event</Button>
           </SheetFooter>
         </form>
       </SheetContent>
