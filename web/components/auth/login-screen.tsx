@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Clock3,
   HelpCircle,
+  KeyRound,
   LayoutDashboard,
   ListChecks,
   Loader2,
@@ -216,22 +217,19 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                     <div className="mb-8 text-center lg:text-left">
                       <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#93c5fd]/90">Sign in</p>
                       <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Welcome to EventPilot AI</h1>
-                      <p className="mt-2 max-w-md text-sm leading-relaxed text-[#9fb0d9]">
-                        Managing guests, logistics &amp; check-ins in one intelligent workspace.
-                      </p>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-wide text-[#8898c8]" htmlFor="email">
-                        Step 1 · Email
+                      <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#8898c8]" htmlFor="email">
+                        <Mail className="size-[1.125rem] shrink-0 text-[#6b7aa8]" aria-hidden />
+                        Email
                       </label>
                       <div className="relative">
-                        <Mail className="pointer-events-none absolute left-4 top-1/2 size-[1.125rem] -translate-y-1/2 text-[#6b7aa8]" aria-hidden />
                         <Input
                           aria-invalid={emailHasIssue}
                           aria-describedby={emailAriaDescribedBy}
                           className={cn(
-                            "h-12 border-white/15 bg-black/35 pl-11 pr-4 text-[0.9375rem] text-white placeholder:text-[#62708f]",
+                            "h-12 border-white/15 bg-black/35 px-4 text-[0.9375rem] text-white placeholder:text-[#62708f]",
                             emailHasIssue
                               ? "border-rose-500/65 ring-2 ring-inset ring-rose-500/25 focus-visible:border-rose-400/75 focus-visible:ring-rose-500/30"
                               : "focus-visible:border-sky-400/60 focus-visible:ring-sky-500/25"
@@ -297,11 +295,13 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                 ) : (
                   <form noValidate className={`${glassSurface} p-5 sm:p-8`} onSubmit={verifyOtp}>
                     <div className="pointer-events-none absolute left-6 right-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/35 to-transparent sm:left-10 sm:right-10" />
-                    <div className="-ml-2 mb-4">
+                    <div className="mb-4">
                       <Button
-                        variant="link"
-                        className="group inline-flex items-center gap-2 px-2 text-sm font-medium text-[#9fb0d9] hover:text-white"
+                        variant="outline"
+                        size="icon"
+                        className="group size-10 shrink-0 rounded-full border-white/10 bg-white/5 text-[#9fb0d9] hover:bg-white/10 hover:text-white"
                         type="button"
+                        aria-label="Back to email sign-in"
                         onClick={() => {
                           setStep("email");
                           setOtp("");
@@ -310,15 +310,13 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                           setEmailFieldError("");
                         }}
                       >
-                        <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
-                        Change email
+                        <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" aria-hidden />
                       </Button>
                     </div>
 
                     <div className="mb-8 text-center lg:text-left">
-                      <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#93c5fd]/90">Verify</p>
-                      <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Check your inbox</h1>
-                      <p className="mt-2 max-w-md text-sm leading-relaxed text-[#9fb0d9]">
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#93c5fd]/90">Verify</p>
+                      <p className="max-w-md text-sm leading-relaxed text-[#9fb0d9]">
                         Enter the 6-digit code we sent to{" "}
                         <span className="font-medium text-[#c7d5f0]" title={email}>
                           {email}
@@ -333,7 +331,10 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                         undefined
                       }
                     >
-                      <legend className="text-xs font-semibold uppercase tracking-wide text-[#8898c8]">Step 2 · OTP code</legend>
+                      <legend className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#8898c8]">
+                        <KeyRound className="size-[1.125rem] shrink-0 text-[#6b7aa8]" aria-hidden />
+                        OTP
+                      </legend>
                       <div className="flex justify-center gap-2 sm:gap-3 lg:justify-start">
                         {Array.from({ length: 6 }).map((_, index) => (
                           <Input
@@ -430,7 +431,7 @@ function LoginFormFootnotes({ showTrustLine = true }: { showTrustLine?: boolean 
             Trusted for managing modern events &amp; guest experiences.
           </p>
         ) : null}
-        <p className="text-[10px] text-[#5c637a]">© 2024–2026 EventPilot AI. All rights reserved.</p>
+        <p className="text-[10px] text-[#5c637a]">© 2026 EventPilot AI. All rights reserved.</p>
       </div>
     </footer>
   );
