@@ -1,0 +1,33 @@
+[
+  {
+    "title": "Check-In Screen",
+    "screenId": "dafd1cc39d2241e3bd2adae47e61a74f",
+    "file": "check-in-screen.png",
+    "source": "stitch_mcp"
+  },
+  {
+    "title": "Dashboard Redesign",
+    "screenId": "1140b378a17d4608bfc0b83840d8c4bf",
+    "file": "dashboard-redesign.png",
+    "source": "stitch_mcp"
+  },
+  {
+    "title": "Operations Hub",
+    "screenId": "1eb006b4a62e496a868ba8d2fa5e8ad5",
+    "file": "operations-hub.png",
+    "source": "stitch_mcp"
+  },
+  {
+    "title": "Guest Management Redesign",
+    "screenId": "b6e4f819597b49f1a31aa137e2a6297b",
+    "file": "guest-management-redesign.png",
+    "source": "stitch_mcp"
+  },
+  {
+    "title": "EventFlow Pro Management Suite",
+    "screenId": "d26162cb31bf444695736dd24881a5c9",
+    "file": "eventflow-pro-management-suite.png",
+    "html": "eventflow-pro-management-suite.html",
+    "source": "rendered_from_html (Stitch had no screenshot asset)"
+  }
+]
