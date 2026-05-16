@@ -25,6 +25,7 @@ import {
   Users,
 } from "lucide-react";
 import { api, ApiError, type AuthUser, type EventRecord } from "@/lib/api";
+import { AuthFooter } from "@/components/auth/auth-footer";
 import { GoogleIcon } from "@/components/icons/google-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -234,7 +235,7 @@ function LoginScreen({
     <main className="h-dvh overflow-hidden bg-[#0b1326] text-[#dae2fd]">
       <div className="flex h-full min-h-0">
         <BrandPanel compact={step === "otp"} />
-        <section className="relative flex h-full min-h-0 w-full flex-1 items-center justify-center overflow-hidden bg-[#060e20] px-4 py-4 sm:px-6 lg:w-1/2">
+        <section className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#060e20] px-4 py-4 sm:px-6 lg:w-1/2">
           <div className="absolute left-4 top-4 flex items-center gap-3 sm:left-6 lg:hidden">
             <Rocket className="size-8 text-[#c3c0ff]" />
             <span className="text-xl font-bold text-[#c3c0ff]">EventPilot AI</span>
@@ -250,6 +251,7 @@ function LoginScreen({
           </Button>
           <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(23,31,51,0.9),rgba(6,14,32,0.98)_45%,rgba(10,19,38,1))]" />
 
+          <div className="relative z-10 flex flex-1 flex-col items-center justify-center pb-20">
           {step === "email" ? (
             <form
               className="relative z-10 w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#171f33]/80 p-5 shadow-2xl shadow-indigo-500/10 backdrop-blur-2xl sm:p-6 md:p-8"
@@ -297,8 +299,6 @@ function LoginScreen({
                 <GoogleIcon />
                 Continue with Google
               </Button>
-
-              <AuthFooter />
             </form>
           ) : (
             <form
@@ -381,6 +381,9 @@ function LoginScreen({
               </div>
             </form>
           )}
+          </div>
+
+          <AuthFooter />
         </section>
       </div>
     </main>
@@ -504,19 +507,6 @@ function AuthDivider({ label }: { label: string }) {
       <div className="flex-grow border-t border-[#464555]/30" />
       <span className="mx-4 flex-shrink text-xs font-semibold uppercase tracking-widest text-[#464555]">{label}</span>
       <div className="flex-grow border-t border-[#464555]/30" />
-    </div>
-  );
-}
-
-function AuthFooter() {
-  return (
-    <div className="mt-6 flex flex-col items-center gap-2">
-      <div className="flex gap-4 text-xs font-semibold text-[#918fa1]">
-        <a className="transition-colors hover:text-[#dae2fd]" href="#">Privacy Policy</a>
-        <span className="text-[#464555]/60">.</span>
-        <a className="transition-colors hover:text-[#dae2fd]" href="#">Terms of Service</a>
-      </div>
-      <p className="text-xs text-[#c7c4d8]/60">© 2024 EventPilot AI. All rights reserved.</p>
     </div>
   );
 }
