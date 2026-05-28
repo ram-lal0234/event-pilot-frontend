@@ -239,7 +239,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!bootstrapping) {
+  if (bootstrapping) {
     return <WorkspaceBootstrapScreen />;
   }
 
