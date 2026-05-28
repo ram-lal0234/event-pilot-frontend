@@ -42,6 +42,10 @@ export type GuestRecord = {
   qrCode: string;
   qrImage?: string;
   ivrRespondedAt: string | null;
+  followUpStatus?: "NONE" | "NEEDS_FOLLOW_UP" | "CALLBACK_LATER" | "NO_ANSWER" | "VOICEMAIL" | "COMPLETED";
+  callbackAt?: string | null;
+  lastContactedAt?: string | null;
+  assignedTo?: string | null;
   createdAt: string;
   checkins?: { id: string; method: CheckinMethod; locationType: string }[];
   cabAssignments?: { id: string; cabId: string }[];
@@ -109,8 +113,23 @@ export type PaginatedGuests = {
 export type DashboardSummary = {
   totalGuests: number;
   confirmed: number;
+  declined?: number;
+  pendingRsvp?: number;
   checkedIn: number;
   pendingPickups: number;
+  callbackLater?: number;
+  noAnswer?: number;
+  voicemail?: number;
+  needsFollowUp?: number;
+  needsFollowUpGuests?: Array<{
+    id: string;
+    name: string;
+    phone: string;
+    rsvpStatus: RsvpStatus;
+    followUpStatus: string;
+    callbackAt: string | null;
+    lastContactedAt: string | null;
+  }>;
 };
 
 export type AuditRecord = {
@@ -128,9 +147,13 @@ export type CabRecord = {
   id: string;
   eventId: string;
   driverName: string;
+  driverPhone?: string | null;
   vehicleNumber: string;
   capacity: number;
   usedSeats: number;
+  pickupTime?: string | null;
+  routeZone?: string | null;
+  tripStatus?: string | null;
   assignments?: {
     id: string;
     guest: { id: string; name: string; groupSize: number };
@@ -150,6 +173,11 @@ export type RoomRecord = {
   hotelId: string;
   roomNumber: string;
   capacity: number;
+  roomType?: string | null;
+  floor?: string | null;
+  roomStatus?: string | null;
+  checkInDate?: string | null;
+  checkOutDate?: string | null;
   assignments?: {
     id: string;
     assignedMembers: number;
@@ -371,7 +399,14 @@ export const api = {
       locationType: CheckinLocationType;
     },
   ) {
-    return request<{ guest: GuestRecord; checkin: unknown }>("/checkin/scan", {
+    return request<{ guest: GuestRecord; checkin: unknown; alreadyCheckedIn?: boolean }>("/checkin/scan", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  undoCheckin(token: string, payload: { qrCode: string }) {
+    return request<{ guestId: string }>("/checkin/undo", {
       method: "POST",
       token,
       body: JSON.stringify(payload),
@@ -385,8 +420,12 @@ export const api = {
     payload: {
       eventId: string;
       driverName: string;
+      driverPhone?: string;
       vehicleNumber: string;
       capacity: number;
+      pickupTime?: string;
+      routeZone?: string;
+      tripStatus?: string;
     },
   ) {
     return request<CabRecord>("/cabs", {
@@ -397,6 +436,20 @@ export const api = {
   },
   assignCab(token: string, payload: { cabId: string; guestId: string }) {
     return request<unknown>("/cabs/assignments", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  unassignCab(token: string, payload: { guestId: string }) {
+    return request<{ id: string }>("/cabs/assignments/unassign", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  moveCab(token: string, payload: { guestId: string; toCabId: string }) {
+    return request<{ id: string }>("/cabs/assignments/move", {
       method: "POST",
       token,
       body: JSON.stringify(payload),
@@ -417,7 +470,7 @@ export const api = {
   },
   createRoom(
     token: string,
-    payload: { hotelId: string; roomNumber: string; capacity: number },
+    payload: { hotelId: string; roomNumber: string; capacity: number; roomType?: string; floor?: string; roomStatus?: string; checkInDate?: string; checkOutDate?: string },
   ) {
     return request<RoomRecord>("/hotels/rooms", {
       method: "POST",
@@ -431,5 +484,45 @@ export const api = {
       token,
       body: JSON.stringify(payload),
     });
+  },
+  unassignRoom(token: string, payload: { guestId: string }) {
+    return request<{ id: string }>("/hotels/room-assignments/unassign", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  moveRoom(token: string, payload: { guestId: string; toRoomId: string }) {
+    return request<{ id: string }>("/hotels/room-assignments/move", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  getPublicRsvp(code: string) {
+    return request<{
+      code: string;
+      expiresAt: string | null;
+      guest: { id: string; name: string; phone: string; email: string | null; rsvpStatus: RsvpStatus; groupSize: number; pickupLocation: string | null };
+      event: EventRecord;
+    }>(`/public-rsvp/${code}`);
+  },
+  submitPublicRsvp(
+    code: string,
+    payload: {
+      rsvpStatus: RsvpStatus;
+      groupSize: number;
+      pickupLocation?: string | null;
+      callbackAt?: string | null;
+      followUpStatus?: "NONE" | "NEEDS_FOLLOW_UP" | "CALLBACK_LATER" | "NO_ANSWER" | "VOICEMAIL" | "COMPLETED";
+    },
+  ) {
+    return request<{ guest: { id: string; name: string; rsvpStatus: RsvpStatus; groupSize: number; pickupLocation: string | null } }>(
+      `/public-rsvp/${code}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 };

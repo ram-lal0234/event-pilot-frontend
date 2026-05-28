@@ -40,9 +40,9 @@ export default function OperationsPage() {
   const [busy, setBusy] = useState(false);
   const [operationsLoaded, setOperationsLoaded] = useState(false);
 
-  const [cabForm, setCabForm] = useState({ driverName: "", vehicleNumber: "", capacity: 4 });
+  const [cabForm, setCabForm] = useState({ driverName: "", driverPhone: "", vehicleNumber: "", capacity: 4, routeZone: "", tripStatus: "" });
   const [hotelForm, setHotelForm] = useState({ name: "", location: "" });
-  const [roomForm, setRoomForm] = useState({ hotelId: "", roomNumber: "", capacity: 2 });
+  const [roomForm, setRoomForm] = useState({ hotelId: "", roomNumber: "", capacity: 2, roomType: "", floor: "", roomStatus: "" });
   const [assignment, setAssignment] = useState<{ mode: AssignmentMode; targetId: string } | null>(null);
   const [selectedGuestIds, setSelectedGuestIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("assignments");
@@ -89,7 +89,7 @@ export default function OperationsPage() {
   const selectedHotel = selectedRoom
     ? hotels.find((hotel) => hotel.id === selectedRoom.hotelId) || null
     : null;
-  const assignableGuests = assignment?.mode === "cab" ? unassignedCabGuests : unassignedRoomGuests;
+  const assignableGuests = guests.filter((guest) => guest.rsvpStatus === "CONFIRMED");
 
   const submit = async (task: () => Promise<unknown>, success: string) => {
     setBusy(true);
@@ -122,6 +122,9 @@ export default function OperationsPage() {
     submit(() => api.createRoom(token, { ...roomForm, capacity: Number(roomForm.capacity) }), "Room created");
   };
 
+  const unassignCabGuest = (guestId: string) => submit(() => api.unassignCab(token, { guestId }), "Guest unassigned from cab");
+  const unassignRoomGuest = (guestId: string) => submit(() => api.unassignRoom(token, { guestId }), "Guest unassigned from room");
+
   const openAssignment = (mode: AssignmentMode, targetId: string) => {
     setSelectedGuestIds([]);
     setAssignment({ mode, targetId });
@@ -132,10 +135,19 @@ export default function OperationsPage() {
 
     await submit(async () => {
       for (const guestId of selectedGuestIds) {
+        const guest = guests.find((item) => item.id === guestId);
         if (assignment.mode === "cab") {
-          await api.assignCab(token, { cabId: assignment.targetId, guestId });
+          if (guest?.cabAssignments?.length) {
+            await api.moveCab(token, { guestId, toCabId: assignment.targetId });
+          } else {
+            await api.assignCab(token, { cabId: assignment.targetId, guestId });
+          }
         } else {
-          await api.assignRoom(token, { roomId: assignment.targetId, guestId });
+          if (guest?.roomAssignments?.length) {
+            await api.moveRoom(token, { guestId, toRoomId: assignment.targetId });
+          } else {
+            await api.assignRoom(token, { roomId: assignment.targetId, guestId });
+          }
         }
       }
     }, `${selectedGuestIds.length} guest${selectedGuestIds.length === 1 ? "" : "s"} assigned`);
@@ -207,7 +219,7 @@ export default function OperationsPage() {
             <CreateCabCard form={cabForm} setForm={setCabForm} onSubmit={createCab} busy={busy} />
             <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
               {cabs.map((cab) => (
-                <CabCard key={cab.id} cab={cab} onAssign={() => openAssignment("cab", cab.id)} />
+                <CabCard key={cab.id} cab={cab} onAssign={() => openAssignment("cab", cab.id)} onUnassign={unassignCabGuest} />
               ))}
               {!cabs.length && <EmptyPanel title="No cabs yet" body="Create your first cab to start assigning guests." />}
             </div>
@@ -221,6 +233,7 @@ export default function OperationsPage() {
                     key={hotel.id}
                     hotel={hotel}
                     onAssignRoom={(roomId) => openAssignment("room", roomId)}
+                    onUnassignRoomGuest={unassignRoomGuest}
                   />
                 ))}
                 {!hotels.length && <EmptyPanel title="No hotels yet" body="Create a hotel, then add rooms inside it." />}
@@ -261,8 +274,8 @@ function CreateCabCard({
   onSubmit,
   busy,
 }: {
-  form: { driverName: string; vehicleNumber: string; capacity: number };
-  setForm: (form: { driverName: string; vehicleNumber: string; capacity: number }) => void;
+  form: { driverName: string; driverPhone: string; vehicleNumber: string; capacity: number; routeZone: string; tripStatus: string };
+  setForm: (form: { driverName: string; driverPhone: string; vehicleNumber: string; capacity: number; routeZone: string; tripStatus: string }) => void;
   onSubmit: (event: FormEvent) => void;
   busy: boolean;
 }) {
@@ -275,9 +288,12 @@ function CreateCabCard({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form className="grid gap-2 md:grid-cols-4" onSubmit={onSubmit}>
+        <form className="grid gap-2 md:grid-cols-6" onSubmit={onSubmit}>
           <Input value={form.driverName} onChange={(event) => setForm({ ...form, driverName: event.target.value })} placeholder="Driver" required />
+          <Input value={form.driverPhone} onChange={(event) => setForm({ ...form, driverPhone: event.target.value })} placeholder="Driver phone" />
           <Input value={form.vehicleNumber} onChange={(event) => setForm({ ...form, vehicleNumber: event.target.value })} placeholder="Vehicle" required />
+          <Input value={form.routeZone} onChange={(event) => setForm({ ...form, routeZone: event.target.value })} placeholder="Route/zone" />
+          <Input value={form.tripStatus} onChange={(event) => setForm({ ...form, tripStatus: event.target.value })} placeholder="Trip status" />
           <Input type="number" min={1} value={form.capacity} onChange={(event) => setForm({ ...form, capacity: Number(event.target.value) })} placeholder="Capacity" required />
           <Button type="submit" loading={busy} loadingText="Creating cab" className="gap-2"><Plus className="size-4" />Cab</Button>
         </form>
@@ -286,7 +302,7 @@ function CreateCabCard({
   );
 }
 
-function CabCard({ cab, onAssign }: { cab: CabRecord; onAssign: () => void }) {
+function CabCard({ cab, onAssign, onUnassign }: { cab: CabRecord; onAssign: () => void; onUnassign: (guestId: string) => void }) {
   const usage = cab.capacity ? Math.min(100, (cab.usedSeats / cab.capacity) * 100) : 0;
   const available = cab.capacity - cab.usedSeats;
   const isFull = available <= 0;
@@ -310,10 +326,15 @@ function CabCard({ cab, onAssign }: { cab: CabRecord; onAssign: () => void }) {
           </div>
           <Progress value={usage} className="h-2" />
         </div>
-        <AssignmentList
-          empty="No guests assigned"
-          items={(cab.assignments || []).map((assignment) => `${assignment.guest.name} (${assignment.guest.groupSize})`)}
-        />
+        <div className="space-y-2 text-sm">
+          {(cab.assignments || []).map((assignment) => (
+            <div key={assignment.id} className="flex items-center justify-between gap-2 rounded-md bg-surface-container-low px-2 py-1.5">
+              <span>{assignment.guest.name} ({assignment.guest.groupSize})</span>
+              <Button type="button" size="sm" variant="ghost" onClick={() => onUnassign(assignment.guest.id)}>Unassign</Button>
+            </div>
+          ))}
+          {!cab.assignments?.length ? <p className="text-muted-foreground">No guests assigned</p> : null}
+        </div>
         <Button className="w-full gap-2" variant="outline" type="button" onClick={onAssign} disabled={isFull}>
           <Users className="size-4" />
           Assign Guests
@@ -360,8 +381,8 @@ function CreateRoomCard({
   onSubmit,
   busy,
 }: {
-  form: { hotelId: string; roomNumber: string; capacity: number };
-  setForm: (form: { hotelId: string; roomNumber: string; capacity: number }) => void;
+  form: { hotelId: string; roomNumber: string; capacity: number; roomType: string; floor: string; roomStatus: string };
+  setForm: (form: { hotelId: string; roomNumber: string; capacity: number; roomType: string; floor: string; roomStatus: string }) => void;
   hotels: HotelRecord[];
   onSubmit: (event: FormEvent) => void;
   busy: boolean;
@@ -381,6 +402,9 @@ function CreateRoomCard({
             {hotels.map((hotel) => <option key={hotel.id} value={hotel.id}>{hotel.name}</option>)}
           </Select>
           <Input value={form.roomNumber} onChange={(event) => setForm({ ...form, roomNumber: event.target.value })} placeholder="Room number" required />
+          <Input value={form.roomType} onChange={(event) => setForm({ ...form, roomType: event.target.value })} placeholder="Room type" />
+          <Input value={form.floor} onChange={(event) => setForm({ ...form, floor: event.target.value })} placeholder="Floor" />
+          <Input value={form.roomStatus} onChange={(event) => setForm({ ...form, roomStatus: event.target.value })} placeholder="Room status" />
           <Input type="number" min={1} value={form.capacity} onChange={(event) => setForm({ ...form, capacity: Number(event.target.value) })} placeholder="Capacity" required />
           <Button className="w-full gap-2" type="submit" disabled={!hotels.length} loading={busy} loadingText="Creating room"><Plus className="size-4" />Room</Button>
         </form>
@@ -392,9 +416,11 @@ function CreateRoomCard({
 function HotelRoomsCard({
   hotel,
   onAssignRoom,
+  onUnassignRoomGuest,
 }: {
   hotel: HotelRecord;
   onAssignRoom: (roomId: string) => void;
+  onUnassignRoomGuest: (guestId: string) => void;
 }) {
   const rooms = hotel.rooms || [];
   const occupied = rooms.reduce((sum, room) => sum + usedRoomMembers(room), 0);
@@ -415,7 +441,7 @@ function HotelRoomsCard({
       </CardHeader>
       <CardContent className="space-y-3">
         {rooms.map((room) => (
-          <RoomRow key={room.id} room={room} onAssign={() => onAssignRoom(room.id)} />
+          <RoomRow key={room.id} room={room} onAssign={() => onAssignRoom(room.id)} onUnassign={onUnassignRoomGuest} />
         ))}
         {!rooms.length && <p className="rounded-lg bg-surface-container-low p-4 text-sm text-muted-foreground">No rooms added yet.</p>}
       </CardContent>
@@ -423,7 +449,7 @@ function HotelRoomsCard({
   );
 }
 
-function RoomRow({ room, onAssign }: { room: RoomRecord; onAssign: () => void }) {
+function RoomRow({ room, onAssign, onUnassign }: { room: RoomRecord; onAssign: () => void; onUnassign: (guestId: string) => void }) {
   const used = usedRoomMembers(room);
   const isFull = used >= room.capacity;
 
@@ -437,11 +463,15 @@ function RoomRow({ room, onAssign }: { room: RoomRecord; onAssign: () => void })
           </div>
           <p className="mt-1 text-sm text-muted-foreground">{used}/{room.capacity} members assigned</p>
           <Progress className="mt-3 h-2" value={room.capacity ? Math.min(100, (used / room.capacity) * 100) : 0} />
-          <AssignmentList
-            className="mt-3"
-            empty="No guests assigned"
-            items={(room.assignments || []).map((assignment) => `${assignment.guest.name} (${assignment.assignedMembers})`)}
-          />
+          <div className="mt-3 space-y-2 text-sm">
+            {(room.assignments || []).map((assignment) => (
+              <div key={assignment.id} className="flex items-center justify-between gap-2 rounded-md bg-surface-container-low px-2 py-1.5">
+                <span>{assignment.guest.name} ({assignment.assignedMembers})</span>
+                <Button type="button" size="sm" variant="ghost" onClick={() => onUnassign(assignment.guest.id)}>Unassign</Button>
+              </div>
+            ))}
+            {!room.assignments?.length ? <p className="text-muted-foreground">No guests assigned</p> : null}
+          </div>
         </div>
         <Button variant="outline" type="button" className="gap-2" onClick={onAssign} disabled={isFull}>
           <Users className="size-4" />

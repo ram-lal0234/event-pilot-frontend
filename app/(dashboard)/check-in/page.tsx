@@ -22,6 +22,7 @@ export default function CheckInPage() {
   const [guest, setGuest] = useState<GuestRecord | null>(null);
   const [recent, setRecent] = useState<Array<{ guest: GuestRecord; at: string; location: CheckinLocationType }>>([]);
   const [busy, setBusy] = useState(false);
+  const [lastCheckedQr, setLastCheckedQr] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(true);
   const scannerRef = useRef<{ clear: () => Promise<void> } | null>(null);
 
@@ -70,27 +71,39 @@ export default function CheckInPage() {
     };
   }, [mode, scannerOpen]);
 
-  useEffect(() => {
-    setScannerOpen(mode === "scanner");
-  }, [mode]);
-
   const scan = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
     try {
-      const result = await api.scanQr(token, { qrCode, method: "QR", locationType });
+      const result = await api.scanQr(token, { qrCode, method: mode === "manual" ? "MANUAL" : "QR", locationType });
       setGuest(result.guest);
+      setLastCheckedQr(qrCode);
       setRecent((prev) => [
         { guest: result.guest, at: new Date().toISOString(), location: locationType },
         ...prev.filter((item) => item.guest.id !== result.guest.id).slice(0, 11),
       ]);
-      toast.success("Check-in completed");
+      toast.success(result.alreadyCheckedIn ? "Guest already checked in" : "Check-in completed");
       setQrCode("");
       if (mode === "scanner") {
         setScannerOpen(true);
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not check in guest");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const undoLastCheckin = async () => {
+    if (!lastCheckedQr) return;
+    setBusy(true);
+    try {
+      await api.undoCheckin(token, { qrCode: lastCheckedQr });
+      toast.success("Last check-in undone");
+      setGuest(null);
+      setRecent((prev) => prev.slice(1));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not undo check-in");
     } finally {
       setBusy(false);
     }
@@ -131,7 +144,15 @@ export default function CheckInPage() {
           className="flex min-h-[520px] flex-col overflow-hidden rounded-xl border border-border bg-card"
           onSubmit={scan}
         >
-          <Tabs value={mode} onValueChange={(value) => setMode(value as CheckinMode)} className="gap-0">
+          <Tabs
+            value={mode}
+            onValueChange={(value) => {
+              const nextMode = value as CheckinMode;
+              setMode(nextMode);
+              setScannerOpen(nextMode === "scanner");
+            }}
+            className="gap-0"
+          >
             <div className="border-b border-border px-4 py-3 md:px-5">
               <TabsList variant="line" className="h-9 w-full justify-start sm:w-auto">
                 <TabsTrigger value="scanner" className="gap-1.5">
@@ -245,6 +266,9 @@ export default function CheckInPage() {
                   <Info label="RSVP" value={guest.rsvpStatus} />
                   <Info label="Location" value={locationType === "HOTEL" ? "Hotel" : "Event gate"} />
                 </div>
+                <Button type="button" variant="outline" size="sm" onClick={undoLastCheckin} disabled={!lastCheckedQr || busy}>
+                  Undo check-in
+                </Button>
               </div>
             ) : (
               <p className="mt-3 text-sm text-muted-foreground">

@@ -1,0 +1,78 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { api, type RsvpStatus } from "@/lib/api";
+
+export default function PublicRsvpPage() {
+  const params = useParams<{ code: string }>();
+  const code = params?.code;
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [invite, setInvite] = useState<Awaited<ReturnType<typeof api.getPublicRsvp>> | null>(null);
+  const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus>("PENDING");
+  const [groupSize, setGroupSize] = useState(1);
+  const [pickupLocation, setPickupLocation] = useState("");
+
+  useEffect(() => {
+    if (!code) return;
+    api.getPublicRsvp(code)
+      .then((result) => {
+        setInvite(result);
+        setRsvpStatus(result.guest.rsvpStatus);
+        setGroupSize(result.guest.groupSize);
+        setPickupLocation(result.guest.pickupLocation || "");
+      })
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Invalid RSVP link"))
+      .finally(() => setLoading(false));
+  }, [code]);
+
+  const submit = async () => {
+    if (!code) return;
+    setSaving(true);
+    try {
+      await api.submitPublicRsvp(code, { rsvpStatus, groupSize, pickupLocation: pickupLocation || null });
+      toast.success("RSVP submitted. Thank you!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not submit RSVP");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="mx-auto max-w-xl p-6 text-sm text-muted-foreground">Loading RSVP...</div>;
+  if (!invite) return <div className="mx-auto max-w-xl p-6 text-sm text-destructive">This RSVP link is invalid or expired.</div>;
+
+  return (
+    <main className="mx-auto max-w-xl space-y-4 p-6">
+      <h1 className="text-2xl font-bold">RSVP for {invite.event.name}</h1>
+      <p className="text-sm text-muted-foreground">
+        Hi {invite.guest.name}, please confirm your attendance.
+      </p>
+      <Select value={rsvpStatus} onChange={(event) => setRsvpStatus(event.target.value as RsvpStatus)}>
+        <option value="CONFIRMED">Confirmed</option>
+        <option value="PENDING">Maybe / Pending</option>
+        <option value="DECLINED">Declined</option>
+      </Select>
+      <Input
+        type="number"
+        min={1}
+        value={groupSize}
+        onChange={(event) => setGroupSize(Number(event.target.value))}
+        placeholder="Group size"
+      />
+      <Input
+        value={pickupLocation}
+        onChange={(event) => setPickupLocation(event.target.value)}
+        placeholder="Pickup location (optional)"
+      />
+      <Button onClick={submit} loading={saving} loadingText="Submitting" className="w-full">
+        Submit RSVP
+      </Button>
+    </main>
+  );
+}
