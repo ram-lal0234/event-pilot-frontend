@@ -116,10 +116,10 @@ function getCurrentSection(pathname: string) {
   if (pathname === "/" || /^\/events\/[^/]+\/dashboard$/.test(pathname)) {
     return "/";
   }
-  if (/^\/events\/[^/]+\/(guests|operations|check-in|live|analytics|reports|call-logs)$/.test(pathname)) {
+  if (/^\/events\/[^/]+\/(guests|follow-up|operations|check-in|live|analytics|reports|call-logs)$/.test(pathname)) {
     return pathname.replace(/^\/events\/[^/]+/, "");
   }
-  if (/^\/(guests|operations|check-in|live|analytics|reports|call-logs)$/.test(pathname)) {
+  if (/^\/(guests|follow-up|operations|check-in|live|analytics|reports|call-logs)$/.test(pathname)) {
     return pathname;
   }
   return "/";

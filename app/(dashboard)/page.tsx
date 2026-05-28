@@ -91,15 +91,17 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+      <section className="grid gap-3 md:grid-cols-3 sm:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-10">
         <Metric label="Total Guests" value={`${summary?.totalGuests || 0}`} />
         <Metric label="Confirmed RSVP" value={`${summary?.confirmed || 0}`} />
         <Metric label="Declined RSVP" value={`${summary?.declined || 0}`} />
         <Metric label="Pending RSVP" value={`${summary?.pendingRsvp || 0}`} />
         <Metric label="Checked In" value={`${summary?.checkedIn || 0}`} />
         <Metric label="Pending Pickups" value={`${summary?.pendingPickups || 0}`} />
+        <Metric label="Callback Later" value={`${summary?.callbackLater || 0}`} />
         <Metric label="Needs Follow-up" value={`${summary?.needsFollowUp || 0}`} />
-        <Metric label="No Answer/VM" value={`${(summary?.noAnswer || 0) + (summary?.voicemail || 0)}`} />
+        <Metric label="No Answer" value={`${summary?.noAnswer || 0}`} />
+        <Metric label="Voicemail" value={`${summary?.voicemail || 0}`} />
       </section>
 
       <section className="rounded-lg border border-border bg-card">

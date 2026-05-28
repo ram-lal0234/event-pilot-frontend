@@ -46,8 +46,14 @@ export type GuestRecord = {
   callbackAt?: string | null;
   lastContactedAt?: string | null;
   assignedTo?: string | null;
+  needsCab?: boolean | null;
+  needsHotel?: boolean | null;
+  guestNotes?: string | null;
+  language?: string | null;
+  inviteCode?: string | null;
+  publicRsvpUrl?: string | null;
   createdAt: string;
-  checkins?: { id: string; method: CheckinMethod; locationType: string }[];
+  checkins?: { id: string; method: CheckinMethod; locationType: string; checkinTime?: string }[];
   cabAssignments?: { id: string; cabId: string }[];
   roomAssignments?: { id: string; roomId: string; assignedMembers: number }[];
 };
@@ -301,6 +307,10 @@ export const api = {
       q?: string;
       rsvpStatus?: string;
       category?: string;
+      followUpStatus?: string;
+      needsCab?: string;
+      needsHotel?: string;
+      assignedTo?: string;
     },
   ) {
     return request<PaginatedGuests>(
@@ -311,6 +321,10 @@ export const api = {
         q: params.q,
         rsvpStatus: params.rsvpStatus,
         category: params.category,
+        followUpStatus: params.followUpStatus,
+        needsCab: params.needsCab,
+        needsHotel: params.needsHotel,
+        assignedTo: params.assignedTo,
       })}`,
       { token },
     );
@@ -359,12 +373,25 @@ export const api = {
       pickupLat?: number;
       pickupLng?: number;
       rsvpStatus?: RsvpStatus;
+      followUpStatus?: GuestRecord["followUpStatus"];
+      callbackAt?: string | null;
+      lastContactedAt?: string | null;
+      assignedTo?: string | null;
+      needsCab?: boolean | null;
+      needsHotel?: boolean | null;
+      guestNotes?: string | null;
+      language?: string | null;
     },
   ) {
     return request<GuestRecord>(`/guests/${guestId}`, {
       method: "PATCH",
       token,
       body: JSON.stringify(payload),
+    });
+  },
+  getGuestRsvpLink(token: string, guestId: string) {
+    return request<{ inviteCode: string; publicRsvpUrl: string }>(`/guests/${guestId}/rsvp-link`, {
+      token,
     });
   },
   updateGuestRsvp(
@@ -405,7 +432,7 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
-  undoCheckin(token: string, payload: { qrCode: string }) {
+  undoCheckin(token: string, payload: { qrCode: string; locationType?: CheckinLocationType }) {
     return request<{ guestId: string }>("/checkin/undo", {
       method: "POST",
       token,
@@ -503,7 +530,18 @@ export const api = {
     return request<{
       code: string;
       expiresAt: string | null;
-      guest: { id: string; name: string; phone: string; email: string | null; rsvpStatus: RsvpStatus; groupSize: number; pickupLocation: string | null };
+      guest: {
+        id: string;
+        name: string;
+        phone: string;
+        email: string | null;
+        rsvpStatus: RsvpStatus;
+        groupSize: number;
+        pickupLocation: string | null;
+        needsCab?: boolean | null;
+        needsHotel?: boolean | null;
+        guestNotes?: string | null;
+      };
       event: EventRecord;
     }>(`/public-rsvp/${code}`);
   },
@@ -513,6 +551,9 @@ export const api = {
       rsvpStatus: RsvpStatus;
       groupSize: number;
       pickupLocation?: string | null;
+      needsCab?: boolean | null;
+      needsHotel?: boolean | null;
+      guestNotes?: string | null;
       callbackAt?: string | null;
       followUpStatus?: "NONE" | "NEEDS_FOLLOW_UP" | "CALLBACK_LATER" | "NO_ANSWER" | "VOICEMAIL" | "COMPLETED";
     },

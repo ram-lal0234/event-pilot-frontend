@@ -39,6 +39,7 @@ import {
   emptyGuestForm,
   type GuestFormState,
 } from "@/lib/guest-form";
+import { buildGuestOpsPayload, type GuestOpsFormState } from "@/components/domain/guests/guest-ops-fields";
 import { normalizePhoneInput } from "@/lib/phone";
 import { useApp } from "@/components/providers/app-provider";
 import { scopedEventHref } from "@/lib/design-tokens";
@@ -57,6 +58,12 @@ const categoryFilterOptions = [
   { label: "VIP", value: "VIP" },
   { label: "Family", value: "FAMILY" },
   { label: "General", value: "GENERAL" },
+] as const;
+const followUpFilterOptions = [
+  { label: "Needs follow-up", value: "NEEDS_FOLLOW_UP" },
+  { label: "Callback later", value: "CALLBACK_LATER" },
+  { label: "No answer", value: "NO_ANSWER" },
+  { label: "Voicemail", value: "VOICEMAIL" },
 ] as const;
 
 const csvGuestSchema = z.object({
@@ -91,6 +98,9 @@ const guestTableQueryFields = [
   { type: "search" as const, key: "q" },
   { type: "filter" as const, key: "rsvpStatus", id: "rsvpStatus", label: "Status" },
   { type: "filter" as const, key: "category", id: "category", label: "Category" },
+  { type: "filter" as const, key: "followUpStatus", id: "followUpStatus", label: "Follow-up" },
+  { type: "filter" as const, key: "needsCab", id: "needsCab", label: "Needs cab" },
+  { type: "filter" as const, key: "needsHotel", id: "needsHotel", label: "Needs hotel" },
   { type: "page" as const, defaultValue: 1 },
   { type: "pageSize" as const, defaultValue: 10 },
 ];
@@ -111,6 +121,9 @@ export default function GuestsPage() {
   } = useDataTableQuery(guestTableQueryFields);
   const selectedRsvpStatuses = filters.rsvpStatus || [];
   const selectedCategories = filters.category || [];
+  const selectedFollowUpStatuses = filters.followUpStatus || [];
+  const selectedNeedsCab = filters.needsCab?.[0];
+  const selectedNeedsHotel = filters.needsHotel?.[0];
   const [guests, setGuests] = useState<GuestRecord[]>([]);
   const [guestForm, setGuestForm] = useState(emptyGuestForm);
   const [csv, setCsv] = useState("name,phone,email,category,group_size,pickup_location\n");
@@ -146,6 +159,33 @@ export default function GuestsPage() {
       selected: selectedCategories,
       onChange: (values) => setFilter("category", values),
     },
+    {
+      id: "followUpStatus",
+      label: "Follow-up",
+      options: followUpFilterOptions,
+      selected: selectedFollowUpStatuses,
+      onChange: (values) => setFilter("followUpStatus", values),
+    },
+    {
+      id: "needsCab",
+      label: "Needs cab",
+      options: [
+        { label: "Yes", value: "true" },
+        { label: "No", value: "false" },
+      ],
+      selected: selectedNeedsCab ? [selectedNeedsCab] : [],
+      onChange: (values) => setFilter("needsCab", values.slice(-1)),
+    },
+    {
+      id: "needsHotel",
+      label: "Needs hotel",
+      options: [
+        { label: "Yes", value: "true" },
+        { label: "No", value: "false" },
+      ],
+      selected: selectedNeedsHotel ? [selectedNeedsHotel] : [],
+      onChange: (values) => setFilter("needsHotel", values.slice(-1)),
+    },
   ];
 
   const handleRsvpTabChange = (value: string) => {
@@ -170,6 +210,9 @@ export default function GuestsPage() {
         q: search,
         rsvpStatus: selectedRsvpStatuses.join(","),
         category: selectedCategories.join(","),
+        followUpStatus: selectedFollowUpStatuses.join(","),
+        needsCab: selectedNeedsCab,
+        needsHotel: selectedNeedsHotel,
       });
       if (page > result.pagination.totalPages && result.pagination.totalPages > 0) {
         setPage(result.pagination.totalPages);
@@ -182,7 +225,19 @@ export default function GuestsPage() {
     } finally {
       setGuestsLoaded(true);
     }
-  }, [currentEventId, page, pageSize, search, selectedCategories, selectedRsvpStatuses, setPage, token]);
+  }, [
+    currentEventId,
+    page,
+    pageSize,
+    search,
+    selectedCategories,
+    selectedRsvpStatuses,
+    selectedFollowUpStatuses,
+    selectedNeedsCab,
+    selectedNeedsHotel,
+    setPage,
+    token,
+  ]);
 
   useEffect(() => {
     void Promise.resolve().then(loadGuests);
@@ -216,9 +271,9 @@ export default function GuestsPage() {
     }
   };
 
-  const updateGuest = async (guestId: string, form: GuestFormState) => {
+  const updateGuest = async (guestId: string, form: GuestFormState, ops: GuestOpsFormState) => {
     try {
-      const payload = buildGuestUpdatePayload(form);
+      const payload = { ...buildGuestUpdatePayload(form), ...buildGuestOpsPayload(ops) };
       await api.updateGuest(token, guestId, payload);
       await loadGuests();
       return null;
