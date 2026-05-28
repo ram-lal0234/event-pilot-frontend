@@ -1,15 +1,19 @@
 "use client";
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { Rocket } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/components/providers/app-provider";
 import { defaultWorkspaceName, displayNameFromEmail } from "@/lib/onboarding";
 import { isAccountOwner } from "@/lib/event-access";
+import { BlockingDialog } from "@/components/onboarding/blocking-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function PlannerOnboardingOverlay() {
+type PlannerProfileDialogProps = {
+  open: boolean;
+};
+
+export function PlannerProfileDialog({ open }: PlannerProfileDialogProps) {
   const { user, account, membership, completeOnboarding, logout } = useApp();
   const isOwner = isAccountOwner(membership?.role ?? user.accountRole);
 
@@ -19,10 +23,11 @@ export function PlannerOnboardingOverlay() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (!open) return;
     setName(membership?.name?.trim() || displayNameFromEmail(user.email));
     setPhone(membership?.phone?.trim() || "");
     setWorkspaceName(account?.name || defaultWorkspaceName(user.email));
-  }, [account?.name, membership?.name, membership?.phone, user.email]);
+  }, [account?.name, membership?.name, membership?.phone, open, user.email]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -33,7 +38,7 @@ export function PlannerOnboardingOverlay() {
         phone: phone.trim(),
         workspaceName: isOwner ? workspaceName.trim() : undefined,
       });
-      toast.success("You're all set");
+      toast.success("Profile saved");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save");
     } finally {
@@ -42,58 +47,46 @@ export function PlannerOnboardingOverlay() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
-      <form
-        className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm"
-        onSubmit={(e) => void submit(e)}
-      >
-        <div className="mb-6 flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Rocket className="size-5" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold">Welcome to EventPilot</h1>
-            <p className="text-sm text-muted-foreground">Set up your planner profile to continue.</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <Field label="Full name">
-            <Input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={120} />
-          </Field>
-          <Field label="WhatsApp / phone">
+    <BlockingDialog
+      open={open}
+      title="Complete your planner profile"
+      description="Required before you can use EventPilot. This dialog stays open until your details are saved."
+    >
+      <form className="space-y-4" onSubmit={(e) => void submit(e)}>
+        <Field label="Full name">
+          <Input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={120} />
+        </Field>
+        <Field label="WhatsApp / phone">
+          <Input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+91 98765 43210"
+            required
+            minLength={8}
+            maxLength={30}
+          />
+        </Field>
+        {isOwner ? (
+          <Field label="Organisation name" hint="Your planning business or team name.">
             <Input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+91 98765 43210"
+              value={workspaceName}
+              onChange={(e) => setWorkspaceName(e.target.value)}
               required
-              minLength={8}
-              maxLength={30}
+              minLength={2}
+              maxLength={120}
             />
           </Field>
-          {isOwner ? (
-            <Field label="Organisation name" hint="Your planning business or team name.">
-              <Input
-                value={workspaceName}
-                onChange={(e) => setWorkspaceName(e.target.value)}
-                required
-                minLength={2}
-                maxLength={120}
-              />
-            </Field>
-          ) : null}
-        </div>
-
-        <div className="mt-6 flex gap-2">
+        ) : null}
+        <div className="flex gap-2 pt-2">
           <Button className="flex-1" type="submit" loading={busy} loadingText="Saving…">
-            Continue
+            Save and continue
           </Button>
           <Button type="button" variant="outline" onClick={logout}>
             Logout
           </Button>
         </div>
       </form>
-    </main>
+    </BlockingDialog>
   );
 }
 

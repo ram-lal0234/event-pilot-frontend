@@ -20,11 +20,6 @@ import {
   type EventRecord,
 } from "@/lib/api";
 import { LoginScreen } from "@/components/auth/login-screen";
-import { CreateFirstEventScreen } from "@/components/onboarding/create-first-event-screen";
-import { NoEventsAssignedScreen } from "@/components/onboarding/no-events-assigned-screen";
-import { PlannerOnboardingOverlay } from "@/components/onboarding/planner-onboarding-overlay";
-import { isAccountOwner } from "@/lib/event-access";
-import { needsPlannerOnboarding } from "@/lib/onboarding";
 
 type AppContextValue = {
   token: string;
@@ -231,7 +226,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [currentEventId, events],
   );
 
-  const isOwner = isAccountOwner(membership?.role ?? user?.accountRole);
   const bootstrapping = Boolean(token && (!eventsLoaded || accountLoading));
 
   if (!authReady) {
@@ -260,18 +254,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         Loading workspace…
       </main>
     );
-  }
-
-  if (needsPlannerOnboarding(membership) || needsOnboarding) {
-    return <PlannerOnboardingOverlay />;
-  }
-
-  if (eventsLoaded && isOwner && events.length === 0) {
-    return <CreateFirstEventScreen />;
-  }
-
-  if (eventsLoaded && !isOwner && events.length === 0) {
-    return <NoEventsAssignedScreen />;
   }
 
   const value: AppContextValue = {

@@ -5,6 +5,7 @@ import { Menu } from "lucide-react";
 import { pageLayout } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { PlannerSetupGuard } from "@/components/onboarding/planner-setup-guard";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { AppProvider } from "@/components/providers/app-provider";
@@ -82,7 +83,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
             pageLayout.shell.paddingTop,
           )}
         >
-          {children}
+          <PlannerSetupGuard>{children}</PlannerSetupGuard>
         </div>
       </main>
     </div>
