@@ -9,7 +9,6 @@ import {
   Radio,
   ScanLine,
   Truck,
-  UserRound,
   Users,
 } from "lucide-react";
 
@@ -93,12 +92,6 @@ export const eventViewItems: NavItem[] = [
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "Reports", href: "/reports", icon: FileText },
   { label: "Call Logs", href: "/call-logs", icon: PhoneCall },
-];
-
-/** Workspace routes (profile, team) — not scoped to a single event. */
-export const workspaceNavItems: NavItem[] = [
-  { label: "Profile", href: "/profile", icon: UserRound },
-  { label: "Team", href: "/team", icon: Users },
 ];
 
 /** Routes that are workspace-level, not tied to the selected event. */

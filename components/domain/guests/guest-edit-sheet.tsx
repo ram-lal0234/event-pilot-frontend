@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
+  SheetBody,
   SheetContent,
   SheetFooter,
   SheetHeader,
@@ -86,14 +87,14 @@ export function GuestEditSheet({
         sheetTrigger
       )}
       <SheetContent className="sm:max-w-md">
-        <form className="flex h-full flex-col" onSubmit={handleSubmit}>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
           <SheetHeader>
             <SheetTitle>Edit guest</SheetTitle>
           </SheetHeader>
-          <div className="px-4">
+          <SheetBody className="space-y-0">
             <GuestFormFields form={form} onChange={setForm} />
             <GuestOpsFields form={opsForm} onChange={setOpsForm} />
-          </div>
+          </SheetBody>
           <SheetFooter>
             <Button type="submit" loading={busy} loadingText="Saving guest">
               Save changes

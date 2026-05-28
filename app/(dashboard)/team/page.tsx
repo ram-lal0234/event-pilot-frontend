@@ -16,6 +16,7 @@ import { OptionDropdown } from "@/components/ui/option-dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
+  SheetBody,
   SheetContent,
   SheetFooter,
   SheetHeader,
@@ -230,10 +231,11 @@ function InviteMemberSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
-        <SheetHeader>
-          <SheetTitle>Invite team member</SheetTitle>
-        </SheetHeader>
-        <form className="space-y-4 px-4 pb-6" onSubmit={handleSubmit}>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+          <SheetHeader>
+            <SheetTitle>Invite team member</SheetTitle>
+          </SheetHeader>
+          <SheetBody className="space-y-4">
           <Input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -294,6 +296,7 @@ function InviteMemberSheet({
               </label>
             ))}
           </div>
+          </SheetBody>
           <SheetFooter>
             <Button type="submit" loading={busy} loadingText="Sending">
               Send invite
@@ -343,7 +346,7 @@ function ManageMemberSheet({
         <SheetHeader>
           <SheetTitle>Manage {member.name || member.email}</SheetTitle>
         </SheetHeader>
-        <div className="space-y-4 px-4 pb-6">
+        <SheetBody className="space-y-4">
           <OptionDropdown
             value={role}
             onValueChange={(next) => setRole(next as "ADMIN" | "STAFF")}
@@ -390,6 +393,8 @@ function ManageMemberSheet({
               </label>
             ))}
           </div>
+        </SheetBody>
+        <SheetFooter>
           <Button
             type="button"
             loading={busy}
@@ -407,7 +412,7 @@ function ManageMemberSheet({
           >
             Save changes
           </Button>
-        </div>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );

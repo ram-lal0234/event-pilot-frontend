@@ -18,6 +18,7 @@ import { useDataTableQuery } from "@/hooks/use-data-table-query";
 import type { DataTableFilterConfig } from "@/lib/data-table/types";
 import {
   Sheet,
+  SheetBody,
   SheetContent,
   SheetFooter,
   SheetHeader,
@@ -514,13 +515,13 @@ function GuestSheet({
         Create Guest
       </SheetTrigger>
       <SheetContent className="sm:max-w-md">
-        <form className="flex h-full flex-col" onSubmit={handleSubmit}>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
           <SheetHeader>
             <SheetTitle>Add Guest</SheetTitle>
           </SheetHeader>
-          <div className="px-4">
+          <SheetBody>
             <GuestFormFields form={form} onChange={setForm} />
-          </div>
+          </SheetBody>
           <SheetFooter>
             <Button type="submit" loading={busy} loadingText="Creating guest">Create Guest</Button>
           </SheetFooter>
@@ -572,12 +573,12 @@ function CsvSheet({
         <FileUp className="size-4" />
         Import Guest
       </SheetTrigger>
-      <SheetContent className="w-[min(100vw,44rem)] max-w-none sm:max-w-none">
+      <SheetContent className="flex w-[min(100vw,44rem)] max-w-none flex-col sm:max-w-none">
         <SheetHeader>
           <SheetTitle>Upload Guest CSV</SheetTitle>
         </SheetHeader>
 
-        <div className="min-w-0 flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-4 pb-4">
+        <SheetBody className="min-w-0 space-y-5 overflow-x-hidden">
           <div className="grid min-w-0 gap-3 rounded-lg border border-dashed border-border bg-surface-container-low p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
             <div className="min-w-0">
               <p className="text-sm font-semibold">Upload File</p>
@@ -695,8 +696,8 @@ function CsvSheet({
               </Table>
             </div>
           </div>
-        </div>
-        <SheetFooter className="border-t border-border bg-popover">
+        </SheetBody>
+        <SheetFooter>
           <Button className="w-full" type="button" onClick={importValidRows} disabled={!canImport} loading={busy} loadingText="Importing guests">
             Import {validRows.length} Guests
           </Button>

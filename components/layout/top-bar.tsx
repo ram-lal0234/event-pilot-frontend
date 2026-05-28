@@ -13,8 +13,8 @@ import { UserAvatar } from "@/components/layout/user-avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -74,40 +74,54 @@ export function TopBar({ mobileMenu }: TopBarProps) {
             <UserAvatar
               email={user.email}
               name={membership?.name}
-              size="sm"
+              size="default"
               className="pointer-events-none"
             />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64 max-w-[calc(100vw-1rem)]">
-            <DropdownMenuLabel className="flex items-center gap-3 p-3 font-normal">
-              <UserAvatar email={user.email} name={membership?.name} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold text-foreground">{displayName}</span>
-                <span className="block truncate text-xs font-normal text-muted-foreground">
-                  {user.email}
+            <DropdownMenuGroup>
+              <div className="flex items-center gap-3 px-2 py-2.5">
+                <UserAvatar email={user.email} name={membership?.name} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-foreground">
+                    {displayName}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
                 </span>
-              </span>
-            </DropdownMenuLabel>
+              </div>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="gap-3"
-              render={<Link href="/profile" />}
-              nativeButton={false}
-            >
-              <Building2 className="size-4" />
-              Profile
-            </DropdownMenuItem>
-            {isOwner ? (
-              <DropdownMenuItem className="gap-3" render={<Link href="/team" />} nativeButton={false}>
-                <Users className="size-4" />
-                Team
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                className="gap-3 px-2 py-2"
+                render={<Link href="/profile" />}
+                nativeButton={false}
+              >
+                <Building2 className="size-4" />
+                Profile
               </DropdownMenuItem>
-            ) : null}
+              {isOwner ? (
+                <DropdownMenuItem
+                  className="gap-3 px-2 py-2"
+                  render={<Link href="/team" />}
+                  nativeButton={false}
+                >
+                  <Users className="size-4" />
+                  Team
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-3 text-destructive focus:text-destructive" onClick={logout}>
-              <LogOut className="size-4" />
-              Log out
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                variant="destructive"
+                className="gap-3 px-2 py-2"
+                onClick={logout}
+              >
+                <LogOut className="size-4" />
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

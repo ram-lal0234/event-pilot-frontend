@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
+  SheetBody,
   SheetContent,
   SheetDescription,
   SheetFooter,
@@ -658,8 +659,8 @@ function AssignmentSheet({
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{subtitle}</SheetDescription>
         </SheetHeader>
-        <div
-          className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4"
+        <SheetBody
+          className="space-y-3"
           onScroll={(event) => {
             const target = event.currentTarget;
             if (hasMoreGuests && target.scrollTop + target.clientHeight >= target.scrollHeight - 32) {
@@ -693,7 +694,7 @@ function AssignmentSheet({
               Load more guests
             </Button>
           )}
-        </div>
+        </SheetBody>
         <SheetFooter>
           <Button type="button" onClick={onSubmit} disabled={!selectedGuestIds.length} loading={busy} loadingText="Assigning guests">
             Assign {selectedGuestIds.length} Guest{selectedGuestIds.length === 1 ? "" : "s"}

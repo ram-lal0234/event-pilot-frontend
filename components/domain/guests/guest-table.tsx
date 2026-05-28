@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { OptionDropdown } from "@/components/ui/option-dropdown";
 import {
   Sheet,
+  SheetBody,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -425,15 +426,15 @@ function GuestDetailsSheet({
       >
         <ChevronRight className="size-4 text-muted-foreground" />
       </SheetTrigger>
-      <SheetContent className="min-h-0 overflow-hidden sm:max-w-2xl">
-        <SheetHeader className="shrink-0">
+      <SheetContent className="sm:max-w-2xl">
+        <SheetHeader>
           <SheetTitle>{guest.name}</SheetTitle>
           <SheetDescription>
             Guest profile, pickup details, voice call status, and check-in context.
           </SheetDescription>
         </SheetHeader>
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-6">
+        <SheetBody className="space-y-5">
           <section className="rounded-lg border border-border p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
               <p className="text-[11px] font-semibold uppercase text-muted-foreground">
@@ -566,7 +567,7 @@ function GuestDetailsSheet({
               )}
             </div>
           </section>
-        </div>
+        </SheetBody>
       </SheetContent>
     </Sheet>
   );
