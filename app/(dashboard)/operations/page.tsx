@@ -40,9 +40,26 @@ export default function OperationsPage() {
   const [busy, setBusy] = useState(false);
   const [operationsLoaded, setOperationsLoaded] = useState(false);
 
-  const [cabForm, setCabForm] = useState({ driverName: "", driverPhone: "", vehicleNumber: "", capacity: 4, routeZone: "", tripStatus: "" });
+  const [cabForm, setCabForm] = useState({
+    driverName: "",
+    driverPhone: "",
+    vehicleNumber: "",
+    capacity: 4,
+    routeZone: "",
+    tripStatus: "",
+    pickupTime: "",
+  });
   const [hotelForm, setHotelForm] = useState({ name: "", location: "" });
-  const [roomForm, setRoomForm] = useState({ hotelId: "", roomNumber: "", capacity: 2, roomType: "", floor: "", roomStatus: "" });
+  const [roomForm, setRoomForm] = useState({
+    hotelId: "",
+    roomNumber: "",
+    capacity: 2,
+    roomType: "",
+    floor: "",
+    roomStatus: "",
+    checkInDate: "",
+    checkOutDate: "",
+  });
   const [assignment, setAssignment] = useState<{ mode: AssignmentMode; targetId: string } | null>(null);
   const [selectedGuestIds, setSelectedGuestIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("assignments");
@@ -107,7 +124,12 @@ export default function OperationsPage() {
   const createCab = (event: FormEvent) => {
     event.preventDefault();
     submit(
-      () => api.createCab(token, { eventId: currentEventId, ...cabForm, capacity: Number(cabForm.capacity) }),
+      () => api.createCab(token, {
+        eventId: currentEventId,
+        ...cabForm,
+        capacity: Number(cabForm.capacity),
+        pickupTime: cabForm.pickupTime ? new Date(cabForm.pickupTime).toISOString() : undefined,
+      }),
       "Cab created"
     );
   };
@@ -119,7 +141,15 @@ export default function OperationsPage() {
 
   const createRoom = (event: FormEvent) => {
     event.preventDefault();
-    submit(() => api.createRoom(token, { ...roomForm, capacity: Number(roomForm.capacity) }), "Room created");
+    submit(
+      () => api.createRoom(token, {
+        ...roomForm,
+        capacity: Number(roomForm.capacity),
+        checkInDate: roomForm.checkInDate ? new Date(roomForm.checkInDate).toISOString() : undefined,
+        checkOutDate: roomForm.checkOutDate ? new Date(roomForm.checkOutDate).toISOString() : undefined,
+      }),
+      "Room created"
+    );
   };
 
   const unassignCabGuest = (guestId: string) => submit(() => api.unassignCab(token, { guestId }), "Guest unassigned from cab");
@@ -274,8 +304,8 @@ function CreateCabCard({
   onSubmit,
   busy,
 }: {
-  form: { driverName: string; driverPhone: string; vehicleNumber: string; capacity: number; routeZone: string; tripStatus: string };
-  setForm: (form: { driverName: string; driverPhone: string; vehicleNumber: string; capacity: number; routeZone: string; tripStatus: string }) => void;
+  form: { driverName: string; driverPhone: string; vehicleNumber: string; capacity: number; routeZone: string; tripStatus: string; pickupTime: string };
+  setForm: (form: { driverName: string; driverPhone: string; vehicleNumber: string; capacity: number; routeZone: string; tripStatus: string; pickupTime: string }) => void;
   onSubmit: (event: FormEvent) => void;
   busy: boolean;
 }) {
@@ -288,14 +318,15 @@ function CreateCabCard({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form className="grid gap-2 md:grid-cols-6" onSubmit={onSubmit}>
+        <form className="grid gap-2 md:grid-cols-4" onSubmit={onSubmit}>
           <Input value={form.driverName} onChange={(event) => setForm({ ...form, driverName: event.target.value })} placeholder="Driver" required />
           <Input value={form.driverPhone} onChange={(event) => setForm({ ...form, driverPhone: event.target.value })} placeholder="Driver phone" />
           <Input value={form.vehicleNumber} onChange={(event) => setForm({ ...form, vehicleNumber: event.target.value })} placeholder="Vehicle" required />
+          <Input type="datetime-local" value={form.pickupTime} onChange={(event) => setForm({ ...form, pickupTime: event.target.value })} placeholder="Pickup time" />
           <Input value={form.routeZone} onChange={(event) => setForm({ ...form, routeZone: event.target.value })} placeholder="Route/zone" />
           <Input value={form.tripStatus} onChange={(event) => setForm({ ...form, tripStatus: event.target.value })} placeholder="Trip status" />
           <Input type="number" min={1} value={form.capacity} onChange={(event) => setForm({ ...form, capacity: Number(event.target.value) })} placeholder="Capacity" required />
-          <Button type="submit" loading={busy} loadingText="Creating cab" className="gap-2"><Plus className="size-4" />Cab</Button>
+          <Button type="submit" loading={busy} loadingText="Creating cab" className="gap-2 md:col-span-4"><Plus className="size-4" />Cab</Button>
         </form>
       </CardContent>
     </Card>
@@ -381,8 +412,8 @@ function CreateRoomCard({
   onSubmit,
   busy,
 }: {
-  form: { hotelId: string; roomNumber: string; capacity: number; roomType: string; floor: string; roomStatus: string };
-  setForm: (form: { hotelId: string; roomNumber: string; capacity: number; roomType: string; floor: string; roomStatus: string }) => void;
+  form: { hotelId: string; roomNumber: string; capacity: number; roomType: string; floor: string; roomStatus: string; checkInDate: string; checkOutDate: string };
+  setForm: (form: { hotelId: string; roomNumber: string; capacity: number; roomType: string; floor: string; roomStatus: string; checkInDate: string; checkOutDate: string }) => void;
   hotels: HotelRecord[];
   onSubmit: (event: FormEvent) => void;
   busy: boolean;
@@ -405,6 +436,8 @@ function CreateRoomCard({
           <Input value={form.roomType} onChange={(event) => setForm({ ...form, roomType: event.target.value })} placeholder="Room type" />
           <Input value={form.floor} onChange={(event) => setForm({ ...form, floor: event.target.value })} placeholder="Floor" />
           <Input value={form.roomStatus} onChange={(event) => setForm({ ...form, roomStatus: event.target.value })} placeholder="Room status" />
+          <Input type="datetime-local" value={form.checkInDate} onChange={(event) => setForm({ ...form, checkInDate: event.target.value })} />
+          <Input type="datetime-local" value={form.checkOutDate} onChange={(event) => setForm({ ...form, checkOutDate: event.target.value })} />
           <Input type="number" min={1} value={form.capacity} onChange={(event) => setForm({ ...form, capacity: Number(event.target.value) })} placeholder="Capacity" required />
           <Button className="w-full gap-2" type="submit" disabled={!hotels.length} loading={busy} loadingText="Creating room"><Plus className="size-4" />Room</Button>
         </form>

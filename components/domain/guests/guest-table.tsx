@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Bot, ChevronRight, Download, MapPin, Phone, QrCode, Radio } from "lucide-react";
+import { Bot, ChevronRight, Copy, Download, MapPin, Phone, QrCode, Radio } from "lucide-react";
 import { GuestEditSheet } from "@/components/domain/guests/guest-edit-sheet";
 import type { GuestFormState } from "@/lib/guest-form";
+import type { GuestOpsFormState } from "@/components/domain/guests/guest-ops-fields";
 import { toast } from "sonner";
 import { QRCodeCanvas } from "qrcode.react";
-import type { GuestRecord, RsvpStatus } from "@/lib/api";
+import { api, type GuestRecord, RsvpStatus } from "@/lib/api";
+import { useApp } from "@/components/providers/app-provider";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -298,6 +300,54 @@ function GuestVoiceActionButtons({
   );
 }
 
+function GuestRsvpLinkButton({ guest, compact = false }: { guest: GuestRecord; compact?: boolean }) {
+  const { token } = useApp();
+  const [busy, setBusy] = useState(false);
+
+  const copyLink = async () => {
+    setBusy(true);
+    try {
+      let url = guest.publicRsvpUrl;
+      if (!url) {
+        const link = await api.getGuestRsvpLink(token, guest.id);
+        url = link.publicRsvpUrl;
+      }
+      await navigator.clipboard.writeText(url);
+      toast.success("RSVP link copied");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not get RSVP link");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const trigger = (
+    <Button
+      variant="ghost"
+      size={compact ? "icon-sm" : "sm"}
+      type="button"
+      className={compact ? undefined : "gap-2"}
+      onClick={() => void copyLink()}
+      disabled={busy}
+      loading={busy}
+    >
+      <Copy className="size-4" />
+      {!compact ? "Copy RSVP link" : null}
+    </Button>
+  );
+
+  if (compact) {
+    return (
+      <Tooltip>
+        <TooltipTrigger render={trigger} />
+        <TooltipContent>Copy public RSVP link</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return trigger;
+}
+
 function GuestTableQuickActions({
   guest,
   onTriggerVoiceCall,
@@ -305,10 +355,11 @@ function GuestTableQuickActions({
 }: {
   guest: GuestRecord;
   onTriggerVoiceCall: (guestId: string, callMode: VoiceCallMode) => Promise<string | null>;
-  onUpdateGuest: (guestId: string, form: GuestFormState) => Promise<string | null>;
+  onUpdateGuest: (guestId: string, form: GuestFormState, ops: GuestOpsFormState) => Promise<string | null>;
 }) {
   return (
     <div className="flex items-center justify-end gap-0.5">
+      <GuestRsvpLinkButton guest={guest} compact />
       <GuestEditSheet guest={guest} onSave={onUpdateGuest} compact />
       <GuestVoiceActionButtons
         guestId={guest.id}
@@ -331,7 +382,7 @@ function GuestDetailsSheet({
   guest: GuestRecord;
   onTriggerVoiceCall: (guestId: string, callMode: VoiceCallMode) => Promise<string | null>;
   onUpdateRsvp: (guestId: string, payload: { rsvpStatus: RsvpStatus; groupSize: number }) => Promise<string | null>;
-  onUpdateGuest: (guestId: string, form: GuestFormState) => Promise<string | null>;
+  onUpdateGuest: (guestId: string, form: GuestFormState, ops: GuestOpsFormState) => Promise<string | null>;
 }) {
   const [open, setOpen] = useState(false);
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus>(guest.rsvpStatus);
@@ -383,8 +434,14 @@ function GuestDetailsSheet({
               <p className="text-[11px] font-semibold uppercase text-muted-foreground">
                 Contact Info
               </p>
-              <GuestEditSheet guest={guest} onSave={onUpdateGuest} />
+              <div className="flex gap-2">
+                <GuestRsvpLinkButton guest={guest} />
+                <GuestEditSheet guest={guest} onSave={onUpdateGuest} />
+              </div>
             </div>
+            {guest.publicRsvpUrl ? (
+              <p className="mb-2 break-all text-xs text-muted-foreground">{guest.publicRsvpUrl}</p>
+            ) : null}
             {guest.phone && (
               <p className="flex items-center gap-2 text-sm">
                 <Phone className="size-4" />
@@ -481,11 +538,22 @@ function GuestDetailsSheet({
               <p className="text-[11px] font-semibold uppercase text-muted-foreground">RSVP</p>
               <p className="mt-1 font-semibold">{savedRsvpStatus}</p>
             </div>
-            <div className="rounded-lg bg-surface-container-low p-3">
+            <div className="col-span-2 rounded-lg bg-surface-container-low p-3">
               <p className="text-[11px] font-semibold uppercase text-muted-foreground">Check-In</p>
-              <p className="mt-1 font-semibold">
-                {guest.checkins?.length ? "Checked-in" : "Pending"}
-              </p>
+              {guest.checkins?.length ? (
+                <ul className="mt-1 space-y-1 text-sm font-semibold">
+                  {guest.checkins.map((checkin) => (
+                    <li key={checkin.id}>
+                      {checkin.locationType === "HOTEL" ? "Hotel" : "Event gate"}
+                      {checkin.checkinTime
+                        ? ` · ${new Date(checkin.checkinTime).toLocaleString()}`
+                        : ""}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 font-semibold">Pending</p>
+              )}
             </div>
           </section>
         </div>
@@ -503,7 +571,7 @@ export function GuestTable({
   guests: GuestRecord[];
   onTriggerVoiceCall: (guestId: string, callMode: VoiceCallMode) => Promise<string | null>;
   onUpdateRsvp: (guestId: string, payload: { rsvpStatus: RsvpStatus; groupSize: number }) => Promise<string | null>;
-  onUpdateGuest: (guestId: string, form: GuestFormState) => Promise<string | null>;
+  onUpdateGuest: (guestId: string, form: GuestFormState, ops: GuestOpsFormState) => Promise<string | null>;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -559,8 +627,15 @@ export function GuestTable({
                   {guest.rsvpStatus}
                 </span>
               </TableCell>
-              <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
-                Group {guest.groupSize} · {guest.pickupLocation || "No pickup"}
+              <TableCell className="max-w-[220px] text-sm text-muted-foreground">
+                <p className="truncate">Group {guest.groupSize} · {guest.pickupLocation || "No pickup"}</p>
+                <p className="mt-1 truncate text-xs">
+                  {guest.needsCab === true ? "Cab " : ""}
+                  {guest.needsHotel === true ? "Hotel " : ""}
+                  {guest.followUpStatus && guest.followUpStatus !== "NONE"
+                    ? guest.followUpStatus.replaceAll("_", " ").toLowerCase()
+                    : ""}
+                </p>
               </TableCell>
               <TableCell>
                 <StatusBadge
@@ -568,8 +643,17 @@ export function GuestTable({
                     guest.checkins?.length ? "success" : "neutral"
                   }
                 >
-                  {guest.checkins?.length ? "CHECKED-IN" : "PENDING"}
+                  {guest.checkins?.length
+                    ? `${guest.checkins.length} check-in${guest.checkins.length > 1 ? "s" : ""}`
+                    : "PENDING"}
                 </StatusBadge>
+                {guest.checkins?.length ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {guest.checkins
+                      .map((c) => (c.locationType === "HOTEL" ? "Hotel" : "Gate"))
+                      .join(", ")}
+                  </p>
+                ) : null}
               </TableCell>
               <TableCell className="text-right">
                 <GuestTableQuickActions

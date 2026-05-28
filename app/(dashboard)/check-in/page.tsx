@@ -23,6 +23,7 @@ export default function CheckInPage() {
   const [recent, setRecent] = useState<Array<{ guest: GuestRecord; at: string; location: CheckinLocationType }>>([]);
   const [busy, setBusy] = useState(false);
   const [lastCheckedQr, setLastCheckedQr] = useState<string | null>(null);
+  const [lastLocationType, setLastLocationType] = useState<CheckinLocationType | null>(null);
   const [scannerOpen, setScannerOpen] = useState(true);
   const scannerRef = useRef<{ clear: () => Promise<void> } | null>(null);
 
@@ -78,6 +79,7 @@ export default function CheckInPage() {
       const result = await api.scanQr(token, { qrCode, method: mode === "manual" ? "MANUAL" : "QR", locationType });
       setGuest(result.guest);
       setLastCheckedQr(qrCode);
+      setLastLocationType(locationType);
       setRecent((prev) => [
         { guest: result.guest, at: new Date().toISOString(), location: locationType },
         ...prev.filter((item) => item.guest.id !== result.guest.id).slice(0, 11),
@@ -98,7 +100,10 @@ export default function CheckInPage() {
     if (!lastCheckedQr) return;
     setBusy(true);
     try {
-      await api.undoCheckin(token, { qrCode: lastCheckedQr });
+      await api.undoCheckin(token, {
+        qrCode: lastCheckedQr,
+        locationType: lastLocationType || locationType,
+      });
       toast.success("Last check-in undone");
       setGuest(null);
       setRecent((prev) => prev.slice(1));
@@ -132,9 +137,14 @@ export default function CheckInPage() {
             <Badge variant="secondary" className="h-6 px-2 text-xs">
               {currentEvent?.name || "No event selected"}
             </Badge>
-            <Badge variant="outline" className="h-6 px-2 text-xs">
-              {locationType === "HOTEL" ? "Hotel desk" : "Event gate"}
-            </Badge>
+            <Select
+              className="h-8 w-[140px] text-xs"
+              value={locationType}
+              onChange={(event) => setLocationType(event.target.value as CheckinLocationType)}
+            >
+              <option value="EVENT_GATE">Event gate</option>
+              <option value="HOTEL">Hotel</option>
+            </Select>
           </div>
         </div>
       </div>
@@ -266,6 +276,17 @@ export default function CheckInPage() {
                   <Info label="RSVP" value={guest.rsvpStatus} />
                   <Info label="Location" value={locationType === "HOTEL" ? "Hotel" : "Event gate"} />
                 </div>
+                {guest.checkins?.length ? (
+                  <div className="space-y-1 rounded-lg border border-border p-3 text-sm">
+                    <p className="text-[11px] font-semibold uppercase text-muted-foreground">Check-in history</p>
+                    {guest.checkins.map((checkin) => (
+                      <p key={checkin.id} className="text-muted-foreground">
+                        {checkin.locationType === "HOTEL" ? "Hotel" : "Event gate"}
+                        {checkin.checkinTime ? ` · ${new Date(checkin.checkinTime).toLocaleString()}` : ""}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
                 <Button type="button" variant="outline" size="sm" onClick={undoLastCheckin} disabled={!lastCheckedQr || busy}>
                   Undo check-in
                 </Button>
