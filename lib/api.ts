@@ -48,6 +48,52 @@ export type GuestRecord = {
   roomAssignments?: { id: string; roomId: string; assignedMembers: number }[];
 };
 
+export type GuestCallLogEntry = {
+  id: string;
+  source: "call" | "call_event" | "ivr_log";
+  type: "call_status" | "lifecycle" | "transcript" | "error" | "rsvp" | "ivr_response" | "ivr_log" | string;
+  at: string | null;
+  status: string | null;
+  callUuid: string | null;
+  callId: string | null;
+  eventName: string | null;
+  outcome: string | null;
+  rsvpStatus: RsvpStatus | null;
+  groupSize: number | null;
+  needsCab: boolean | null;
+  needsHotel: boolean | null;
+  pickupLocation: string | null;
+  guestNotes: string | null;
+  language: string | null;
+  transcription: string | null;
+  recordingUrl: string | null;
+  attempt?: number;
+  callDuration?: number | null;
+  rsvpCaptured?: boolean;
+  groupSizeCaptured?: boolean;
+  provider?: string;
+  lastEventAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type GuestCallLogs = {
+  guest: {
+    id: string;
+    name: string;
+    phone: string;
+    rsvpStatus: RsvpStatus;
+  };
+  summary: {
+    totalCalls: number;
+    totalEvents: number;
+    totalIvrLogs: number;
+    latestStatus: string | null;
+    lastVoiceResponseAt: string | null;
+    hasTranscript: boolean;
+  };
+  timeline: GuestCallLogEntry[];
+};
+
 export type PaginationMeta = {
   page: number;
   pageSize: number;
@@ -221,10 +267,23 @@ export const api = {
   listGuestsPage(
     token: string,
     eventId: string,
-    params: { page: number; pageSize: number },
+    params: {
+      page: number;
+      pageSize: number;
+      q?: string;
+      rsvpStatus?: string;
+      category?: string;
+    },
   ) {
     return request<PaginatedGuests>(
-      `/guests${query({ eventId, page: params.page, pageSize: params.pageSize })}`,
+      `/guests${query({
+        eventId,
+        page: params.page,
+        pageSize: params.pageSize,
+        q: params.q,
+        rsvpStatus: params.rsvpStatus,
+        category: params.category,
+      })}`,
       { token },
     );
   },
@@ -259,6 +318,27 @@ export const api = {
       },
     );
   },
+  updateGuest(
+    token: string,
+    guestId: string,
+    payload: {
+      name?: string;
+      phone?: string;
+      email?: string | null;
+      category?: GuestCategory;
+      groupSize?: number;
+      pickupLocation?: string | null;
+      pickupLat?: number;
+      pickupLng?: number;
+      rsvpStatus?: RsvpStatus;
+    },
+  ) {
+    return request<GuestRecord>(`/guests/${guestId}`, {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
   updateGuestRsvp(
     token: string,
     guestId: string,
@@ -270,12 +350,18 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
-  triggerIvr(token: string, guestId: string) {
-    return request<{ queued: boolean }>("/ivr/call", {
-      method: "POST",
-      token,
-      body: JSON.stringify({ guestId }),
-    });
+  getGuestCallLogs(token: string, guestId: string) {
+    return request<GuestCallLogs>(`/guests/${guestId}/call-logs`, { token });
+  },
+  triggerVoiceCall(token: string, guestId: string, callMode: "ai" | "ivr") {
+    return request<{ queued: boolean; callId: string; callMode: "ai" | "ivr" }>(
+      "/ivr/call",
+      {
+        method: "POST",
+        token,
+        body: JSON.stringify({ guestId, callMode }),
+      },
+    );
   },
   scanQr(
     token: string,

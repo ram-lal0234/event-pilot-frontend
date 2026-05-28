@@ -44,6 +44,7 @@ export const eventViewItems = [
   { label: "Live View", href: "/live" },
   { label: "Analytics", href: "/analytics" },
   { label: "Reports", href: "/reports" },
+  { label: "Call Logs", href: "/call-logs" },
 ] as const;
 
 export function scopedEventHref(eventId: string, href: string) {
