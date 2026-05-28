@@ -2,7 +2,7 @@
 
 import type { GuestRecord } from "@/lib/api";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { OptionDropdown } from "@/components/ui/option-dropdown";
 import { Textarea } from "@/components/ui/textarea";
 
 export type GuestOpsFormState = {
@@ -59,17 +59,21 @@ export function GuestOpsFields({
   return (
     <div className="space-y-3 border-t border-border pt-4">
       <p className="text-sm font-medium text-foreground">Follow-up & logistics</p>
-      <Select
+      <OptionDropdown
         value={form.followUpStatus}
-        onChange={(event) => onChange({ ...form, followUpStatus: event.target.value as GuestOpsFormState["followUpStatus"] })}
-      >
-        <option value="NONE">No follow-up</option>
-        <option value="NEEDS_FOLLOW_UP">Needs follow-up</option>
-        <option value="CALLBACK_LATER">Callback later</option>
-        <option value="NO_ANSWER">No answer</option>
-        <option value="VOICEMAIL">Voicemail</option>
-        <option value="COMPLETED">Completed</option>
-      </Select>
+        onValueChange={(followUpStatus) =>
+          onChange({ ...form, followUpStatus: followUpStatus as GuestOpsFormState["followUpStatus"] })
+        }
+        options={[
+          { value: "NONE", label: "No follow-up" },
+          { value: "NEEDS_FOLLOW_UP", label: "Needs follow-up" },
+          { value: "CALLBACK_LATER", label: "Callback later" },
+          { value: "NO_ANSWER", label: "No answer" },
+          { value: "VOICEMAIL", label: "Voicemail" },
+          { value: "COMPLETED", label: "Completed" },
+        ]}
+        placeholder="Follow-up status"
+      />
       <Input
         type="datetime-local"
         value={form.callbackAt}
@@ -82,16 +86,26 @@ export function GuestOpsFields({
         placeholder="Assigned to"
       />
       <div className="grid grid-cols-2 gap-2">
-        <Select value={form.needsCab} onChange={(event) => onChange({ ...form, needsCab: event.target.value as GuestOpsFormState["needsCab"] })}>
-          <option value="">Needs cab?</option>
-          <option value="true">Needs cab</option>
-          <option value="false">No cab</option>
-        </Select>
-        <Select value={form.needsHotel} onChange={(event) => onChange({ ...form, needsHotel: event.target.value as GuestOpsFormState["needsHotel"] })}>
-          <option value="">Needs hotel?</option>
-          <option value="true">Needs hotel</option>
-          <option value="false">No hotel</option>
-        </Select>
+        <OptionDropdown
+          value={form.needsCab}
+          onValueChange={(needsCab) => onChange({ ...form, needsCab: needsCab as GuestOpsFormState["needsCab"] })}
+          options={[
+            { value: "", label: "Needs cab?" },
+            { value: "true", label: "Needs cab" },
+            { value: "false", label: "No cab" },
+          ]}
+        />
+        <OptionDropdown
+          value={form.needsHotel}
+          onValueChange={(needsHotel) =>
+            onChange({ ...form, needsHotel: needsHotel as GuestOpsFormState["needsHotel"] })
+          }
+          options={[
+            { value: "", label: "Needs hotel?" },
+            { value: "true", label: "Needs hotel" },
+            { value: "false", label: "No hotel" },
+          ]}
+        />
       </div>
       <Input
         value={form.language}

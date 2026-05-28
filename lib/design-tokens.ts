@@ -9,6 +9,7 @@ import {
   Radio,
   ScanLine,
   Truck,
+  UserRound,
   Users,
 } from "lucide-react";
 
@@ -94,6 +95,12 @@ export const eventViewItems: NavItem[] = [
   { label: "Call Logs", href: "/call-logs", icon: PhoneCall },
 ];
 
+/** Workspace routes (profile, team) — not scoped to a single event. */
+export const workspaceNavItems: NavItem[] = [
+  { label: "Profile", href: "/profile", icon: UserRound },
+  { label: "Team", href: "/team", icon: Users },
+];
+
 /** Routes that are workspace-level, not tied to the selected event. */
 const GLOBAL_NAV_HREFS = new Set(["/events", "/team", "/profile"]);
 
@@ -111,6 +118,10 @@ export function isEventHrefActive(pathname: string, href: string) {
 
   if (href === "/events") {
     return pathname === "/events";
+  }
+
+  if (href === "/profile" || href === "/team") {
+    return pathname === href;
   }
 
   return pathname === href || new RegExp(`^/events/[^/]+${href}$`).test(pathname);

@@ -11,6 +11,7 @@ import {
   isEventHrefActive,
   navItems,
   scopedEventHref,
+  workspaceNavItems,
 } from "@/lib/design-tokens";
 import { useApp } from "@/components/providers/app-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
@@ -103,6 +104,19 @@ export function Sidebar({ className }: { className?: string }) {
             currentEventId={currentEventId}
           />
         ))}
+        <p className="px-2 pt-4 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Workspace
+        </p>
+        {workspaceNavItems
+          .filter((item) => item.href !== "/team" || isOwner)
+          .map((item) => (
+            <SidebarLink
+              key={item.href}
+              item={item}
+              pathname={pathname}
+              currentEventId={currentEventId}
+            />
+          ))}
       </nav>
       {isOwner ? (
         <div className="border-t border-border p-3">

@@ -11,7 +11,7 @@ import { DataTableShell } from "@/components/data-table/data-table-shell";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { OptionDropdown } from "@/components/ui/option-dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useDataTableQuery } from "@/hooks/use-data-table-query";
@@ -873,15 +873,18 @@ function GuestFooter({
         </span>
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground">Rows</span>
-          <Select
-            className="w-20"
+          <OptionDropdown
+            triggerClassName="w-20"
             value={String(pageSize)}
-            onChange={(event) => onPageSizeChange(Number(event.target.value))}
-          >
-            <option value="10">10</option>
-            <option value="25">25</option>
-            <option value="50">50</option>
-          </Select>
+            onValueChange={(next) => onPageSizeChange(Number(next))}
+            options={[
+              { value: "10", label: "10" },
+              { value: "25", label: "25" },
+              { value: "50", label: "50" },
+            ]}
+            size="sm"
+            align="end"
+          />
         </div>
         <div className="flex items-center gap-2">
           <Button

@@ -23,7 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { OptionDropdown } from "@/components/ui/option-dropdown";
 import {
   Sheet,
   SheetContent,
@@ -465,16 +465,17 @@ function GuestDetailsSheet({
               Manual RSVP
             </p>
             <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_auto]" onSubmit={canWrite ? submitRsvp : (e) => e.preventDefault()}>
-              <Select
+              <OptionDropdown
                 value={rsvpStatus}
                 disabled={!canWrite}
-                onChange={(event) => setRsvpStatus(event.target.value as RsvpStatus)}
-                aria-label="RSVP status"
-              >
-                <option value="PENDING">Pending</option>
-                <option value="CONFIRMED">Confirmed</option>
-                <option value="DECLINED">Declined</option>
-              </Select>
+                onValueChange={(status) => setRsvpStatus(status as RsvpStatus)}
+                options={[
+                  { value: "PENDING", label: "Pending" },
+                  { value: "CONFIRMED", label: "Confirmed" },
+                  { value: "DECLINED", label: "Declined" },
+                ]}
+                placeholder="RSVP status"
+              />
               <Input
                 type="number"
                 min={1}

@@ -10,7 +10,7 @@ import {
   DashboardPageSkeleton,
 } from "@/components/layout/dashboard-page";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
+import { OptionDropdown } from "@/components/ui/option-dropdown";
 import { api, type GuestRecord } from "@/lib/api";
 
 const ACTIVE_FOLLOW_UP =
@@ -96,24 +96,25 @@ export default function FollowUpPage() {
                   {guest.guestNotes ? ` · ${guest.guestNotes}` : ""}
                 </p>
               </div>
-              <Select
-                className="w-full sm:w-52"
+              <OptionDropdown
+                triggerClassName="w-full sm:w-52"
                 value={guest.followUpStatus || "NEEDS_FOLLOW_UP"}
                 disabled={!canWrite || busyId === guest.id}
-                onChange={(event) =>
+                onValueChange={(status) =>
                   void updateStatus(
                     guest.id,
-                    event.target.value as NonNullable<GuestRecord["followUpStatus"]>,
+                    status as NonNullable<GuestRecord["followUpStatus"]>,
                   )
                 }
-              >
-                <option value="NEEDS_FOLLOW_UP">Needs follow-up</option>
-                <option value="CALLBACK_LATER">Callback later</option>
-                <option value="NO_ANSWER">No answer</option>
-                <option value="VOICEMAIL">Voicemail</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="NONE">Clear</option>
-              </Select>
+                options={[
+                  { value: "NEEDS_FOLLOW_UP", label: "Needs follow-up" },
+                  { value: "CALLBACK_LATER", label: "Callback later" },
+                  { value: "NO_ANSWER", label: "No answer" },
+                  { value: "VOICEMAIL", label: "Voicemail" },
+                  { value: "COMPLETED", label: "Completed" },
+                  { value: "NONE", label: "Clear" },
+                ]}
+              />
             </div>
           </div>
         ))}

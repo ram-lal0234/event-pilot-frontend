@@ -12,7 +12,7 @@ import {
 import { api, type AccessLevel, type TeamMemberRecord } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { OptionDropdown } from "@/components/ui/option-dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
@@ -248,10 +248,15 @@ function InviteMemberSheet({
             placeholder="Name (optional)"
             maxLength={120}
           />
-          <Select value={role} onChange={(e) => setRole(e.target.value as "ADMIN" | "STAFF")}>
-            <option value="STAFF">Staff</option>
-            <option value="ADMIN">Admin</option>
-          </Select>
+          <OptionDropdown
+            value={role}
+            onValueChange={(next) => setRole(next as "ADMIN" | "STAFF")}
+            options={[
+              { value: "STAFF", label: "Staff" },
+              { value: "ADMIN", label: "Admin" },
+            ]}
+            placeholder="Role"
+          />
           <div className="space-y-2">
             <p className="text-sm font-medium">Initial event access (optional)</p>
             {events.map((event) => (
@@ -270,19 +275,21 @@ function InviteMemberSheet({
                 />
                 <span className="flex-1">{event.name}</span>
                 {selectedEvents[event.id] ? (
-                  <Select
-                    className="h-8 w-28"
+                  <OptionDropdown
+                    triggerClassName="h-8 w-28"
                     value={selectedEvents[event.id]}
-                    onChange={(ev) =>
+                    onValueChange={(level) =>
                       setSelectedEvents((prev) => ({
                         ...prev,
-                        [event.id]: ev.target.value as AccessLevel,
+                        [event.id]: level as AccessLevel,
                       }))
                     }
-                  >
-                    <option value="FULL">Full</option>
-                    <option value="READ_ONLY">Read only</option>
-                  </Select>
+                    options={[
+                      { value: "FULL", label: "Full" },
+                      { value: "READ_ONLY", label: "Read only" },
+                    ]}
+                    size="sm"
+                  />
                 ) : null}
               </label>
             ))}
@@ -337,10 +344,15 @@ function ManageMemberSheet({
           <SheetTitle>Manage {member.name || member.email}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 px-4 pb-6">
-          <Select value={role} onChange={(e) => setRole(e.target.value as "ADMIN" | "STAFF")}>
-            <option value="STAFF">Staff</option>
-            <option value="ADMIN">Admin</option>
-          </Select>
+          <OptionDropdown
+            value={role}
+            onValueChange={(next) => setRole(next as "ADMIN" | "STAFF")}
+            options={[
+              { value: "STAFF", label: "Staff" },
+              { value: "ADMIN", label: "Admin" },
+            ]}
+            placeholder="Role"
+          />
           <div className="space-y-2">
             <p className="text-sm font-medium">Event access</p>
             {events.map((event) => (
@@ -359,19 +371,21 @@ function ManageMemberSheet({
                 />
                 <span className="flex-1">{event.name}</span>
                 {assignments[event.id] ? (
-                  <Select
-                    className="h-8 w-28"
+                  <OptionDropdown
+                    triggerClassName="h-8 w-28"
                     value={assignments[event.id]}
-                    onChange={(ev) =>
+                    onValueChange={(level) =>
                       setAssignments((prev) => ({
                         ...prev,
-                        [event.id]: ev.target.value as AccessLevel,
+                        [event.id]: level as AccessLevel,
                       }))
                     }
-                  >
-                    <option value="FULL">Full</option>
-                    <option value="READ_ONLY">Read only</option>
-                  </Select>
+                    options={[
+                      { value: "FULL", label: "Full" },
+                      { value: "READ_ONLY", label: "Read only" },
+                    ]}
+                    size="sm"
+                  />
                 ) : null}
               </label>
             ))}

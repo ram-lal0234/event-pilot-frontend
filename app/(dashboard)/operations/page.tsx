@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { OptionDropdown } from "@/components/ui/option-dropdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -436,10 +436,15 @@ function CreateRoomCard({
       </CardHeader>
       <CardContent>
         <form className="space-y-2" onSubmit={onSubmit}>
-          <Select value={form.hotelId} onChange={(event) => setForm({ ...form, hotelId: event.target.value })} required>
-            <option value="">Select hotel</option>
-            {hotels.map((hotel) => <option key={hotel.id} value={hotel.id}>{hotel.name}</option>)}
-          </Select>
+          <OptionDropdown
+            value={form.hotelId}
+            onValueChange={(hotelId) => setForm({ ...form, hotelId })}
+            options={[
+              { value: "", label: "Select hotel" },
+              ...hotels.map((hotel) => ({ value: hotel.id, label: hotel.name })),
+            ]}
+            placeholder="Select hotel"
+          />
           <Input value={form.roomNumber} onChange={(event) => setForm({ ...form, roomNumber: event.target.value })} placeholder="Room number" required />
           <Input value={form.roomType} onChange={(event) => setForm({ ...form, roomType: event.target.value })} placeholder="Room type" />
           <Input value={form.floor} onChange={(event) => setForm({ ...form, floor: event.target.value })} placeholder="Floor" />

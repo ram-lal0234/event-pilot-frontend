@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { OptionDropdown } from "@/components/ui/option-dropdown";
 import { api, type RsvpStatus } from "@/lib/api";
 
 export default function PublicRsvpPage() {
@@ -66,11 +66,16 @@ export default function PublicRsvpPage() {
       <p className="text-sm text-muted-foreground">
         Hi {invite.guest.name}, please confirm your attendance.
       </p>
-      <Select value={rsvpStatus} onChange={(event) => setRsvpStatus(event.target.value as RsvpStatus)}>
-        <option value="CONFIRMED">Confirmed</option>
-        <option value="PENDING">Maybe / Pending</option>
-        <option value="DECLINED">Declined</option>
-      </Select>
+      <OptionDropdown
+        value={rsvpStatus}
+        onValueChange={(status) => setRsvpStatus(status as RsvpStatus)}
+        options={[
+          { value: "CONFIRMED", label: "Confirmed" },
+          { value: "PENDING", label: "Maybe / Pending" },
+          { value: "DECLINED", label: "Declined" },
+        ]}
+        placeholder="RSVP"
+      />
       <Input
         type="number"
         min={1}

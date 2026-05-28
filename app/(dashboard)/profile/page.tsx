@@ -22,6 +22,7 @@ import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/c
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { pageLayout } from "@/lib/design-tokens";
+import { profileInitials, userDisplayName } from "@/lib/user-display";
 import { cn } from "@/lib/utils";
 
 const roleLabels: Record<AccountRole, string> = {
@@ -30,21 +31,8 @@ const roleLabels: Record<AccountRole, string> = {
   STAFF: "Staff",
 };
 
-function profileInitials(name: string, email: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
-  }
-  if (parts[0]) return parts[0].slice(0, 2).toUpperCase();
-  const local = email.split("@")[0] ?? "";
-  return (local.slice(0, 2) || "U").toUpperCase();
-}
-
 function displayLabel(name: string, email: string) {
-  const trimmed = name.trim();
-  if (trimmed) return trimmed;
-  const local = email.split("@")[0] ?? "User";
-  return local.charAt(0).toUpperCase() + local.slice(1);
+  return userDisplayName(name, email);
 }
 
 function ProfileSectionCard({

@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { OptionDropdown } from "@/components/ui/option-dropdown";
 import { cn } from "@/lib/utils";
 import { getPhoneCountry, PHONE_COUNTRIES, type PhoneCountryCode } from "@/lib/phone";
 
@@ -40,20 +40,17 @@ export function PhoneInput({
           <label htmlFor={countrySelectId} className="sr-only">
             Country
           </label>
-          <Select
-            id={countrySelectId}
+          <OptionDropdown
             value={country}
             disabled={disabled || countryLocked}
-            aria-label="Country code"
-            className="h-9"
-            onChange={(event) => onCountryChange(event.target.value as PhoneCountryCode)}
-          >
-            {PHONE_COUNTRIES.map((entry) => (
-              <option key={entry.code} value={entry.code}>
-                {entry.label} (+{entry.dialCode})
-              </option>
-            ))}
-          </Select>
+            triggerClassName="h-9"
+            onValueChange={(code) => onCountryChange(code as PhoneCountryCode)}
+            options={PHONE_COUNTRIES.map((entry) => ({
+              value: entry.code,
+              label: `${entry.label} (+${entry.dialCode})`,
+            }))}
+            placeholder="Country"
+          />
         </div>
         <div className="relative min-w-0 flex-1">
           <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useApp } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { OptionDropdown } from "@/components/ui/option-dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type CheckinLocationType, type GuestRecord } from "@/lib/api";
 import { formLimits } from "@/lib/form-limits";
@@ -56,13 +56,14 @@ export default function FieldOpsCheckinPage() {
       </div>
 
       <form className="space-y-3 rounded-xl border border-border bg-card p-4" onSubmit={scan}>
-        <Select
+        <OptionDropdown
           value={locationType}
-          onChange={(event) => setLocationType(event.target.value as CheckinLocationType)}
-        >
-          <option value="EVENT_GATE">Event gate</option>
-          <option value="HOTEL">Hotel desk</option>
-        </Select>
+          onValueChange={(value) => setLocationType(value as CheckinLocationType)}
+          options={[
+            { value: "EVENT_GATE", label: "Event gate" },
+            { value: "HOTEL", label: "Hotel desk" },
+          ]}
+        />
         <Input
           value={qrCode}
           onChange={(event) => setQrCode(event.target.value)}
