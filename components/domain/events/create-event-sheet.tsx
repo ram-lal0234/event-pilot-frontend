@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useApp } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formLimits } from "@/lib/form-limits";
 import {
   Sheet,
   SheetContent,
@@ -54,7 +55,13 @@ export function CreateEventSheet({ trigger }: { trigger: ReactElement }) {
           <div className="space-y-4 px-4">
             <label className="block space-y-1 text-sm font-medium">
               <span>Name</span>
-              <Input value={name} onChange={(event) => setName(event.target.value)} required />
+              <Input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+                minLength={formLimits.eventName.minLength}
+                maxLength={formLimits.eventName.maxLength}
+              />
             </label>
             <label className="block space-y-1 text-sm font-medium">
               <span>Date</span>
@@ -62,7 +69,13 @@ export function CreateEventSheet({ trigger }: { trigger: ReactElement }) {
             </label>
             <label className="block space-y-1 text-sm font-medium">
               <span>Location</span>
-              <Input value={location} onChange={(event) => setLocation(event.target.value)} required />
+              <Input
+                value={location}
+                onChange={(event) => setLocation(event.target.value)}
+                required
+                minLength={formLimits.location.minLength}
+                maxLength={formLimits.location.maxLength}
+              />
             </label>
           </div>
           <SheetFooter>

@@ -11,6 +11,8 @@ type DashboardPageProps = {
   actions?: ReactNode;
   /** Match dashboard home (`loose`) or standard ops pages (`default`). */
   spacing?: keyof typeof pageLayout.spacing;
+  /** Hide breadcrumb + title block (e.g. profile uses its own hero). */
+  hideHeader?: boolean;
   className?: string;
   children: ReactNode;
 };
@@ -25,17 +27,22 @@ export function DashboardPage({
   breadcrumb,
   actions,
   spacing = "default",
+  hideHeader = false,
   className,
   children,
 }: DashboardPageProps) {
   return (
     <div className={cn(pageLayout.spacing[spacing], className)}>
-      <PageHeader
-        breadcrumb={breadcrumb}
-        title={title}
-        description={description}
-        actions={actions}
-      />
+      {hideHeader ? (
+        <h1 className="sr-only">{title}</h1>
+      ) : (
+        <PageHeader
+          breadcrumb={breadcrumb}
+          title={title}
+          description={description}
+          actions={actions}
+        />
+      )}
       {children}
     </div>
   );
@@ -44,17 +51,21 @@ export function DashboardPage({
 export function DashboardPageSkeleton({
   spacing = "default",
   cards = 1,
+  hideHeader = false,
 }: {
   spacing?: keyof typeof pageLayout.spacing;
   cards?: number;
+  hideHeader?: boolean;
 }) {
   return (
     <div className={cn(pageLayout.spacing[spacing])}>
-      <div className="mb-6 space-y-2">
-        <Skeleton className="h-3 w-28" />
-        <Skeleton className="h-8 w-52" />
-        <Skeleton className="h-4 w-80 max-w-full" />
-      </div>
+      {!hideHeader ? (
+        <div className="mb-6 space-y-2">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-8 w-52" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </div>
+      ) : null}
       {Array.from({ length: cards }).map((_, index) => (
         <Skeleton key={index} className="h-36 w-full rounded-lg" />
       ))}

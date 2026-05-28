@@ -98,7 +98,7 @@ export function Sidebar({ className }: { className?: string }) {
         {eventViewItems.map((item) => (
           <SidebarLink
             key={item.href}
-            item={{ ...item, icon: Sparkles }}
+            item={item}
             pathname={pathname}
             currentEventId={currentEventId}
           />
@@ -124,10 +124,10 @@ function getCurrentSection(pathname: string) {
   if (pathname === "/" || /^\/events\/[^/]+\/dashboard$/.test(pathname)) {
     return "/";
   }
-  if (/^\/events\/[^/]+\/(guests|follow-up|operations|check-in|live|analytics|reports|call-logs|team)$/.test(pathname)) {
+  if (/^\/events\/[^/]+\/(guests|follow-up|operations|check-in|live|analytics|reports|call-logs|team|events)$/.test(pathname)) {
     return pathname.replace(/^\/events\/[^/]+/, "");
   }
-  if (/^\/(guests|follow-up|operations|check-in|live|analytics|reports|call-logs|team)$/.test(pathname)) {
+  if (/^\/(guests|follow-up|operations|check-in|live|analytics|reports|call-logs|team|events)$/.test(pathname)) {
     return pathname;
   }
   return "/";

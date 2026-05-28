@@ -6,6 +6,7 @@ import { useApp } from "@/components/providers/app-provider";
 import { BlockingDialog } from "@/components/onboarding/blocking-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formLimits } from "@/lib/form-limits";
 
 type CreateFirstEventDialogProps = {
   open: boolean;
@@ -38,9 +39,23 @@ export function CreateFirstEventDialog({ open }: CreateFirstEventDialogProps) {
       description="Account owners need at least one event before using the dashboard. This step cannot be skipped."
     >
       <form className="space-y-3" onSubmit={(e) => void submit(e)}>
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Event name" required />
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Event name"
+          required
+          minLength={formLimits.eventName.minLength}
+          maxLength={formLimits.eventName.maxLength}
+        />
         <Input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} required />
-        <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" required />
+        <Input
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="Location"
+          required
+          minLength={formLimits.location.minLength}
+          maxLength={formLimits.location.maxLength}
+        />
         <div className="flex gap-2 pt-2">
           <Button className="flex-1" type="submit" loading={busy} loadingText="Creating…">
             Create event

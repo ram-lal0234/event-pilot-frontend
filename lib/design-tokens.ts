@@ -1,8 +1,12 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  BarChart3,
   CalendarDays,
+  FileText,
   LayoutDashboard,
+  PhoneCall,
   PhoneForwarded,
+  Radio,
   ScanLine,
   Truck,
   Users,
@@ -76,19 +80,19 @@ export type NavItem = {
 
 export const navItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
-  { label: "Events", href: "/events", icon: CalendarDays },
   { label: "Guests", href: "/guests", icon: Users },
   { label: "Follow-up", href: "/follow-up", icon: PhoneForwarded },
   { label: "Operations", href: "/operations", icon: Truck },
   { label: "Check-In", href: "/check-in", icon: ScanLine },
 ];
 
-export const eventViewItems = [
-  { label: "Live View", href: "/live" },
-  { label: "Analytics", href: "/analytics" },
-  { label: "Reports", href: "/reports" },
-  { label: "Call Logs", href: "/call-logs" },
-] as const;
+export const eventViewItems: NavItem[] = [
+  { label: "Events", href: "/events", icon: CalendarDays },
+  { label: "Live View", href: "/live", icon: Radio },
+  { label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { label: "Reports", href: "/reports", icon: FileText },
+  { label: "Call Logs", href: "/call-logs", icon: PhoneCall },
+];
 
 /** Routes that are workspace-level, not tied to the selected event. */
 const GLOBAL_NAV_HREFS = new Set(["/events", "/team", "/profile"]);

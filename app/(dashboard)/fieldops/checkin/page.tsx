@@ -8,10 +8,12 @@ import { useApp } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api, type CheckinLocationType, type GuestRecord } from "@/lib/api";
+import { formLimits } from "@/lib/form-limits";
 
 export default function FieldOpsCheckinPage() {
-  const { token } = useApp();
+  const { token, eventsLoaded, eventsLoading } = useApp();
   const [qrCode, setQrCode] = useState("");
   const [locationType, setLocationType] = useState<CheckinLocationType>("EVENT_GATE");
   const [guest, setGuest] = useState<GuestRecord | null>(null);
@@ -36,6 +38,16 @@ export default function FieldOpsCheckinPage() {
     }
   };
 
+  if (!eventsLoaded || eventsLoading) {
+    return (
+      <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col gap-4 bg-background p-4 pb-8">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-4 w-64" />
+        <Skeleton className="h-48 w-full rounded-xl" />
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col gap-4 bg-background p-4 pb-8">
       <div>
@@ -56,6 +68,8 @@ export default function FieldOpsCheckinPage() {
           onChange={(event) => setQrCode(event.target.value)}
           placeholder="QR code value"
           required
+          minLength={formLimits.qrCode.minLength}
+          maxLength={formLimits.qrCode.maxLength}
           autoComplete="off"
         />
         <Button type="submit" className="w-full gap-2" loading={busy} loadingText="Checking in">

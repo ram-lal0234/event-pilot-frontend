@@ -2,20 +2,11 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import {
-  Building2,
-  PanelLeftClose,
-  PanelLeftOpen,
-  LogOut,
-  Settings,
-  Shield,
-  Users,
-} from "lucide-react";
+import { Building2, LogOut, Settings, Shield, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/components/providers/app-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
 import { scopedEventHref } from "@/lib/design-tokens";
-import { useSidebar } from "@/components/layout/sidebar-context";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -32,36 +23,16 @@ interface TopBarProps {
 export function TopBar({ mobileMenu }: TopBarProps) {
   const { user, logout, account, currentEventId } = useApp();
   const { isOwner } = useEventAccess();
-  const { sidebarOpen, toggleSidebar } = useSidebar();
   const emailName = user.email.split("@")[0] || "User";
 
   return (
     <header
       className={cn(
         "fixed top-0 right-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-card",
-        "left-0 px-3 sm:px-4",
-        sidebarOpen ? "md:left-[238px]" : "md:left-0"
+        "left-0 px-3 sm:px-4 md:left-[238px]",
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        {mobileMenu}
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="hidden size-8 shrink-0 md:inline-flex"
-          onClick={() => toggleSidebar()}
-          aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
-          aria-pressed={sidebarOpen}
-        >
-          {sidebarOpen ? (
-            <PanelLeftClose className="size-5" />
-          ) : (
-            <PanelLeftOpen className="size-5" />
-          )}
-        </Button>
-      </div>
+      <div className="flex min-w-0 flex-1 items-center gap-3">{mobileMenu}</div>
 
       <div className="flex shrink-0 items-center gap-2">
           {account?.name ? (

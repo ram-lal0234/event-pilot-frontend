@@ -478,7 +478,7 @@ function GuestDetailsSheet({
               <Input
                 type="number"
                 min={1}
-                max={100}
+                max={20}
                 value={groupSize}
                 disabled={!canWrite}
                 onChange={(event) => setGroupSize(Number(event.target.value))}

@@ -234,8 +234,20 @@ function InviteMemberSheet({
           <SheetTitle>Invite team member</SheetTitle>
         </SheetHeader>
         <form className="space-y-4 px-4 pb-6" onSubmit={handleSubmit}>
-          <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" required />
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" />
+          <Input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            type="email"
+            required
+            maxLength={254}
+          />
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Name (optional)"
+            maxLength={120}
+          />
           <Select value={role} onChange={(e) => setRole(e.target.value as "ADMIN" | "STAFF")}>
             <option value="STAFF">Staff</option>
             <option value="ADMIN">Admin</option>
