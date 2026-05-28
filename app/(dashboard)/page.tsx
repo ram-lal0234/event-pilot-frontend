@@ -91,11 +91,15 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-4">
+      <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
         <Metric label="Total Guests" value={`${summary?.totalGuests || 0}`} />
         <Metric label="Confirmed RSVP" value={`${summary?.confirmed || 0}`} />
+        <Metric label="Declined RSVP" value={`${summary?.declined || 0}`} />
+        <Metric label="Pending RSVP" value={`${summary?.pendingRsvp || 0}`} />
         <Metric label="Checked In" value={`${summary?.checkedIn || 0}`} />
         <Metric label="Pending Pickups" value={`${summary?.pendingPickups || 0}`} />
+        <Metric label="Needs Follow-up" value={`${summary?.needsFollowUp || 0}`} />
+        <Metric label="No Answer/VM" value={`${(summary?.noAnswer || 0) + (summary?.voicemail || 0)}`} />
       </section>
 
       <section className="rounded-lg border border-border bg-card">
@@ -133,6 +137,24 @@ export default function DashboardPage() {
             <p className="px-4 py-8 text-center text-sm text-muted-foreground">
               Activity will appear here once guests start responding.
             </p>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold text-foreground">Needs Follow-up</h2>
+        <div className="mt-3 space-y-2">
+          {summary?.needsFollowUpGuests?.map((guest) => (
+            <div key={guest.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
+              <span>
+                <span className="font-medium">{guest.name}</span>
+                <span className="ml-2 text-muted-foreground">{guest.phone}</span>
+              </span>
+              <span className="text-xs text-muted-foreground">{guest.followUpStatus.replaceAll("_", " ")}</span>
+            </div>
+          ))}
+          {!summary?.needsFollowUpGuests?.length ? (
+            <p className="text-sm text-muted-foreground">No guests currently need follow-up.</p>
           ) : null}
         </div>
       </section>
