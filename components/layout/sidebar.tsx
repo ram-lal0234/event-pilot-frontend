@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarPlus, Check, ChevronDown, Sparkles } from "lucide-react";
+import { CalendarPlus, Check, ChevronDown } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { cn } from "@/lib/utils";
 import {
   brand,
-  colors,
   eventViewItems,
   isEventHrefActive,
   navItems,
@@ -43,12 +43,7 @@ export function Sidebar({ className }: { className?: string }) {
       )}
     >
       <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-        <div
-          className="flex size-7 items-center justify-center rounded text-white"
-          style={{ backgroundColor: colors.primary }}
-        >
-          <Sparkles className="size-4" />
-        </div>
+        <BrandLogo imageClassName="size-8" />
         <h1 className="text-lg font-bold leading-none text-foreground">{brand.name}</h1>
       </div>
 

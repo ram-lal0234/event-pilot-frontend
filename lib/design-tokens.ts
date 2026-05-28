@@ -15,6 +15,8 @@ import {
 export const brand = {
   name: "EventPilot AI",
   tagline: "CamRSVP",
+  logo: "/event-pilot-logo.png",
+  favicon: "/logos/favicon.ico",
 } as const;
 
 /** Shell + page spacing — single source for dashboard layout rhythm. */
