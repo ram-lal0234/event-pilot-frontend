@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { LoginScreen } from "@/components/auth/login-screen";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import { persistAuthSession, readAuthSession } from "@/lib/auth-session";
 
 export default function JoinPage() {
   const params = useParams<{ code: string }>();
@@ -13,7 +14,7 @@ export default function JoinPage() {
   const code = params?.code;
   const [preview, setPreview] = useState<Awaited<ReturnType<typeof api.getJoinPreview>> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState<string | null>(null);
+  const [hasToken, setHasToken] = useState(false);
   const [accepting, setAccepting] = useState(false);
 
   useEffect(() => {
@@ -26,23 +27,29 @@ export default function JoinPage() {
   }, [code]);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("eventpilot.token");
-    setToken(stored);
+    const { token } = readAuthSession();
+    setHasToken(Boolean(token));
   }, []);
 
-  const finishJoin = (accessToken: string, user: { accountName?: string }) => {
-    window.localStorage.setItem("eventpilot.token", accessToken);
-    window.localStorage.setItem("eventpilot.user", JSON.stringify(user));
-    toast.success(`Welcome to ${preview?.accountName || "the team"}`);
-    router.replace("/");
-  };
+  useEffect(() => {
+    if (!code || loading || !preview || hasToken) return;
+    const params = new URLSearchParams({
+      join: code,
+      email: preview.email,
+      next: "/",
+    });
+    router.replace(`/login?${params.toString()}`);
+  }, [code, hasToken, loading, preview, router]);
 
-  const accept = async (accessToken: string) => {
-    if (!code) return;
+  const accept = async () => {
+    const { token } = readAuthSession();
+    if (!code || !token) return;
     setAccepting(true);
     try {
-      const result = await api.acceptJoin(accessToken, code);
-      finishJoin(result.accessToken, result.user);
+      const result = await api.acceptJoin(token, code);
+      persistAuthSession(result);
+      toast.success(`Welcome to ${preview?.accountName || "the team"}`);
+      router.replace("/");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not accept invite");
     } finally {
@@ -51,48 +58,50 @@ export default function JoinPage() {
   };
 
   if (loading) {
-    return <main className="mx-auto max-w-md p-6 text-sm text-muted-foreground">Loading invitation…</main>;
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-[#f6f8fc] text-sm text-muted-foreground">
+        Loading invitation…
+      </main>
+    );
   }
 
   if (!preview) {
-    return <main className="mx-auto max-w-md p-6 text-sm text-destructive">This invitation is invalid or expired.</main>;
+    return (
+      <main className="mx-auto flex min-h-dvh max-w-md items-center p-6">
+        <p className="text-sm text-destructive">This invitation is invalid or expired.</p>
+      </main>
+    );
   }
 
-  if (!token) {
+  if (!hasToken) {
     return (
-      <div>
-        <main className="border-b border-border bg-card px-4 py-6 text-center">
-          <p className="text-lg font-semibold">Join {preview.accountName}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Sign in as <strong>{preview.email}</strong> to accept this {preview.role} invitation.
-          </p>
-        </main>
-        <LoginScreen
-          initialEmail={preview.email}
-          joinInviteCode={code}
-          lockEmail
-          onAuthenticated={({ accessToken, user }) => {
-            finishJoin(accessToken, user);
-          }}
-        />
-      </div>
+      <main className="flex min-h-dvh items-center justify-center bg-[#f6f8fc] text-sm text-muted-foreground">
+        Redirecting to sign in…
+      </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-md space-y-4 p-6">
-      <h1 className="text-xl font-semibold">Join {preview.accountName}</h1>
-      <p className="text-sm text-muted-foreground">
-        You are invited as <strong>{preview.role}</strong> ({preview.email}).
-      </p>
-      <Button
-        className="w-full"
-        loading={accepting}
-        loadingText="Joining"
-        onClick={() => void accept(token)}
-      >
-        Accept invitation
-      </Button>
+    <main className="flex min-h-dvh items-center justify-center bg-[#f6f8fc] px-4">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-lg">
+        <h1 className="text-xl font-semibold">Join {preview.accountName}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          You are signed in. Accept this invitation as <strong>{preview.role}</strong> (
+          {preview.email}).
+        </p>
+        <Button className="mt-6 w-full" loading={accepting} loadingText="Joining" onClick={() => void accept()}>
+          Accept invitation
+        </Button>
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          Wrong account?{" "}
+          <Link
+            href={`/login?join=${code}&email=${encodeURIComponent(preview.email)}`}
+            className="font-medium text-primary hover:underline"
+          >
+            Sign in with invited email
+          </Link>
+        </p>
+      </div>
     </main>
   );
 }
