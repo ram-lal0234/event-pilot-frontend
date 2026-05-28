@@ -38,6 +38,7 @@ export type AccountMembership = {
   name: string | null;
   phone?: string | null;
   status: InviteStatus;
+  onboardingCompletedAt?: string | null;
 };
 
 export type TeamMemberRecord = {
@@ -66,6 +67,8 @@ export type EventRecord = {
   createdBy: string;
   createdAt: string;
   accessLevel?: AccessLevel;
+  guestCount?: number;
+  rsvpConfirmedCount?: number;
 };
 
 export type GuestRecord = {
@@ -313,7 +316,25 @@ export const api = {
     );
   },
   getAccountMe(token: string) {
-    return request<{ account: AccountInfo; membership: AccountMembership }>("/account/me", { token });
+    return request<{
+      account: AccountInfo;
+      membership: AccountMembership;
+      needsOnboarding: boolean;
+    }>("/account/me", { token });
+  },
+  completeOnboarding(
+    token: string,
+    payload: { name: string; phone: string; workspaceName?: string },
+  ) {
+    return request<{
+      account: AccountInfo;
+      membership: AccountMembership;
+      needsOnboarding: boolean;
+    }>("/account/onboarding", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
   },
   updateAccountName(token: string, name: string) {
     return request<AccountInfo>("/account/me", {

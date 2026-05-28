@@ -1,10 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Copy, UserPlus, Users } from "lucide-react";
+import { Copy, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/components/providers/app-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
+import {
+  DashboardPage,
+  DashboardPageSkeleton,
+} from "@/components/layout/dashboard-page";
 import { api, type AccessLevel, type TeamMemberRecord } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,36 +49,37 @@ export default function TeamPage() {
 
   if (!isOwner) {
     return (
-      <div className="p-6">
-        <p className="text-sm text-muted-foreground">Only the account owner can manage team members.</p>
-      </div>
+      <DashboardPage
+        title="Team"
+        description="Only the account owner can manage team members."
+        breadcrumb="Account"
+      >
+        <p className="text-sm text-muted-foreground">
+          Contact your workspace owner if you need access changes.
+        </p>
+      </DashboardPage>
     );
   }
 
+  if (loading) {
+    return <DashboardPageSkeleton />;
+  }
+
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Users className="size-5" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold">Team</h1>
-            <p className="text-sm text-muted-foreground">Invite once, assign members to specific events.</p>
-          </div>
-        </div>
+    <DashboardPage
+      title="Team"
+      description="Invite once, assign members to specific events."
+      breadcrumb="Account"
+      actions={
         <Button className="gap-2" type="button" onClick={() => setInviteOpen(true)}>
           <UserPlus className="size-4" />
           Invite member
         </Button>
-      </div>
-
-      {loading ? (
-        <Skeleton className="h-32 w-full" />
-      ) : (
-        <div className="space-y-3">
+      }
+    >
+      <div className="space-y-3">
           {members.map((member) => (
-            <div key={member.id} className="rounded-xl border border-border bg-card p-4">
+            <div key={member.id} className="rounded-lg border border-border bg-card p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="font-semibold">{member.name || member.email}</p>
@@ -135,8 +140,7 @@ export default function TeamPage() {
               </div>
             </div>
           ))}
-        </div>
-      )}
+      </div>
 
       <InviteMemberSheet
         open={inviteOpen}
@@ -183,7 +187,7 @@ export default function TeamPage() {
         }}
         busy={busy}
       />
-    </div>
+    </DashboardPage>
   );
 }
 

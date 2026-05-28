@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { PhoneForwarded } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/components/providers/app-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
+import {
+  DashboardPage,
+  DashboardPageSkeleton,
+} from "@/components/layout/dashboard-page";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { api, type GuestRecord } from "@/lib/api";
 
 const ACTIVE_FOLLOW_UP =
@@ -63,39 +65,24 @@ export default function FollowUpPage() {
   };
 
   if (!eventsLoaded || eventsLoading || loading) {
-    return (
-      <div className="space-y-4 p-4">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
-    );
+    return <DashboardPageSkeleton cards={2} />;
   }
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <PhoneForwarded className="size-5" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold">Follow-up queue</h1>
-            <p className="text-sm text-muted-foreground">
-              Guests who need a callback or could not be reached on voice.
-            </p>
-          </div>
-        </div>
+    <DashboardPage
+      title="Follow-up queue"
+      description="Guests who need a callback or could not be reached on voice."
+      actions={
         <Button variant="outline" render={<Link href="/guests" />} nativeButton={false}>
           All guests
         </Button>
-      </div>
-
+      }
+    >
       <div className="space-y-3">
         {guests.map((guest) => (
           <div
             key={guest.id}
-            className="rounded-xl border border-border bg-card p-4"
+            className="rounded-lg border border-border bg-card p-4"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -131,11 +118,11 @@ export default function FollowUpPage() {
           </div>
         ))}
         {!guests.length ? (
-          <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
             No guests in the follow-up queue. Use voice calls or edit a guest to set follow-up status.
           </p>
         ) : null}
       </div>
-    </div>
+    </DashboardPage>
   );
 }

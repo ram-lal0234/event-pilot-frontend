@@ -8,20 +8,30 @@ import {
   useEffect,
   useMemo,
   useState,
-  type FormEvent,
   type ReactNode,
 } from "react";
-import { CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
-import { api, ApiError, type AccountInfo, type AuthUser, type EventRecord } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  type AccountInfo,
+  type AccountMembership,
+  type AuthUser,
+  type EventRecord,
+} from "@/lib/api";
 import { LoginScreen } from "@/components/auth/login-screen";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { CreateFirstEventScreen } from "@/components/onboarding/create-first-event-screen";
+import { NoEventsAssignedScreen } from "@/components/onboarding/no-events-assigned-screen";
+import { PlannerOnboardingOverlay } from "@/components/onboarding/planner-onboarding-overlay";
+import { isAccountOwner } from "@/lib/event-access";
+import { needsPlannerOnboarding } from "@/lib/onboarding";
 
 type AppContextValue = {
   token: string;
   user: AuthUser;
   account: AccountInfo | null;
+  membership: AccountMembership | null;
+  needsOnboarding: boolean;
   events: EventRecord[];
   currentEvent: EventRecord | null;
   currentEventId: string;
@@ -31,6 +41,11 @@ type AppContextValue = {
   setCurrentEventId: (id: string) => void;
   refreshEvents: () => Promise<void>;
   refreshAccount: () => Promise<void>;
+  completeOnboarding: (payload: {
+    name: string;
+    phone: string;
+    workspaceName?: string;
+  }) => Promise<void>;
   createEvent: (payload: { name: string; date: string; location: string }) => Promise<EventRecord>;
   logout: () => void;
 };
@@ -54,6 +69,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [account, setAccount] = useState<AccountInfo | null>(null);
+  const [membership, setMembership] = useState<AccountMembership | null>(null);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsLoaded, setEventsLoaded] = useState(false);
@@ -93,6 +110,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
     setAccount(null);
+    setMembership(null);
+    setNeedsOnboarding(false);
     setEvents([]);
     setEventsLoading(false);
     setEventsLoaded(false);
@@ -100,16 +119,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCurrentEventIdState("");
   }, []);
 
-  const refreshAccount = useCallback(async () => {
-    if (!token) {
-      setAccount(null);
-      return;
-    }
-
-    setAccountLoading(true);
-    try {
-      const result = await api.getAccountMe(token);
+  const applyAccountResult = useCallback(
+    (result: {
+      account: AccountInfo;
+      membership: AccountMembership;
+      needsOnboarding: boolean;
+    }) => {
       setAccount(result.account);
+      setMembership(result.membership);
+      setNeedsOnboarding(result.needsOnboarding);
       setUser((prev) =>
         prev
           ? {
@@ -121,10 +139,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
             }
           : prev,
       );
+    },
+    [],
+  );
+
+  const refreshAccount = useCallback(async () => {
+    if (!token) {
+      setAccount(null);
+      setMembership(null);
+      setNeedsOnboarding(false);
+      return;
+    }
+
+    setAccountLoading(true);
+    try {
+      const result = await api.getAccountMe(token);
+      applyAccountResult(result);
     } finally {
       setAccountLoading(false);
     }
-  }, [token]);
+  }, [applyAccountResult, token]);
 
   const refreshEvents = useCallback(async () => {
     if (!token) {
@@ -172,6 +206,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(EVENT_KEY, id);
   }, []);
 
+  const completeOnboarding = useCallback(
+    async (payload: { name: string; phone: string; workspaceName?: string }) => {
+      if (!token) throw new Error("Missing token");
+      const result = await api.completeOnboarding(token, payload);
+      applyAccountResult(result);
+    },
+    [applyAccountResult, token],
+  );
+
   const createEvent = useCallback(
     async (payload: { name: string; date: string; location: string }) => {
       if (!token) throw new Error("Missing token");
@@ -180,13 +223,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCurrentEventId(event.id);
       return event;
     },
-    [refreshEvents, setCurrentEventId, token]
+    [refreshEvents, setCurrentEventId, token],
   );
 
   const currentEvent = useMemo(
     () => events.find((event) => event.id === currentEventId) || events[0] || null,
-    [currentEventId, events]
+    [currentEventId, events],
   );
+
+  const isOwner = isAccountOwner(membership?.role ?? user?.accountRole);
+  const bootstrapping = Boolean(token && (!eventsLoaded || accountLoading));
 
   if (!authReady) {
     return null;
@@ -208,10 +254,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  if (bootstrapping) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+        Loading workspace…
+      </main>
+    );
+  }
+
+  if (needsPlannerOnboarding(membership) || needsOnboarding) {
+    return <PlannerOnboardingOverlay />;
+  }
+
+  if (eventsLoaded && isOwner && events.length === 0) {
+    return <CreateFirstEventScreen />;
+  }
+
+  if (eventsLoaded && !isOwner && events.length === 0) {
+    return <NoEventsAssignedScreen />;
+  }
+
   const value: AppContextValue = {
     token,
     user,
     account,
+    membership,
+    needsOnboarding,
     events,
     currentEvent,
     currentEventId: currentEvent?.id || currentEventId,
@@ -221,57 +289,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCurrentEventId,
     refreshEvents,
     refreshAccount,
+    completeOnboarding,
     createEvent,
     logout,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
-}
-
-export function EmptyEventState() {
-  const { createEvent, logout } = useApp();
-  const [name, setName] = useState("");
-  const [date, setDate] = useState("");
-  const [location, setLocation] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    setBusy(true);
-    try {
-      await createEvent({ name, date, location });
-      toast.success("Event created");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not create event");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4">
-      <form className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-sm" onSubmit={submit}>
-        <div className="mb-5 flex items-center gap-3">
-          <CalendarPlus className="size-6 text-primary" />
-          <div>
-            <h1 className="text-lg font-bold">Create your first event</h1>
-            <p className="text-sm text-muted-foreground">This becomes the active workspace.</p>
-          </div>
-        </div>
-        <div className="space-y-3">
-          <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Event name" required />
-          <Input type="datetime-local" value={date} onChange={(event) => setDate(event.target.value)} required />
-          <Input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Location" required />
-        </div>
-        <div className="mt-5 flex gap-2">
-          <Button className="flex-1" type="submit" loading={busy} loadingText="Creating event">
-            Create Event
-          </Button>
-          <Button variant="outline" type="button" onClick={logout}>
-            Logout
-          </Button>
-        </div>
-      </form>
-    </main>
-  );
 }

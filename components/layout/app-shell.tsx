@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Menu } from "lucide-react";
+import { pageLayout } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -68,11 +69,19 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
       <main
         className={cn(
-          "min-h-screen bg-background pb-8 pt-14 transition-[margin] duration-200 ease-out",
-          sidebarOpen ? "md:ml-[238px]" : "md:ml-0"
+          "min-h-screen bg-background pb-8 transition-[margin] duration-200 ease-out",
+          pageLayout.shell.headerOffset,
+          sidebarOpen ? "md:ml-[238px]" : "md:ml-0",
         )}
       >
-        <div className="mx-auto max-w-[1640px] px-4 pt-6 lg:px-6">
+        <div
+          className={cn(
+            "mx-auto",
+            pageLayout.shell.maxWidth,
+            pageLayout.shell.paddingX,
+            pageLayout.shell.paddingTop,
+          )}
+        >
           {children}
         </div>
       </main>

@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  CalendarDays,
   LayoutDashboard,
   PhoneForwarded,
   ScanLine,
@@ -10,6 +11,21 @@ import {
 export const brand = {
   name: "EventPilot AI",
   tagline: "CamRSVP",
+} as const;
+
+/** Shell + page spacing — single source for dashboard layout rhythm. */
+export const pageLayout = {
+  shell: {
+    maxWidth: "max-w-[1640px]",
+    paddingX: "px-4 lg:px-6",
+    paddingTop: "pt-6",
+    headerOffset: "pt-14",
+  },
+  spacing: {
+    default: "space-y-6",
+    loose: "space-y-7",
+    tight: "space-y-4",
+  },
 } as const;
 
 export const colors = {
@@ -36,6 +52,7 @@ export type NavItem = {
 
 export const navItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
+  { label: "Events", href: "/events", icon: CalendarDays },
   { label: "Guests", href: "/guests", icon: Users },
   { label: "Follow-up", href: "/follow-up", icon: PhoneForwarded },
   { label: "Operations", href: "/operations", icon: Truck },
@@ -49,7 +66,11 @@ export const eventViewItems = [
   { label: "Call Logs", href: "/call-logs" },
 ] as const;
 
+/** Routes that are workspace-level, not tied to the selected event. */
+const GLOBAL_NAV_HREFS = new Set(["/events", "/team", "/profile"]);
+
 export function scopedEventHref(eventId: string, href: string) {
+  if (GLOBAL_NAV_HREFS.has(href)) return href;
   if (!eventId) return href;
   if (href === "/") return `/events/${eventId}/dashboard`;
   return `/events/${eventId}${href}`;
@@ -58,6 +79,10 @@ export function scopedEventHref(eventId: string, href: string) {
 export function isEventHrefActive(pathname: string, href: string) {
   if (href === "/") {
     return pathname === "/" || /^\/events\/[^/]+\/dashboard$/.test(pathname);
+  }
+
+  if (href === "/events") {
+    return pathname === "/events";
   }
 
   return pathname === href || new RegExp(`^/events/[^/]+${href}$`).test(pathname);
