@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import Link from "next/link";
 import { z } from "zod";
-import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, FileUp, Plus, Upload, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, FileUp, PhoneCall, Plus, RefreshCw, Upload, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { GuestTable } from "@/components/domain/guests/guest-table";
 import { GuestFormFields } from "@/components/domain/guests/guest-form-fields";
@@ -40,6 +41,7 @@ import {
 } from "@/lib/guest-form";
 import { normalizePhoneInput } from "@/lib/phone";
 import { useApp } from "@/components/providers/app-provider";
+import { scopedEventHref } from "@/lib/design-tokens";
 
 const sampleCsv = `name,phone,email,category,group_size,pickup_location
 Rahul Sharma,9876543210,rahul@email.com,VIP,3,Delhi Airport
@@ -113,6 +115,7 @@ export default function GuestsPage() {
   const [guestForm, setGuestForm] = useState(emptyGuestForm);
   const [csv, setCsv] = useState("name,phone,email,category,group_size,pickup_location\n");
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [guestsLoaded, setGuestsLoaded] = useState(false);
   const [rsvpTab, setRsvpTab] = useState(() => {
     if (selectedRsvpStatuses.length === 1) return selectedRsvpStatuses[0];
@@ -175,7 +178,7 @@ export default function GuestsPage() {
       setGuests(result.items);
       setPagination(result.pagination);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not load guests");
+      toast.error("We couldn't load guests right now.");
     } finally {
       setGuestsLoaded(true);
     }
@@ -207,7 +210,7 @@ export default function GuestsPage() {
       await loadGuests();
       return null;
     } catch (err) {
-      return err instanceof Error ? err.message : "Could not create guest";
+      return "We couldn't create this guest. Please try again.";
     } finally {
       setBusy(false);
     }
@@ -220,7 +223,7 @@ export default function GuestsPage() {
       await loadGuests();
       return null;
     } catch (err) {
-      return err instanceof Error ? err.message : "Could not update guest";
+      return "We couldn't save guest details. Please try again.";
     }
   };
 
@@ -232,7 +235,7 @@ export default function GuestsPage() {
       await loadGuests();
       return null;
     } catch (err) {
-      return err instanceof Error ? err.message : "Could not upload CSV";
+      return "We couldn't import this file. Please check it and try again.";
     } finally {
       setBusy(false);
     }
@@ -250,7 +253,7 @@ export default function GuestsPage() {
       downloadCsv(csvExport, `${safeEventName || "event"}-guests.csv`);
       toast.success("Guest export downloaded");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not export guests");
+      toast.error("We couldn't export guests right now.");
     } finally {
       setBusy(false);
     }
@@ -261,13 +264,9 @@ export default function GuestsPage() {
       await api.triggerVoiceCall(token, guestId, callMode);
       return null;
     } catch (err) {
-      return err instanceof Error ? err.message : "Could not queue voice call";
+      return "We couldn't start the call. Please try again.";
     }
   };
-
-  const loadGuestCallLogs = useCallback(async (guestId: string) => {
-    return api.getGuestCallLogs(token, guestId);
-  }, [token]);
 
   const updateGuestRsvp = async (guestId: string, payload: { rsvpStatus: GuestRecord["rsvpStatus"]; groupSize: number }) => {
     try {
@@ -275,7 +274,17 @@ export default function GuestsPage() {
       await loadGuests();
       return null;
     } catch (err) {
-      return err instanceof Error ? err.message : "Could not update RSVP";
+      return "We couldn't update RSVP right now.";
+    }
+  };
+
+  const refreshGuestList = async () => {
+    setRefreshing(true);
+    try {
+      await loadGuests();
+      toast.success("Guest list refreshed");
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -315,6 +324,29 @@ export default function GuestsPage() {
               <Download className="size-4" />
               Export
             </Button>
+            <Button
+              variant="outline"
+              type="button"
+              size="sm"
+              className="gap-2"
+              onClick={() => void refreshGuestList()}
+              loading={refreshing}
+              loadingText="Refreshing"
+            >
+              <RefreshCw className="size-4" />
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              type="button"
+              size="sm"
+              className="gap-2"
+              render={<Link href={scopedEventHref(currentEventId, "/call-logs")} />}
+              nativeButton={false}
+            >
+              <PhoneCall className="size-4" />
+              Call Logs
+            </Button>
             <CsvSheet csv={csv} setCsv={setCsv} uploadCsv={uploadCsv} busy={busy} />
             <GuestSheet
               form={guestForm}
@@ -346,7 +378,6 @@ export default function GuestsPage() {
           onTriggerVoiceCall={triggerVoiceCall}
           onUpdateRsvp={updateGuestRsvp}
           onUpdateGuest={updateGuest}
-          onLoadCallLogs={loadGuestCallLogs}
         />
         <GuestFooter
           stats={stats}

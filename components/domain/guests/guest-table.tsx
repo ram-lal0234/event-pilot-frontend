@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useState, type FormEvent } from "react";
-import { Bot, ChevronRight, Clock3, Download, FileAudio, MapPin, MessageSquareText, Phone, QrCode, Radio, RefreshCw } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { Bot, ChevronRight, Download, MapPin, Phone, QrCode, Radio } from "lucide-react";
 import { GuestEditSheet } from "@/components/domain/guests/guest-edit-sheet";
 import type { GuestFormState } from "@/lib/guest-form";
 import { toast } from "sonner";
 import { QRCodeCanvas } from "qrcode.react";
-import type { GuestCallLogEntry, GuestCallLogs, GuestRecord, RsvpStatus } from "@/lib/api";
+import type { GuestRecord, RsvpStatus } from "@/lib/api";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -136,16 +136,16 @@ const voiceCallConfirmCopy: Record<
   { title: string; description: string; confirmLabel: string }
 > = {
   ai: {
-    title: "Start AI voice call?",
+    title: "Start voice call?",
     description:
-      "Plivo will call this guest and run the conversational RSVP agent. The guest must be able to answer now.",
-    confirmLabel: "Start AI call",
+      "We will place a voice call to this guest now. Make sure they are available to answer.",
+    confirmLabel: "Start call",
   },
   ivr: {
-    title: "Start IVR call?",
+    title: "Start keypad call?",
     description:
-      "Plivo will call this guest and play the keypad IVR (press 1 to confirm, 2 to decline).",
-    confirmLabel: "Start IVR call",
+      "We will place a keypad voice call where the guest can confirm or decline using number keys.",
+    confirmLabel: "Start call",
   },
 };
 
@@ -172,9 +172,9 @@ function GuestVoiceActionButtons({
     setVoiceBusy(mode);
     const errorMessage = await onTriggerVoiceCall(guestId, mode);
     if (errorMessage) {
-      toast.error(errorMessage);
+      toast.error("We could not start the call. Please try again.");
     } else {
-      toast.success(mode === "ai" ? "AI voice call queued" : "IVR call queued");
+      toast.success("Call request sent");
     }
     setVoiceBusy(null);
     setConfirmMode(null);
@@ -327,13 +327,11 @@ function GuestDetailsSheet({
   onTriggerVoiceCall,
   onUpdateRsvp,
   onUpdateGuest,
-  onLoadCallLogs,
 }: {
   guest: GuestRecord;
   onTriggerVoiceCall: (guestId: string, callMode: VoiceCallMode) => Promise<string | null>;
   onUpdateRsvp: (guestId: string, payload: { rsvpStatus: RsvpStatus; groupSize: number }) => Promise<string | null>;
   onUpdateGuest: (guestId: string, form: GuestFormState) => Promise<string | null>;
-  onLoadCallLogs: (guestId: string) => Promise<GuestCallLogs>;
 }) {
   const [open, setOpen] = useState(false);
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus>(guest.rsvpStatus);
@@ -341,29 +339,10 @@ function GuestDetailsSheet({
   const [savedRsvpStatus, setSavedRsvpStatus] = useState<RsvpStatus>(guest.rsvpStatus);
   const [savedGroupSize, setSavedGroupSize] = useState(guest.groupSize);
   const [busy, setBusy] = useState(false);
-  const [callLogs, setCallLogs] = useState<GuestCallLogs | null>(null);
-  const [callLogsLoading, setCallLogsLoading] = useState(false);
-  const [callLogsError, setCallLogsError] = useState<string | null>(null);
   const voiceDisabled = savedRsvpStatus !== "PENDING";
-
-  const loadCallLogs = useCallback(async () => {
-    setCallLogsLoading(true);
-    setCallLogsError(null);
-    try {
-      const result = await onLoadCallLogs(guest.id);
-      setCallLogs(result);
-    } catch (error) {
-      setCallLogsError(error instanceof Error ? error.message : "Could not load call logs");
-    } finally {
-      setCallLogsLoading(false);
-    }
-  }, [guest.id, onLoadCallLogs]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
-    if (nextOpen && !callLogs && !callLogsLoading) {
-      void loadCallLogs();
-    }
   };
 
   const submitRsvp = async (event: FormEvent) => {
@@ -489,13 +468,6 @@ function GuestDetailsSheet({
             </div>
           </section>
 
-          <GuestCallLogsSection
-            logs={callLogs}
-            loading={callLogsLoading}
-            error={callLogsError}
-            onRefresh={loadCallLogs}
-          />
-
           <section className="grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-lg bg-surface-container-low p-3">
               <p className="text-[11px] font-semibold uppercase text-muted-foreground">Category</p>
@@ -522,146 +494,16 @@ function GuestDetailsSheet({
   );
 }
 
-function formatDateTime(value: string | null) {
-  if (!value) return "Unknown time";
-  return new Date(value).toLocaleString();
-}
-
-function formatEntryTitle(entry: GuestCallLogEntry) {
-  if (entry.type === "rsvp") return entry.outcome ? `RSVP ${entry.outcome}` : "RSVP captured";
-  if (entry.type === "transcript") return "Transcript received";
-  if (entry.type === "call_status") return `Call ${entry.status || "status"}`;
-  if (entry.type === "error") return "Call error";
-  return entry.eventName || entry.status || entry.type;
-}
-
-function renderCallLogIcon(entry: GuestCallLogEntry) {
-  if (entry.type === "transcript") return <FileAudio className="size-4" />;
-  if (entry.type === "rsvp") return <MessageSquareText className="size-4" />;
-  return <Clock3 className="size-4" />;
-}
-
-function GuestCallLogItem({ entry }: { entry: GuestCallLogEntry }) {
-  const details = [
-    entry.rsvpStatus ? `RSVP ${entry.rsvpStatus}` : null,
-    entry.groupSize ? `Group ${entry.groupSize}` : null,
-    entry.needsCab === true ? "Cab needed" : entry.needsCab === false ? "No cab" : null,
-    entry.needsHotel === true ? "Hotel needed" : entry.needsHotel === false ? "No hotel" : null,
-    entry.language ? `Language ${entry.language}` : null,
-  ].filter(Boolean);
-
-  return (
-    <div className="rounded-lg border border-border p-3">
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 rounded-md bg-surface-container-low p-1.5 text-muted-foreground">
-          {renderCallLogIcon(entry)}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-foreground">{formatEntryTitle(entry)}</p>
-            <p className="text-xs text-muted-foreground">{formatDateTime(entry.at)}</p>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {entry.source.replace("_", " ")}
-            {entry.callUuid ? ` · ${entry.callUuid.slice(0, 8)}` : ""}
-          </p>
-          {details.length ? (
-            <p className="mt-2 text-xs text-muted-foreground">{details.join(" · ")}</p>
-          ) : null}
-          {entry.pickupLocation || entry.guestNotes ? (
-            <p className="mt-2 text-sm text-foreground">
-              {[entry.pickupLocation, entry.guestNotes].filter(Boolean).join(" · ")}
-            </p>
-          ) : null}
-          {entry.transcription ? (
-            <p className="mt-2 rounded-md bg-surface-container-low p-2 text-sm text-foreground">
-              {entry.transcription}
-            </p>
-          ) : null}
-          {entry.recordingUrl ? (
-            <a
-              href={entry.recordingUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-flex text-xs font-medium text-primary hover:underline"
-            >
-              Open recording
-            </a>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function GuestCallLogsSection({
-  logs,
-  loading,
-  error,
-  onRefresh,
-}: {
-  logs: GuestCallLogs | null;
-  loading: boolean;
-  error: string | null;
-  onRefresh: () => Promise<void>;
-}) {
-  return (
-    <section className="rounded-lg border border-border p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div>
-          <p className="text-[11px] font-semibold uppercase text-muted-foreground">
-            Call Logs
-          </p>
-          {logs ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {logs.summary.totalCalls} calls · {logs.summary.totalIvrLogs} response logs
-            </p>
-          ) : null}
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          type="button"
-          aria-label="Refresh call logs"
-          disabled={loading}
-          onClick={() => void onRefresh()}
-        >
-          <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-        </Button>
-      </div>
-
-      {loading && !logs ? (
-        <p className="text-sm text-muted-foreground">Loading call logs...</p>
-      ) : null}
-      {error ? (
-        <p className="text-sm text-destructive">{error}</p>
-      ) : null}
-      {!loading && !error && logs && !logs.timeline.length ? (
-        <p className="text-sm text-muted-foreground">No voice call logs yet.</p>
-      ) : null}
-      {logs?.timeline.length ? (
-        <div className="space-y-2">
-          {logs.timeline.slice(0, 12).map((entry) => (
-            <GuestCallLogItem key={entry.id} entry={entry} />
-          ))}
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
 export function GuestTable({
   guests,
   onTriggerVoiceCall,
   onUpdateRsvp,
   onUpdateGuest,
-  onLoadCallLogs,
 }: {
   guests: GuestRecord[];
   onTriggerVoiceCall: (guestId: string, callMode: VoiceCallMode) => Promise<string | null>;
   onUpdateRsvp: (guestId: string, payload: { rsvpStatus: RsvpStatus; groupSize: number }) => Promise<string | null>;
   onUpdateGuest: (guestId: string, form: GuestFormState) => Promise<string | null>;
-  onLoadCallLogs: (guestId: string) => Promise<GuestCallLogs>;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -743,7 +585,6 @@ export function GuestTable({
                   onTriggerVoiceCall={onTriggerVoiceCall}
                   onUpdateRsvp={onUpdateRsvp}
                   onUpdateGuest={onUpdateGuest}
-                  onLoadCallLogs={onLoadCallLogs}
                 />
               </TableCell>
             </TableRow>
