@@ -40,7 +40,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
     <div className="min-h-screen">
       <div
         className={cn(
-          "fixed left-0 top-0 z-50 hidden h-screen w-64 border-r border-border bg-card transition-transform duration-200 ease-out md:block",
+          "fixed left-0 top-0 z-50 hidden h-screen w-[238px] border-r border-border bg-card transition-transform duration-200 ease-out md:block",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
         aria-hidden={!sidebarOpen}
@@ -68,11 +68,11 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
       <main
         className={cn(
-          "min-h-screen bg-background pb-8 pt-[calc(3.5rem-1px)] transition-[margin] duration-200 ease-out sm:pt-[calc(4rem-1px)]",
-          sidebarOpen ? "md:ml-64" : "md:ml-0"
+          "min-h-screen bg-background pb-8 pt-14 transition-[margin] duration-200 ease-out",
+          sidebarOpen ? "md:ml-[238px]" : "md:ml-0"
         )}
       >
-        <div className="mx-auto max-w-[1440px] px-3 pt-6 sm:px-4 lg:px-8">
+        <div className="mx-auto max-w-[1640px] px-4 pt-6 lg:px-6">
           {children}
         </div>
       </main>

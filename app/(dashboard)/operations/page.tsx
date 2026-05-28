@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { Bed, Car, Hotel, Plus, RefreshCw, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/domain/page-header";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -44,6 +45,7 @@ export default function OperationsPage() {
   const [roomForm, setRoomForm] = useState({ hotelId: "", roomNumber: "", capacity: 2 });
   const [assignment, setAssignment] = useState<{ mode: AssignmentMode; targetId: string } | null>(null);
   const [selectedGuestIds, setSelectedGuestIds] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState("assignments");
 
   const load = useCallback(async () => {
     if (!currentEventId) {
@@ -75,6 +77,7 @@ export default function OperationsPage() {
   const rooms = useMemo(() => hotels.flatMap((hotel) => hotel.rooms || []), [hotels]);
   const unassignedCabGuests = guests.filter((guest) => guest.rsvpStatus === "CONFIRMED" && !guest.cabAssignments?.length);
   const unassignedRoomGuests = guests.filter((guest) => guest.rsvpStatus === "CONFIRMED" && !guest.roomAssignments?.length);
+  const pendingAssignments = unassignedCabGuests.length + unassignedRoomGuests.length;
   const loading = !eventsLoaded || eventsLoading || !operationsLoaded;
 
   const selectedCab = assignment?.mode === "cab"
@@ -148,70 +151,88 @@ export default function OperationsPage() {
       <PageHeader
         title="Operations Hub"
         description="Manage transport, hotels, room occupancy, and guest assignments"
-        actions={
-          <Button variant="outline" type="button" className="gap-2" onClick={load}>
-            <RefreshCw className="size-4" />
-            Refresh
-          </Button>
-        }
       />
-      <Tabs defaultValue="assignments" className="gap-5">
-        <TabsList className="max-w-full justify-start overflow-x-auto">
-          <TabsTrigger value="assignments">
-            <Users className="size-4" />
-            Assignments
-          </TabsTrigger>
-          <TabsTrigger value="cabs">
-            <Car className="size-4" />
-            Cabs
-          </TabsTrigger>
-          <TabsTrigger value="hotels">
-            <Hotel className="size-4" />
-            Hotels
-          </TabsTrigger>
-        </TabsList>
 
-        <TabsContent value="cabs" className="space-y-4">
-          <CreateCabCard form={cabForm} setForm={setCabForm} onSubmit={createCab} busy={busy} />
-          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            {cabs.map((cab) => (
-              <CabCard key={cab.id} cab={cab} onAssign={() => openAssignment("cab", cab.id)} />
-            ))}
-            {!cabs.length && <EmptyPanel title="No cabs yet" body="Create your first cab to start assigning guests." />}
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-0">
+          <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <TabsList variant="line" className="h-9 w-full justify-start sm:w-auto">
+              <TabsTrigger value="assignments" className="gap-1.5">
+                <Users className="size-4" />
+                Assignments
+                {pendingAssignments > 0 ? (
+                  <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs">
+                    {pendingAssignments}
+                  </Badge>
+                ) : null}
+              </TabsTrigger>
+              <TabsTrigger value="cabs" className="gap-1.5">
+                <Car className="size-4" />
+                Cabs
+                {cabs.length > 0 ? (
+                  <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs">
+                    {cabs.length}
+                  </Badge>
+                ) : null}
+              </TabsTrigger>
+              <TabsTrigger value="hotels" className="gap-1.5">
+                <Hotel className="size-4" />
+                Hotels
+                {hotels.length > 0 ? (
+                  <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs">
+                    {hotels.length}
+                  </Badge>
+                ) : null}
+              </TabsTrigger>
+            </TabsList>
+            <Button variant="outline" type="button" size="sm" className="gap-2" onClick={load}>
+              <RefreshCw className="size-4" />
+              Refresh
+            </Button>
           </div>
-        </TabsContent>
 
-        <TabsContent value="hotels" className="space-y-4">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
-            <div className="space-y-4">
-              {hotels.map((hotel) => (
-                <HotelRoomsCard
-                  key={hotel.id}
-                  hotel={hotel}
-                  onAssignRoom={(roomId) => openAssignment("room", roomId)}
-                />
+          <TabsContent value="assignments" className="space-y-4 p-4 pt-5">
+            <AssignmentsOverview
+              cabs={cabs}
+              hotels={hotels}
+              guests={guests}
+              unassignedCabGuests={unassignedCabGuests}
+              unassignedRoomGuests={unassignedRoomGuests}
+              onAssignCab={(cabId) => openAssignment("cab", cabId)}
+              onAssignRoom={(roomId) => openAssignment("room", roomId)}
+            />
+          </TabsContent>
+
+          <TabsContent value="cabs" className="space-y-4 p-4 pt-5">
+            <CreateCabCard form={cabForm} setForm={setCabForm} onSubmit={createCab} busy={busy} />
+            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              {cabs.map((cab) => (
+                <CabCard key={cab.id} cab={cab} onAssign={() => openAssignment("cab", cab.id)} />
               ))}
-              {!hotels.length && <EmptyPanel title="No hotels yet" body="Create a hotel, then add rooms inside it." />}
+              {!cabs.length && <EmptyPanel title="No cabs yet" body="Create your first cab to start assigning guests." />}
             </div>
-            <div className="space-y-4">
-              <CreateHotelCard form={hotelForm} setForm={setHotelForm} onSubmit={createHotel} busy={busy} />
-              <CreateRoomCard form={roomForm} setForm={setRoomForm} hotels={hotels} onSubmit={createRoom} busy={busy} />
-            </div>
-          </div>
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="assignments" className="space-y-4">
-          <AssignmentsOverview
-            cabs={cabs}
-            hotels={hotels}
-            guests={guests}
-            unassignedCabGuests={unassignedCabGuests}
-            unassignedRoomGuests={unassignedRoomGuests}
-            onAssignCab={(cabId) => openAssignment("cab", cabId)}
-            onAssignRoom={(roomId) => openAssignment("room", roomId)}
-          />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="hotels" className="space-y-4 p-4 pt-5">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+              <div className="space-y-4">
+                {hotels.map((hotel) => (
+                  <HotelRoomsCard
+                    key={hotel.id}
+                    hotel={hotel}
+                    onAssignRoom={(roomId) => openAssignment("room", roomId)}
+                  />
+                ))}
+                {!hotels.length && <EmptyPanel title="No hotels yet" body="Create a hotel, then add rooms inside it." />}
+              </div>
+              <div className="space-y-4">
+                <CreateHotelCard form={hotelForm} setForm={setHotelForm} onSubmit={createHotel} busy={busy} />
+                <CreateRoomCard form={roomForm} setForm={setRoomForm} hotels={hotels} onSubmit={createRoom} busy={busy} />
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
 
       <AssignmentSheet
         assignment={assignment}
@@ -278,7 +299,7 @@ function CabCard({ cab, onAssign }: { cab: CabRecord; onAssign: () => void }) {
             <span className="block">{cab.vehicleNumber}</span>
             <span className="text-sm font-normal text-muted-foreground">{cab.driverName}</span>
           </span>
-          <StatusPill status={isFull ? "Full" : "Available"} tone={isFull ? "warning" : "success"} />
+          <AvailabilityBadge available={!isFull} />
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -412,7 +433,7 @@ function RoomRow({ room, onAssign }: { room: RoomRecord; onAssign: () => void })
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="font-semibold">Room {room.roomNumber}</p>
-            <StatusPill status={isFull ? "Full" : "Available"} tone={isFull ? "warning" : "success"} />
+            <AvailabilityBadge available={!isFull} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">{used}/{room.capacity} members assigned</p>
           <Progress className="mt-3 h-2" value={room.capacity ? Math.min(100, (used / room.capacity) * 100) : 0} />
@@ -622,14 +643,11 @@ function AssignmentList({ items, empty, className }: { items: string[]; empty: s
   );
 }
 
-function StatusPill({ status, tone }: { status: string; tone: "success" | "warning" }) {
+function AvailabilityBadge({ available }: { available: boolean }) {
   return (
-    <span className={tone === "success"
-      ? "rounded-full bg-status-success-bg px-2 py-0.5 text-xs font-semibold text-status-success"
-      : "rounded-full bg-status-warning-bg px-2 py-0.5 text-xs font-semibold text-status-warning"}
-    >
-      {status}
-    </span>
+    <Badge variant={available ? "secondary" : "outline"} className={available ? "bg-status-success-bg text-status-success" : "bg-status-warning-bg text-status-warning"}>
+      {available ? "Available" : "Full"}
+    </Badge>
   );
 }
 
@@ -666,13 +684,17 @@ function OperationsSkeleton() {
         <Skeleton className="h-9 w-28" />
       </div>
 
-      <div className="inline-flex h-10 w-fit items-center gap-1 rounded-lg border border-border bg-muted p-1 shadow-sm">
-        <Skeleton className="h-8 w-32 rounded-md" />
-        <Skeleton className="h-8 w-20 rounded-md" />
-        <Skeleton className="h-8 w-24 rounded-md" />
-      </div>
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex gap-4">
+            <Skeleton className="h-9 w-28" />
+            <Skeleton className="h-9 w-16" />
+            <Skeleton className="h-9 w-20" />
+          </div>
+          <Skeleton className="h-8 w-24" />
+        </div>
 
-      <div className="grid items-stretch gap-4 xl:grid-cols-3">
+        <div className="grid items-stretch gap-4 p-4 pt-5 xl:grid-cols-3">
         <div className="min-h-[18rem] rounded-xl border border-border bg-card p-5">
           <Skeleton className="h-5 w-36" />
           <div className="mt-5 space-y-3">
@@ -701,6 +723,7 @@ function OperationsSkeleton() {
             </div>
           </div>
         ))}
+        </div>
       </div>
     </div>
   );

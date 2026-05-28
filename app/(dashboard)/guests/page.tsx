@@ -2,15 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { z } from "zod";
-import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, FileUp, Plus, RefreshCw, Upload, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, FileUp, Plus, Upload, XCircle } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/domain/page-header";
 import { GuestTable } from "@/components/domain/guests/guest-table";
+import { GuestFormFields } from "@/components/domain/guests/guest-form-fields";
+import { DataTableShell } from "@/components/data-table/data-table-shell";
+import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useDataTableQuery } from "@/hooks/use-data-table-query";
+import type { DataTableFilterConfig } from "@/lib/data-table/types";
 import {
   Sheet,
   SheetContent,
@@ -27,7 +31,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { api, type GuestCategory, type GuestRecord, type PaginationMeta } from "@/lib/api";
+import { api, type GuestRecord, type PaginationMeta } from "@/lib/api";
+import {
+  buildGuestCreatePayload,
+  buildGuestUpdatePayload,
+  emptyGuestForm,
+  type GuestFormState,
+} from "@/lib/guest-form";
+import { normalizePhoneInput } from "@/lib/phone";
 import { useApp } from "@/components/providers/app-provider";
 
 const sampleCsv = `name,phone,email,category,group_size,pickup_location
@@ -35,10 +46,30 @@ Rahul Sharma,9876543210,rahul@email.com,VIP,3,Delhi Airport
 Meera Patel,9876543211,meera@email.com,GENERAL,1,Mumbai Airport T2`;
 
 const csvHeaders = ["name", "phone", "email", "category", "group_size", "pickup_location"] as const;
+const rsvpFilterOptions = [
+  { label: "Pending", value: "PENDING" },
+  { label: "Confirmed", value: "CONFIRMED" },
+  { label: "Declined", value: "DECLINED" },
+] as const;
+const categoryFilterOptions = [
+  { label: "VIP", value: "VIP" },
+  { label: "Family", value: "FAMILY" },
+  { label: "General", value: "GENERAL" },
+] as const;
 
 const csvGuestSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
-  phone: z.string().trim().regex(/^[0-9]{10}$/, "Phone must be 10 digits"),
+  phone: z
+    .string()
+    .trim()
+    .min(1, "Phone is required")
+    .transform((value) => {
+      const result = normalizePhoneInput("IN", value);
+      if ("error" in result) {
+        throw new Error(result.error);
+      }
+      return result.e164;
+    }),
   email: z.string().trim().email("Invalid email").optional().or(z.literal("")),
   category: z.enum(["VIP", "FAMILY", "GENERAL"]).default("GENERAL"),
   group_size: z.coerce.number().int().min(1, "Minimum group size is 1").max(20, "Maximum group size is 20").default(1),
@@ -54,32 +85,74 @@ type CsvPreviewRow = {
   data?: CsvGuestRow;
 };
 
-const emptyGuest = {
-  name: "",
-  phone: "",
-  email: "",
-  category: "GENERAL" as GuestCategory,
-  groupSize: 1,
-  pickupLocation: "",
-  pickupLat: "",
-  pickupLng: "",
-};
+const guestTableQueryFields = [
+  { type: "search" as const, key: "q" },
+  { type: "filter" as const, key: "rsvpStatus", id: "rsvpStatus", label: "Status" },
+  { type: "filter" as const, key: "category", id: "category", label: "Category" },
+  { type: "page" as const, defaultValue: 1 },
+  { type: "pageSize" as const, defaultValue: 10 },
+];
 
 export default function GuestsPage() {
   const { token, currentEventId, currentEvent, eventsLoaded, eventsLoading } = useApp();
+  const {
+    search,
+    setSearch,
+    filters,
+    setFilter,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    resetFilters,
+    isFiltered,
+  } = useDataTableQuery(guestTableQueryFields);
+  const selectedRsvpStatuses = filters.rsvpStatus || [];
+  const selectedCategories = filters.category || [];
   const [guests, setGuests] = useState<GuestRecord[]>([]);
-  const [guestForm, setGuestForm] = useState(emptyGuest);
+  const [guestForm, setGuestForm] = useState(emptyGuestForm);
   const [csv, setCsv] = useState("name,phone,email,category,group_size,pickup_location\n");
   const [busy, setBusy] = useState(false);
   const [guestsLoaded, setGuestsLoaded] = useState(false);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [rsvpTab, setRsvpTab] = useState(() => {
+    if (selectedRsvpStatuses.length === 1) return selectedRsvpStatuses[0];
+    return "all";
+  });
   const [pagination, setPagination] = useState<PaginationMeta>({
     page: 1,
     pageSize: 10,
     total: 0,
     totalPages: 1,
   });
+
+  const tableFilters: DataTableFilterConfig[] = [
+    {
+      id: "rsvpStatus",
+      label: "Status",
+      options: rsvpFilterOptions,
+      selected: selectedRsvpStatuses,
+      onChange: (values) => {
+        setFilter("rsvpStatus", values);
+        setRsvpTab(values.length === 1 ? values[0] : "all");
+      },
+    },
+    {
+      id: "category",
+      label: "Category",
+      options: categoryFilterOptions,
+      selected: selectedCategories,
+      onChange: (values) => setFilter("category", values),
+    },
+  ];
+
+  const handleRsvpTabChange = (value: string) => {
+    setRsvpTab(value);
+    if (value === "all") {
+      setFilter("rsvpStatus", []);
+      return;
+    }
+    setFilter("rsvpStatus", [value]);
+  };
 
   const loadGuests = useCallback(async () => {
     if (!currentEventId) {
@@ -88,7 +161,13 @@ export default function GuestsPage() {
     }
     try {
       setGuestsLoaded(false);
-      const result = await api.listGuestsPage(token, currentEventId, { page, pageSize });
+      const result = await api.listGuestsPage(token, currentEventId, {
+        page,
+        pageSize,
+        q: search,
+        rsvpStatus: selectedRsvpStatuses.join(","),
+        category: selectedCategories.join(","),
+      });
       if (page > result.pagination.totalPages && result.pagination.totalPages > 0) {
         setPage(result.pagination.totalPages);
         return;
@@ -100,7 +179,7 @@ export default function GuestsPage() {
     } finally {
       setGuestsLoaded(true);
     }
-  }, [currentEventId, page, pageSize, token]);
+  }, [currentEventId, page, pageSize, search, selectedCategories, selectedRsvpStatuses, setPage, token]);
 
   useEffect(() => {
     void Promise.resolve().then(loadGuests);
@@ -121,18 +200,9 @@ export default function GuestsPage() {
     event.preventDefault();
     setBusy(true);
     try {
-      await api.createGuest(token, {
-        eventId: currentEventId,
-        name: guestForm.name,
-        phone: guestForm.phone,
-        email: guestForm.email || undefined,
-        category: guestForm.category,
-        groupSize: Number(guestForm.groupSize),
-        pickupLocation: guestForm.pickupLocation || undefined,
-        pickupLat: guestForm.pickupLat ? Number(guestForm.pickupLat) : undefined,
-        pickupLng: guestForm.pickupLng ? Number(guestForm.pickupLng) : undefined,
-      });
-      setGuestForm(emptyGuest);
+      const payload = buildGuestCreatePayload(guestForm, currentEventId);
+      await api.createGuest(token, payload);
+      setGuestForm(emptyGuestForm());
       toast.success("Guest created");
       await loadGuests();
       return null;
@@ -140,6 +210,17 @@ export default function GuestsPage() {
       return err instanceof Error ? err.message : "Could not create guest";
     } finally {
       setBusy(false);
+    }
+  };
+
+  const updateGuest = async (guestId: string, form: GuestFormState) => {
+    try {
+      const payload = buildGuestUpdatePayload(form);
+      await api.updateGuest(token, guestId, payload);
+      await loadGuests();
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : "Could not update guest";
     }
   };
 
@@ -175,14 +256,18 @@ export default function GuestsPage() {
     }
   };
 
-  const triggerIvr = async (guestId: string) => {
+  const triggerVoiceCall = async (guestId: string, callMode: "ai" | "ivr") => {
     try {
-      await api.triggerIvr(token, guestId);
-      toast.success("IVR job queued");
+      await api.triggerVoiceCall(token, guestId, callMode);
+      return null;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not queue IVR");
+      return err instanceof Error ? err.message : "Could not queue voice call";
     }
   };
+
+  const loadGuestCallLogs = useCallback(async (guestId: string) => {
+    return api.getGuestCallLogs(token, guestId);
+  }, [token]);
 
   const updateGuestRsvp = async (guestId: string, payload: { rsvpStatus: GuestRecord["rsvpStatus"]; groupSize: number }) => {
     try {
@@ -198,16 +283,35 @@ export default function GuestsPage() {
     <GuestsSkeleton />
   ) : (
     <div>
-      <PageHeader
-        breadcrumb={`EVENTS / ${currentEvent?.name || "SELECTED EVENT"}`}
-        title="Guest Management"
-        actions={
+      <div className="mb-5">
+        <h1 className="text-lg font-bold text-foreground">Guests</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Manage guests for {currentEvent?.name || "your event"}
+        </p>
+      </div>
+      <DataTableShell
+        tabs={{
+          value: rsvpTab,
+          onValueChange: handleRsvpTabChange,
+          items: [
+            { value: "all", label: "All guests" },
+            { value: "PENDING", label: "Pending RSVP", badge: stats.pending },
+            { value: "CONFIRMED", label: "Confirmed" },
+            { value: "DECLINED", label: "Declined" },
+          ],
+        }}
+        headerActions={
           <>
-            <Button variant="outline" type="button" className="gap-2" onClick={loadGuests}>
-              <RefreshCw className="size-4" />
-              Refresh
-            </Button>
-            <Button variant="outline" type="button" className="gap-2" onClick={exportGuests} disabled={!pagination.total} loading={busy} loadingText="Exporting">
+            <Button
+              variant="outline"
+              type="button"
+              size="sm"
+              className="gap-2"
+              onClick={exportGuests}
+              disabled={!pagination.total}
+              loading={busy}
+              loadingText="Exporting"
+            >
               <Download className="size-4" />
               Export
             </Button>
@@ -220,20 +324,40 @@ export default function GuestsPage() {
             />
           </>
         }
-      />
-      <GuestTable guests={guests} onTriggerIvr={triggerIvr} onUpdateRsvp={updateGuestRsvp} />
-      <GuestFooter
-        stats={stats}
-        page={currentPage}
-        pageSize={pagination.pageSize}
-        totalPages={pagination.totalPages}
-        totalItems={pagination.total}
-        onPageChange={setPage}
-        onPageSizeChange={(nextPageSize) => {
-          setPageSize(nextPageSize);
-          setPage(1);
-        }}
-      />
+        toolbar={
+          <DataTableToolbar
+            search={{
+              value: search,
+              onChange: setSearch,
+              placeholder: "Search by name...",
+              "aria-label": "Search guests",
+            }}
+            filters={tableFilters}
+            isFiltered={isFiltered}
+            onReset={() => {
+              resetFilters();
+              setRsvpTab("all");
+            }}
+          />
+        }
+      >
+        <GuestTable
+          guests={guests}
+          onTriggerVoiceCall={triggerVoiceCall}
+          onUpdateRsvp={updateGuestRsvp}
+          onUpdateGuest={updateGuest}
+          onLoadCallLogs={loadGuestCallLogs}
+        />
+        <GuestFooter
+          stats={stats}
+          page={currentPage}
+          pageSize={pagination.pageSize}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      </DataTableShell>
     </div>
   );
 }
@@ -279,8 +403,8 @@ function GuestSheet({
   onSubmit,
   busy,
 }: {
-  form: typeof emptyGuest;
-  setForm: (form: typeof emptyGuest) => void;
+  form: GuestFormState;
+  setForm: (form: GuestFormState) => void;
   onSubmit: (event: FormEvent) => Promise<string | null>;
   busy: boolean;
 }) {
@@ -292,34 +416,18 @@ function GuestSheet({
   return (
     <Sheet>
       <SheetTrigger
-        render={<Button className="gap-2" type="button" />}
+        render={<Button className="h-9 gap-2 rounded-md bg-foreground px-4 text-background hover:bg-foreground/90" type="button" />}
       >
         <Plus className="size-4" />
-        Add Guest
+        Create Guest
       </SheetTrigger>
       <SheetContent className="sm:max-w-md">
         <form className="flex h-full flex-col" onSubmit={handleSubmit}>
           <SheetHeader>
             <SheetTitle>Add Guest</SheetTitle>
           </SheetHeader>
-          <div className="space-y-3 px-4">
-            <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Name" required />
-            <Input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="Phone" required />
-            <Input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="Email" />
-            <Select
-              value={form.category}
-              onChange={(event) => setForm({ ...form, category: event.target.value as GuestCategory })}
-            >
-              <option value="GENERAL">General</option>
-              <option value="FAMILY">Family</option>
-              <option value="VIP">VIP</option>
-            </Select>
-            <Input type="number" min={1} value={form.groupSize} onChange={(event) => setForm({ ...form, groupSize: Number(event.target.value) })} placeholder="Group size" />
-            <Input value={form.pickupLocation} onChange={(event) => setForm({ ...form, pickupLocation: event.target.value })} placeholder="Pickup location" />
-            <div className="grid grid-cols-2 gap-2">
-              <Input value={form.pickupLat} onChange={(event) => setForm({ ...form, pickupLat: event.target.value })} placeholder="Lat" />
-              <Input value={form.pickupLng} onChange={(event) => setForm({ ...form, pickupLng: event.target.value })} placeholder="Lng" />
-            </div>
+          <div className="px-4">
+            <GuestFormFields form={form} onChange={setForm} />
           </div>
           <SheetFooter>
             <Button type="submit" loading={busy} loadingText="Creating guest">Create Guest</Button>
@@ -367,10 +475,10 @@ function CsvSheet({
   return (
     <Sheet>
       <SheetTrigger
-        render={<Button variant="outline" className="gap-2" type="button" />}
+        render={<Button variant="outline" className="h-9 gap-2 rounded-md bg-card px-4" type="button" />}
       >
         <FileUp className="size-4" />
-        CSV
+        Import Guest
       </SheetTrigger>
       <SheetContent className="w-[min(100vw,44rem)] max-w-none sm:max-w-none">
         <SheetHeader>
@@ -382,7 +490,7 @@ function CsvSheet({
             <div className="min-w-0">
               <p className="text-sm font-semibold">Upload File</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Required: name and phone. Category defaults to GENERAL, group size defaults to 1.
+                Required: name and phone (India +91). Category defaults to GENERAL, group size defaults to 1.
               </p>
               {fileName && <p className="mt-2 text-xs font-medium text-primary">{fileName}</p>}
             </div>
@@ -654,7 +762,7 @@ function GuestFooter({
   const end = Math.min(page * pageSize, totalItems);
 
   return (
-    <div className="mt-4 flex flex-col items-center justify-between gap-4 rounded-lg border border-border bg-card px-4 py-3 sm:flex-row">
+    <div className="flex flex-col items-center justify-between gap-4 border-t border-border px-4 py-3 sm:flex-row">
       <div className="flex flex-wrap items-center gap-6 text-sm">
         <span>Total Guests: <strong>{stats.total.toLocaleString()}</strong></span>
         <span className="flex items-center gap-2">

@@ -1,64 +1,107 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { CalendarPlus, Sparkles } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { CalendarPlus, Check, ChevronDown, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { brand, isEventHrefActive, navItems, scopedEventHref } from "@/lib/design-tokens";
+import {
+  brand,
+  eventViewItems,
+  isEventHrefActive,
+  navItems,
+  scopedEventHref,
+} from "@/lib/design-tokens";
 import { useApp } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
 import { CreateEventSheet } from "@/components/domain/events/create-event-sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Sidebar({ className }: { className?: string }) {
+  const router = useRouter();
   const pathname = usePathname();
-  const { currentEventId } = useApp();
+  const { currentEvent, currentEventId, events, setCurrentEventId } = useApp();
+
+  const onEventSelect = (nextEventId: string) => {
+    if (!nextEventId || nextEventId === currentEventId) return;
+    setCurrentEventId(nextEventId);
+    router.push(scopedEventHref(nextEventId, getCurrentSection(pathname)));
+  };
 
   return (
     <aside
       className={cn(
-        "flex h-full w-64 flex-col border-r border-border bg-card py-6",
+        "flex h-full w-[238px] flex-col border-r border-border bg-card",
         className
       )}
     >
-      <div className="mb-8 flex items-center gap-3 px-4">
-        <div className="flex size-8 items-center justify-center rounded bg-primary">
-          <Sparkles className="size-5 text-primary-foreground" />
+      <div className="flex h-14 items-center gap-2 border-b border-border px-4">
+        <div className="flex size-7 items-center justify-center rounded bg-foreground text-background">
+          <Sparkles className="size-4" />
         </div>
-        <div>
-          <h1 className="text-base font-bold leading-none text-primary">
-            {brand.name}
-          </h1>
-          <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground opacity-70">
-            {brand.tagline}
-          </p>
-        </div>
+        <h1 className="text-lg font-bold leading-none text-foreground">{brand.name}</h1>
       </div>
-      <nav className="flex flex-1 flex-col gap-1 px-3">
-        {navItems.map((item) => {
-          const isActive = isEventHrefActive(pathname, item.href);
-          const Icon = item.icon;
 
-          return (
-            <Link
-              key={item.href}
-              href={scopedEventHref(currentEventId, item.href)}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "border-r-2 border-primary bg-surface-container-low font-semibold text-primary"
-                  : "text-muted-foreground hover:bg-surface-container-low hover:text-foreground"
-              )}
-            >
-              <Icon className="size-5 shrink-0" />
-              {item.label}
-            </Link>
-          );
-        })}
+      <div className="px-2 py-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 w-full justify-start gap-2 bg-card px-2 text-sm"
+              />
+            }
+          >
+            <span className="flex size-5 items-center justify-center rounded-full bg-status-success-bg text-xs font-semibold">
+              EP
+            </span>
+            <span className="min-w-0 flex-1 truncate text-left">
+              {currentEvent?.name || brand.tagline}
+            </span>
+            <ChevronDown className="size-4 text-muted-foreground" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-[220px] p-1">
+            {events.map((event) => (
+              <DropdownMenuItem
+                key={event.id}
+                className="flex items-center gap-2"
+                onClick={() => onEventSelect(event.id)}
+              >
+                <span className="truncate">{event.name}</span>
+                {event.id === currentEventId ? (
+                  <Check className="ml-auto size-4 text-primary" />
+                ) : null}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-4">
+        {navItems.map((item) => (
+          <SidebarLink key={item.href} item={item} pathname={pathname} currentEventId={currentEventId} />
+        ))}
+        <p className="px-2 pt-4 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Event Views
+        </p>
+        {eventViewItems.map((item) => (
+          <SidebarLink
+            key={item.href}
+            item={{ ...item, icon: Sparkles }}
+            pathname={pathname}
+            currentEventId={currentEventId}
+          />
+        ))}
       </nav>
-      <div className="px-4">
+      <div className="border-t border-border p-3">
         <CreateEventSheet
           trigger={
-            <Button className="w-full gap-2" type="button">
+            <Button variant="outline" className="w-full justify-start gap-2 bg-card" type="button">
               <CalendarPlus className="size-4" />
               Create Event
             </Button>
@@ -66,5 +109,46 @@ export function Sidebar({ className }: { className?: string }) {
         />
       </div>
     </aside>
+  );
+}
+
+function getCurrentSection(pathname: string) {
+  if (pathname === "/" || /^\/events\/[^/]+\/dashboard$/.test(pathname)) {
+    return "/";
+  }
+  if (/^\/events\/[^/]+\/(guests|operations|check-in|live|analytics|reports)$/.test(pathname)) {
+    return pathname.replace(/^\/events\/[^/]+/, "");
+  }
+  if (/^\/(guests|operations|check-in|live|analytics|reports)$/.test(pathname)) {
+    return pathname;
+  }
+  return "/";
+}
+
+function SidebarLink({
+  item,
+  pathname,
+  currentEventId,
+}: {
+  item: { label: string; href: string; icon: React.ComponentType<{ className?: string }> };
+  pathname: string;
+  currentEventId: string;
+}) {
+  const isActive = isEventHrefActive(pathname, item.href);
+  const Icon = item.icon;
+
+  return (
+    <Link
+      href={scopedEventHref(currentEventId, item.href)}
+      className={cn(
+        "flex h-9 items-center gap-2 rounded-md px-2 text-sm transition-colors",
+        isActive
+          ? "bg-surface-container-low font-medium text-foreground"
+          : "text-muted-foreground hover:bg-surface-container-low hover:text-foreground"
+      )}
+    >
+      <Icon className="size-4 shrink-0" />
+      <span className="truncate">{item.label}</span>
+    </Link>
   );
 }
