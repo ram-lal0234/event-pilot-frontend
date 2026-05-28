@@ -13,7 +13,7 @@ import {
 } from "react";
 import { CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
-import { api, ApiError, type AuthUser, type EventRecord } from "@/lib/api";
+import { api, ApiError, type AccountInfo, type AuthUser, type EventRecord } from "@/lib/api";
 import { LoginScreen } from "@/components/auth/login-screen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,13 +21,16 @@ import { Input } from "@/components/ui/input";
 type AppContextValue = {
   token: string;
   user: AuthUser;
+  account: AccountInfo | null;
   events: EventRecord[];
   currentEvent: EventRecord | null;
   currentEventId: string;
   eventsLoading: boolean;
   eventsLoaded: boolean;
+  accountLoading: boolean;
   setCurrentEventId: (id: string) => void;
   refreshEvents: () => Promise<void>;
+  refreshAccount: () => Promise<void>;
   createEvent: (payload: { name: string; date: string; location: string }) => Promise<EventRecord>;
   logout: () => void;
 };
@@ -50,9 +53,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [authReady, setAuthReady] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [account, setAccount] = useState<AccountInfo | null>(null);
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsLoaded, setEventsLoaded] = useState(false);
+  const [accountLoading, setAccountLoading] = useState(false);
   const [currentEventId, setCurrentEventIdState] = useState("");
 
   useEffect(() => {
@@ -87,11 +92,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
     window.localStorage.removeItem(EVENT_KEY);
     setToken(null);
     setUser(null);
+    setAccount(null);
     setEvents([]);
     setEventsLoading(false);
     setEventsLoaded(false);
+    setAccountLoading(false);
     setCurrentEventIdState("");
   }, []);
+
+  const refreshAccount = useCallback(async () => {
+    if (!token) {
+      setAccount(null);
+      return;
+    }
+
+    setAccountLoading(true);
+    try {
+      const result = await api.getAccountMe(token);
+      setAccount(result.account);
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              accountId: result.account.id,
+              memberId: result.membership.id,
+              accountRole: result.membership.role,
+              accountName: result.account.name,
+            }
+          : prev,
+      );
+    } finally {
+      setAccountLoading(false);
+    }
+  }, [token]);
 
   const refreshEvents = useCallback(async () => {
     if (!token) {
@@ -126,13 +159,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!token) return;
     void Promise.resolve().then(() =>
-      refreshEvents().catch((error) => {
+      Promise.all([refreshAccount(), refreshEvents()]).catch((error) => {
         if (error instanceof ApiError && error.code === "UNAUTHENTICATED") {
           logout();
         }
-      })
+      }),
     );
-  }, [logout, refreshEvents, token]);
+  }, [logout, refreshAccount, refreshEvents, token]);
 
   const setCurrentEventId = useCallback((id: string) => {
     setCurrentEventIdState(id);
@@ -178,13 +211,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: AppContextValue = {
     token,
     user,
+    account,
     events,
     currentEvent,
     currentEventId: currentEvent?.id || currentEventId,
     eventsLoading,
     eventsLoaded,
+    accountLoading,
     setCurrentEventId,
     refreshEvents,
+    refreshAccount,
     createEvent,
     logout,
   };

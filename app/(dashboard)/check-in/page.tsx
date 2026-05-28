@@ -11,11 +11,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api, type CheckinLocationType, type GuestRecord } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
+import { useEventAccess } from "@/hooks/use-event-access";
 
 type CheckinMode = "scanner" | "manual";
 
 export default function CheckInPage() {
   const { token, currentEvent, eventsLoaded, eventsLoading } = useApp();
+  const { canWrite } = useEventAccess();
   const [mode, setMode] = useState<CheckinMode>("scanner");
   const [qrCode, setQrCode] = useState("");
   const [locationType, setLocationType] = useState<CheckinLocationType>("EVENT_GATE");
@@ -74,6 +76,10 @@ export default function CheckInPage() {
 
   const scan = async (event: FormEvent) => {
     event.preventDefault();
+    if (!canWrite) {
+      toast.error("Read-only access — you cannot check in guests");
+      return;
+    }
     setBusy(true);
     try {
       const result = await api.scanQr(token, { qrCode, method: mode === "manual" ? "MANUAL" : "QR", locationType });
@@ -98,6 +104,10 @@ export default function CheckInPage() {
 
   const undoLastCheckin = async () => {
     if (!lastCheckedQr) return;
+    if (!canWrite) {
+      toast.error("Read-only access — you cannot undo check-in");
+      return;
+    }
     setBusy(true);
     try {
       await api.undoCheckin(token, {

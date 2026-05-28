@@ -29,11 +29,13 @@ import {
   type RoomRecord,
 } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
+import { useEventAccess } from "@/hooks/use-event-access";
 
 type AssignmentMode = "cab" | "room";
 
 export default function OperationsPage() {
   const { token, currentEventId, eventsLoaded, eventsLoading } = useApp();
+  const { canWrite } = useEventAccess();
   const [cabs, setCabs] = useState<CabRecord[]>([]);
   const [hotels, setHotels] = useState<HotelRecord[]>([]);
   const [guests, setGuests] = useState<GuestRecord[]>([]);
@@ -109,6 +111,10 @@ export default function OperationsPage() {
   const assignableGuests = guests.filter((guest) => guest.rsvpStatus === "CONFIRMED");
 
   const submit = async (task: () => Promise<unknown>, success: string) => {
+    if (!canWrite) {
+      toast.error("Read-only access — you cannot change operations");
+      return;
+    }
     setBusy(true);
     try {
       await task();
@@ -246,7 +252,7 @@ export default function OperationsPage() {
           </TabsContent>
 
           <TabsContent value="cabs" className="space-y-4 p-4 pt-5">
-            <CreateCabCard form={cabForm} setForm={setCabForm} onSubmit={createCab} busy={busy} />
+            {canWrite ? <CreateCabCard form={cabForm} setForm={setCabForm} onSubmit={createCab} busy={busy} /> : null}
             <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
               {cabs.map((cab) => (
                 <CabCard key={cab.id} cab={cab} onAssign={() => openAssignment("cab", cab.id)} onUnassign={unassignCabGuest} />
@@ -268,10 +274,12 @@ export default function OperationsPage() {
                 ))}
                 {!hotels.length && <EmptyPanel title="No hotels yet" body="Create a hotel, then add rooms inside it." />}
               </div>
-              <div className="space-y-4">
-                <CreateHotelCard form={hotelForm} setForm={setHotelForm} onSubmit={createHotel} busy={busy} />
-                <CreateRoomCard form={roomForm} setForm={setRoomForm} hotels={hotels} onSubmit={createRoom} busy={busy} />
-              </div>
+              {canWrite ? (
+                <div className="space-y-4">
+                  <CreateHotelCard form={hotelForm} setForm={setHotelForm} onSubmit={createHotel} busy={busy} />
+                  <CreateRoomCard form={roomForm} setForm={setRoomForm} hotels={hotels} onSubmit={createRoom} busy={busy} />
+                </div>
+              ) : null}
             </div>
           </TabsContent>
         </Tabs>

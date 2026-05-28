@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PhoneForwarded } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/components/providers/app-provider";
+import { useEventAccess } from "@/hooks/use-event-access";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +16,7 @@ const ACTIVE_FOLLOW_UP =
 
 export default function FollowUpPage() {
   const { token, currentEventId, eventsLoaded, eventsLoading } = useApp();
+  const { canWrite } = useEventAccess();
   const [guests, setGuests] = useState<GuestRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -110,7 +112,7 @@ export default function FollowUpPage() {
               <Select
                 className="w-full sm:w-52"
                 value={guest.followUpStatus || "NEEDS_FOLLOW_UP"}
-                disabled={busyId === guest.id}
+                disabled={!canWrite || busyId === guest.id}
                 onChange={(event) =>
                   void updateStatus(
                     guest.id,

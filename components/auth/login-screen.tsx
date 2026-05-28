@@ -52,10 +52,11 @@ function userFacingAuthMessage(error: unknown): string {
 
 type LoginScreenProps = {
   onAuthenticated: (result: { accessToken: string; user: AuthUser }) => void;
+  initialEmail?: string;
 };
 
-export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
-  const [email, setEmail] = useState("");
+export function LoginScreen({ onAuthenticated, initialEmail = "" }: LoginScreenProps) {
+  const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"email" | "otp">("email");
   const [message, setMessage] = useState("");

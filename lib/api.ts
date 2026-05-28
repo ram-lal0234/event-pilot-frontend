@@ -7,6 +7,9 @@ export type ApiEnvelope<T> = {
 };
 
 export type UserRole = "ADMIN" | "STAFF";
+export type AccountRole = "OWNER" | "ADMIN" | "STAFF";
+export type AccessLevel = "FULL" | "READ_ONLY";
+export type InviteStatus = "PENDING" | "ACCEPTED" | "REVOKED";
 export type GuestCategory = "VIP" | "FAMILY" | "GENERAL";
 export type RsvpStatus = "PENDING" | "CONFIRMED" | "DECLINED";
 export type CheckinMethod = "QR" | "MANUAL";
@@ -15,7 +18,43 @@ export type CheckinLocationType = "EVENT_GATE" | "HOTEL";
 export type AuthUser = {
   id: string;
   email: string;
-  role: UserRole;
+  role?: UserRole;
+  accountId?: string;
+  memberId?: string;
+  accountRole?: AccountRole;
+  accountName?: string;
+};
+
+export type AccountInfo = {
+  id: string;
+  name: string;
+  ownerId: string;
+};
+
+export type AccountMembership = {
+  id: string;
+  role: AccountRole;
+  email: string;
+  name: string | null;
+  status: InviteStatus;
+};
+
+export type TeamMemberRecord = {
+  id: string;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  role: AccountRole;
+  status: InviteStatus;
+  inviteCode?: string;
+  inviteUrl?: string;
+  acceptedAt?: string | null;
+  revokedAt?: string | null;
+  eventAccess: Array<{
+    eventId: string;
+    eventName?: string;
+    accessLevel: AccessLevel;
+  }>;
 };
 
 export type EventRecord = {
@@ -25,6 +64,7 @@ export type EventRecord = {
   location: string;
   createdBy: string;
   createdAt: string;
+  accessLevel?: AccessLevel;
 };
 
 export type GuestRecord = {
@@ -270,6 +310,74 @@ export const api = {
         body: JSON.stringify({ email, otp }),
       },
     );
+  },
+  getAccountMe(token: string) {
+    return request<{ account: AccountInfo; membership: AccountMembership }>("/account/me", { token });
+  },
+  updateAccountName(token: string, name: string) {
+    return request<AccountInfo>("/account/me", {
+      method: "PATCH",
+      token,
+      body: JSON.stringify({ name }),
+    });
+  },
+  listTeamMembers(token: string) {
+    return request<TeamMemberRecord[]>("/account/members", { token });
+  },
+  inviteTeamMember(
+    token: string,
+    payload: {
+      email: string;
+      role: "ADMIN" | "STAFF";
+      name?: string;
+      phone?: string;
+      eventAssignments?: Array<{ eventId: string; accessLevel?: AccessLevel }>;
+    },
+  ) {
+    return request<TeamMemberRecord & { inviteUrl?: string }>("/account/members/invite", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  revokeTeamMember(token: string, memberId: string) {
+    return request<{ id: string }>(`/account/members/${memberId}/revoke`, {
+      method: "POST",
+      token,
+    });
+  },
+  updateTeamMemberRole(token: string, memberId: string, role: "ADMIN" | "STAFF") {
+    return request<TeamMemberRecord>(`/account/members/${memberId}`, {
+      method: "PATCH",
+      token,
+      body: JSON.stringify({ role }),
+    });
+  },
+  updateTeamMemberEvents(
+    token: string,
+    memberId: string,
+    eventAssignments: Array<{ eventId: string; accessLevel: AccessLevel }>,
+  ) {
+    return request<TeamMemberRecord>(`/account/members/${memberId}/events`, {
+      method: "PUT",
+      token,
+      body: JSON.stringify({ eventAssignments }),
+    });
+  },
+  getJoinPreview(code: string) {
+    return request<{
+      code: string;
+      accountName: string;
+      email: string;
+      role: AccountRole;
+      status: InviteStatus;
+    }>(`/join/${code}`);
+  },
+  acceptJoin(token: string, code: string) {
+    return request<{ user: AuthUser; accessToken: string }>(`/join/${code}/accept`, {
+      method: "POST",
+      token,
+    });
   },
   listEvents(token: string) {
     return request<EventRecord[]>("/events", { token });

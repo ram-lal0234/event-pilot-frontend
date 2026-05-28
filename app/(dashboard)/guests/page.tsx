@@ -42,6 +42,7 @@ import {
 import { buildGuestOpsPayload, type GuestOpsFormState } from "@/components/domain/guests/guest-ops-fields";
 import { normalizePhoneInput } from "@/lib/phone";
 import { useApp } from "@/components/providers/app-provider";
+import { useEventAccess } from "@/hooks/use-event-access";
 import { scopedEventHref } from "@/lib/design-tokens";
 
 const sampleCsv = `name,phone,email,category,group_size,pickup_location
@@ -107,6 +108,7 @@ const guestTableQueryFields = [
 
 export default function GuestsPage() {
   const { token, currentEventId, currentEvent, eventsLoaded, eventsLoading } = useApp();
+  const { canWrite } = useEventAccess();
   const {
     search,
     setSearch,
@@ -402,13 +404,17 @@ export default function GuestsPage() {
               <PhoneCall className="size-4" />
               Call Logs
             </Button>
-            <CsvSheet csv={csv} setCsv={setCsv} uploadCsv={uploadCsv} busy={busy} />
-            <GuestSheet
-              form={guestForm}
-              setForm={setGuestForm}
-              onSubmit={addGuest}
-              busy={busy}
-            />
+            {canWrite ? (
+              <>
+                <CsvSheet csv={csv} setCsv={setCsv} uploadCsv={uploadCsv} busy={busy} />
+                <GuestSheet
+                  form={guestForm}
+                  setForm={setGuestForm}
+                  onSubmit={addGuest}
+                  busy={busy}
+                />
+              </>
+            ) : null}
           </>
         }
         toolbar={

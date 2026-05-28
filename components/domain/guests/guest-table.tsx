@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { QRCodeCanvas } from "qrcode.react";
 import { api, type GuestRecord, RsvpStatus } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
+import { useEventAccess } from "@/hooks/use-event-access";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -164,9 +165,10 @@ function GuestVoiceActionButtons({
   onTriggerVoiceCall: (guestId: string, callMode: VoiceCallMode) => Promise<string | null>;
   compact?: boolean;
 }) {
+  const { canTriggerVoice } = useEventAccess();
   const [confirmMode, setConfirmMode] = useState<VoiceCallMode | null>(null);
   const [voiceBusy, setVoiceBusy] = useState<VoiceCallMode | null>(null);
-  const voiceDisabled = rsvpStatus !== "PENDING";
+  const voiceDisabled = rsvpStatus !== "PENDING" || !canTriggerVoice;
 
   const triggerCall = async (mode: VoiceCallMode) => {
     if (voiceDisabled || voiceBusy) return;
@@ -357,10 +359,12 @@ function GuestTableQuickActions({
   onTriggerVoiceCall: (guestId: string, callMode: VoiceCallMode) => Promise<string | null>;
   onUpdateGuest: (guestId: string, form: GuestFormState, ops: GuestOpsFormState) => Promise<string | null>;
 }) {
+  const { canWrite } = useEventAccess();
+
   return (
     <div className="flex items-center justify-end gap-0.5">
       <GuestRsvpLinkButton guest={guest} compact />
-      <GuestEditSheet guest={guest} onSave={onUpdateGuest} compact />
+      {canWrite ? <GuestEditSheet guest={guest} onSave={onUpdateGuest} compact /> : null}
       <GuestVoiceActionButtons
         guestId={guest.id}
         guestName={guest.name}
@@ -390,7 +394,8 @@ function GuestDetailsSheet({
   const [savedRsvpStatus, setSavedRsvpStatus] = useState<RsvpStatus>(guest.rsvpStatus);
   const [savedGroupSize, setSavedGroupSize] = useState(guest.groupSize);
   const [busy, setBusy] = useState(false);
-  const voiceDisabled = savedRsvpStatus !== "PENDING";
+  const { canWrite, canTriggerVoice } = useEventAccess();
+  const voiceDisabled = savedRsvpStatus !== "PENDING" || !canTriggerVoice;
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -436,7 +441,7 @@ function GuestDetailsSheet({
               </p>
               <div className="flex gap-2">
                 <GuestRsvpLinkButton guest={guest} />
-                <GuestEditSheet guest={guest} onSave={onUpdateGuest} />
+                {canWrite ? <GuestEditSheet guest={guest} onSave={onUpdateGuest} /> : null}
               </div>
             </div>
             {guest.publicRsvpUrl ? (
@@ -459,9 +464,10 @@ function GuestDetailsSheet({
             <p className="mb-3 text-[11px] font-semibold uppercase text-muted-foreground">
               Manual RSVP
             </p>
-            <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_auto]" onSubmit={submitRsvp}>
+            <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_auto]" onSubmit={canWrite ? submitRsvp : (e) => e.preventDefault()}>
               <Select
                 value={rsvpStatus}
+                disabled={!canWrite}
                 onChange={(event) => setRsvpStatus(event.target.value as RsvpStatus)}
                 aria-label="RSVP status"
               >
@@ -474,15 +480,18 @@ function GuestDetailsSheet({
                 min={1}
                 max={100}
                 value={groupSize}
+                disabled={!canWrite}
                 onChange={(event) => setGroupSize(Number(event.target.value))}
                 aria-label="Group size"
               />
-              <Button type="submit" loading={busy} loadingText="Saving RSVP">
+              <Button type="submit" loading={busy} loadingText="Saving RSVP" disabled={!canWrite}>
                 Save
               </Button>
             </form>
             <p className="mt-2 text-xs text-muted-foreground">
-              Use this when the guest confirms directly with staff.
+              {canWrite
+                ? "Use this when the guest confirms directly with staff."
+                : "Read-only access — you cannot edit RSVP here."}
             </p>
           </section>
 

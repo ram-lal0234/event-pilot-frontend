@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import {
   Building2,
   PanelLeftClose,
@@ -12,6 +13,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/components/providers/app-provider";
+import { useEventAccess } from "@/hooks/use-event-access";
+import { scopedEventHref } from "@/lib/design-tokens";
 import { useSidebar } from "@/components/layout/sidebar-context";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -27,7 +30,8 @@ interface TopBarProps {
 }
 
 export function TopBar({ mobileMenu }: TopBarProps) {
-  const { user, logout } = useApp();
+  const { user, logout, account, currentEventId } = useApp();
+  const { isOwner } = useEventAccess();
   const { sidebarOpen, toggleSidebar } = useSidebar();
   const emailName = user.email.split("@")[0] || "User";
 
@@ -60,6 +64,23 @@ export function TopBar({ mobileMenu }: TopBarProps) {
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+          {account?.name ? (
+            <span className="hidden max-w-[140px] truncate text-sm font-medium text-foreground sm:inline">
+              {account.name}
+            </span>
+          ) : null}
+          {isOwner ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden sm:inline-flex"
+              render={<Link href={scopedEventHref(currentEventId, "/team")} />}
+              nativeButton={false}
+            >
+              <Users className="size-4" />
+              Team
+            </Button>
+          ) : null}
           <span className="rounded-md bg-surface-container-low px-2.5 py-1.5 text-xs font-medium text-muted-foreground">
             Free tier
           </span>
