@@ -6,9 +6,16 @@ import { toast } from "sonner";
 import type { GuestRecord } from "@/lib/api";
 import { guestToFormState, type GuestFormState } from "@/lib/guest-form";
 import { GuestFormFields } from "@/components/domain/guests/guest-form-fields";
+import {
+  GuestOpsFields,
+  buildGuestOpsPayload,
+  guestToOpsFormState,
+  type GuestOpsFormState,
+} from "@/components/domain/guests/guest-ops-fields";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
+  SheetBody,
   SheetContent,
   SheetFooter,
   SheetHeader,
@@ -23,23 +30,25 @@ export function GuestEditSheet({
   compact = false,
 }: {
   guest: GuestRecord;
-  onSave: (guestId: string, form: GuestFormState) => Promise<string | null>;
+  onSave: (guestId: string, form: GuestFormState, ops: GuestOpsFormState) => Promise<string | null>;
   compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(() => guestToFormState(guest));
+  const [opsForm, setOpsForm] = useState(() => guestToOpsFormState(guest));
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (open) {
       setForm(guestToFormState(guest));
+      setOpsForm(guestToOpsFormState(guest));
     }
   }, [open, guest]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
-    const errorMessage = await onSave(guest.id, form);
+    const errorMessage = await onSave(guest.id, form, opsForm);
     if (errorMessage) {
       toast.error(errorMessage);
     } else {
@@ -78,13 +87,14 @@ export function GuestEditSheet({
         sheetTrigger
       )}
       <SheetContent className="sm:max-w-md">
-        <form className="flex h-full flex-col" onSubmit={handleSubmit}>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
           <SheetHeader>
             <SheetTitle>Edit guest</SheetTitle>
           </SheetHeader>
-          <div className="px-4">
+          <SheetBody className="space-y-0">
             <GuestFormFields form={form} onChange={setForm} />
-          </div>
+            <GuestOpsFields form={opsForm} onChange={setOpsForm} />
+          </SheetBody>
           <SheetFooter>
             <Button type="submit" loading={busy} loadingText="Saving guest">
               Save changes

@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { OptionDropdown } from "@/components/ui/option-dropdown";
 import { api, type RsvpStatus } from "@/lib/api";
 
 export default function PublicRsvpPage() {
@@ -17,6 +17,9 @@ export default function PublicRsvpPage() {
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus>("PENDING");
   const [groupSize, setGroupSize] = useState(1);
   const [pickupLocation, setPickupLocation] = useState("");
+  const [needsCab, setNeedsCab] = useState(false);
+  const [needsHotel, setNeedsHotel] = useState(false);
+  const [guestNotes, setGuestNotes] = useState("");
 
   useEffect(() => {
     if (!code) return;
@@ -26,6 +29,9 @@ export default function PublicRsvpPage() {
         setRsvpStatus(result.guest.rsvpStatus);
         setGroupSize(result.guest.groupSize);
         setPickupLocation(result.guest.pickupLocation || "");
+        setNeedsCab(Boolean(result.guest.needsCab));
+        setNeedsHotel(Boolean(result.guest.needsHotel));
+        setGuestNotes(result.guest.guestNotes || "");
       })
       .catch((err) => toast.error(err instanceof Error ? err.message : "Invalid RSVP link"))
       .finally(() => setLoading(false));
@@ -35,7 +41,14 @@ export default function PublicRsvpPage() {
     if (!code) return;
     setSaving(true);
     try {
-      await api.submitPublicRsvp(code, { rsvpStatus, groupSize, pickupLocation: pickupLocation || null });
+      await api.submitPublicRsvp(code, {
+        rsvpStatus,
+        groupSize,
+        pickupLocation: pickupLocation || null,
+        needsCab,
+        needsHotel,
+        guestNotes: guestNotes.trim() || null,
+      });
       toast.success("RSVP submitted. Thank you!");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not submit RSVP");
@@ -53,11 +66,16 @@ export default function PublicRsvpPage() {
       <p className="text-sm text-muted-foreground">
         Hi {invite.guest.name}, please confirm your attendance.
       </p>
-      <Select value={rsvpStatus} onChange={(event) => setRsvpStatus(event.target.value as RsvpStatus)}>
-        <option value="CONFIRMED">Confirmed</option>
-        <option value="PENDING">Maybe / Pending</option>
-        <option value="DECLINED">Declined</option>
-      </Select>
+      <OptionDropdown
+        value={rsvpStatus}
+        onValueChange={(status) => setRsvpStatus(status as RsvpStatus)}
+        options={[
+          { value: "CONFIRMED", label: "Confirmed" },
+          { value: "PENDING", label: "Maybe / Pending" },
+          { value: "DECLINED", label: "Declined" },
+        ]}
+        placeholder="RSVP"
+      />
       <Input
         type="number"
         min={1}
@@ -69,6 +87,20 @@ export default function PublicRsvpPage() {
         value={pickupLocation}
         onChange={(event) => setPickupLocation(event.target.value)}
         placeholder="Pickup location (optional)"
+      />
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={needsCab} onChange={(event) => setNeedsCab(event.target.checked)} />
+        I need cab pickup
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={needsHotel} onChange={(event) => setNeedsHotel(event.target.checked)} />
+        I need hotel accommodation
+      </label>
+      <textarea
+        className="min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+        value={guestNotes}
+        onChange={(event) => setGuestNotes(event.target.value)}
+        placeholder="Notes for the host (dietary needs, arrival time, etc.)"
       />
       <Button onClick={submit} loading={saving} loadingText="Submitting" className="w-full">
         Submit RSVP

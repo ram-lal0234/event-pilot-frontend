@@ -6,21 +6,18 @@ import {
   ArrowLeft,
   ArrowRight,
   Clock3,
-  HelpCircle,
   KeyRound,
-  LayoutDashboard,
-  ListChecks,
   Loader2,
+  LogIn,
   Mail,
-  Rocket,
-  ScanLine,
-  UserRoundCheck,
+  Sparkles,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { GoogleIcon } from "@/components/icons/google-icon";
+import { LoginHeroMockup } from "@/components/auth/login-hero-mockup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api, ApiError, type AuthUser } from "@/lib/api";
+import { brand, colors, loginTheme } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -28,7 +25,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function emailFormatErrorMessage(trimmed: string): string | null {
   if (!trimmed) return "Enter the email associated with your account.";
   if (!trimmed.includes("@"))
-    return "Add an \"@\" between your name and provider—for example deepak@gmail.com.";
+    return "Add an \"@\" between your name and provider—for example planner@gmail.com.";
   if (!EMAIL_RE.test(trimmed)) return "That email doesn’t look quite right. Check the spelling and domain.";
   return null;
 }
@@ -50,12 +47,20 @@ function userFacingAuthMessage(error: unknown): string {
   return "Something went wrong. Try again.";
 }
 
-type LoginScreenProps = {
+export type LoginScreenProps = {
   onAuthenticated: (result: { accessToken: string; user: AuthUser }) => void;
+  initialEmail?: string;
+  joinInviteCode?: string;
+  lockEmail?: boolean;
 };
 
-export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
-  const [email, setEmail] = useState("");
+export function LoginScreen({
+  onAuthenticated,
+  initialEmail = "",
+  joinInviteCode,
+  lockEmail = Boolean(joinInviteCode),
+}: LoginScreenProps) {
+  const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"email" | "otp">("email");
   const [message, setMessage] = useState("");
@@ -63,6 +68,21 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
   const [emailFieldError, setEmailFieldError] = useState("");
   const [busy, setBusy] = useState(false);
   const [otpCountdownSec, setOtpCountdownSec] = useState(0);
+
+  useEffect(() => {
+    if (initialEmail) setEmail(initialEmail);
+  }, [initialEmail]);
+
+  useEffect(() => {
+    const prevHtml = document.documentElement.style.overflow;
+    const prevBody = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = prevHtml;
+      document.body.style.overflow = prevBody;
+    };
+  }, []);
 
   useEffect(() => {
     if (step !== "otp") return;
@@ -74,23 +94,12 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
   }, [step]);
 
   const formatHms = (sec: number) => {
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
+    const m = Math.floor(sec / 60);
     const s = sec % 60;
-    return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
   const otpCode = otp.replace(/\s/g, "");
-
-  const clearOtpAlerts = () => {
-    setError("");
-  };
-
-  const applyOtpFromDigits = (digits: string) => {
-    clearOtpAlerts();
-    setOtp(digits);
-    document.getElementById(`otp-${Math.min(digits.length, 5)}`)?.focus();
-  };
 
   const requestOtp = async (event: FormEvent) => {
     event.preventDefault();
@@ -110,9 +119,7 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
     try {
       const result = await api.requestOtp(trimmed);
       setMessage(
-        result.otp
-          ? `Your one-time password is shown here during development:\n${result.otp}`
-          : "We've sent you a verification code."
+        result.otp ? `Development code: ${result.otp}` : "We sent a 6-digit code to your email.",
       );
       setStep("otp");
     } catch (err) {
@@ -123,7 +130,7 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
   };
 
   const updateOtpDigit = (index: number, value: string) => {
-    clearOtpAlerts();
+    setError("");
     const digit = value.replace(/\D/g, "").slice(-1);
     const next = otp.padEnd(6, " ").split("");
     next[index] = digit || " ";
@@ -131,13 +138,22 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
     if (digit) document.getElementById(`otp-${index + 1}`)?.focus();
   };
 
+  const applyOtpFromDigits = (digits: string) => {
+    setError("");
+    setOtp(digits);
+    document.getElementById(`otp-${Math.min(digits.length, 5)}`)?.focus();
+  };
+
   const verifyOtp = async (event: FormEvent) => {
     event.preventDefault();
     if (otpCode.length < 6) return;
     setBusy(true);
-    clearOtpAlerts();
+    setError("");
     try {
-      const result = await api.verifyOtp(email.trim(), otpCode);
+      const trimmedEmail = email.trim();
+      const result = joinInviteCode
+        ? await api.verifyJoinOtp(joinInviteCode, trimmedEmail, otpCode)
+        : await api.verifyOtp(trimmedEmail, otpCode);
       onAuthenticated(result);
     } catch (err) {
       setError(userFacingAuthMessage(err));
@@ -151,11 +167,7 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
     setError("");
     try {
       const result = await api.requestOtp(email.trim());
-      setMessage(
-        result.otp
-          ? `A new development code:\n${result.otp}`
-          : "We've sent another verification code."
-      );
+      setMessage(result.otp ? `New development code: ${result.otp}` : "We sent another code.");
       setOtpCountdownSec(8 * 60 + 9);
     } catch (err) {
       setError(userFacingAuthMessage(err));
@@ -164,362 +176,332 @@ export function LoginScreen({ onAuthenticated }: LoginScreenProps) {
     }
   };
 
-
-  const glassSurface =
-    "relative w-full max-w-[440px] overflow-hidden rounded-2xl border border-white/[0.13] bg-gradient-to-br from-white/[0.11] via-white/[0.04] to-white/[0.02] shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_32px_100px_-32px_rgba(59,130,246,0.5),0_0_80px_-40px_rgba(139,92,246,0.35)] backdrop-blur-2xl";
-
   const emailHasIssue = Boolean(emailFieldError || error);
-  const emailAriaDescribedBy =
-    emailFieldError && error
-      ? "email-format-msg email-api-msg"
-      : emailFieldError
-        ? "email-format-msg"
-        : error
-          ? "email-api-msg"
-          : undefined;
 
   return (
-    <main className="relative isolate h-dvh min-h-0 overflow-hidden bg-[#05070a] text-[#e8eaf6]">
-      <LoginAmbientOrbs />
+    <main className="relative flex h-full max-h-dvh items-center justify-center overflow-hidden p-3 sm:p-4">
+      <LoginPageBackdrop />
 
-      <div className="relative z-[1] flex h-full min-h-0 flex-col lg:flex-row">
-        <BrandPanel />
+      <div
+        className="relative z-10 flex h-full max-h-full w-full max-w-[980px] flex-col rounded-[24px] p-px shadow-[0_28px_72px_-24px_rgba(179,89,0,0.28)]"
+        style={{ background: loginTheme.goldGradient }}
+      >
+        <div className="relative flex min-h-0 flex-1 overflow-hidden rounded-[23px] bg-white">
+        <LoginBrandPanel step={step} />
 
-        <section className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden lg:w-1/2 lg:max-w-none">
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(160deg,rgba(15,23,42,0.5)_0%,rgba(5,7,10,0.92)_50%,rgba(5,7,10,1)_100%)] lg:bg-[linear-gradient(200deg,rgba(30,27,75,0.25)_0%,rgba(5,7,10,0.94)_55%,rgba(5,7,10,1)_100%)]" />
-
-          <div className="relative z-[2] flex shrink-0 items-center justify-between px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] sm:px-8 lg:hidden">
-            <div className="flex items-center gap-2.5">
-              <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6] shadow-lg shadow-blue-600/25">
-                <Rocket className="size-5 text-white" aria-hidden />
+        <section
+          className="flex min-h-0 w-full flex-col md:w-[52%] lg:w-1/2"
+          style={{ backgroundColor: colors.surface }}
+        >
+          <header className="flex shrink-0 items-center justify-between px-6 pt-4 sm:px-10 sm:pt-5">
+            <Link href="/login" className="flex items-center gap-2.5">
+              <div
+                className="grid size-9 place-items-center rounded-lg text-white shadow-sm"
+                style={{ backgroundColor: colors.primary }}
+              >
+                <Sparkles className="size-4" aria-hidden />
               </div>
-              <span className="bg-gradient-to-r from-white to-[#c4b5fd] bg-clip-text text-lg font-bold tracking-tight text-transparent">
-                EventPilot AI
-              </span>
-            </div>
-            <Button
-              className="size-10 rounded-full border-white/10 bg-white/5 text-[#aeb8d9] backdrop-blur-sm hover:bg-white/10"
-              variant="outline"
-              size="icon"
-              type="button"
-              aria-label="Help"
+              <span className="text-base font-bold tracking-tight text-foreground">{brand.name}</span>
+            </Link>
+            <Link
+              href="/privacy"
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
-              <HelpCircle className="size-[1.125rem]" />
-            </Button>
-          </div>
+              Help
+            </Link>
+          </header>
 
-          <div className="relative z-[2] flex min-h-0 flex-[1_1_0%] flex-col overflow-hidden">
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain scroll-smooth [-webkit-overflow-scrolling:touch] px-4 pb-10 pt-4 sm:px-8 sm:pb-12 lg:py-12">
-              <div className="mx-auto flex w-full max-w-[440px] flex-col justify-start gap-0 lg:justify-start">
-                {step === "email" ? (
-                  <form noValidate className={`${glassSurface} p-5 sm:p-8`} onSubmit={requestOtp}>
-                    <div className="pointer-events-none absolute left-6 right-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/35 to-transparent sm:left-10 sm:right-10" />
-                    <div className="mb-8 text-center lg:text-left">
-                      <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#93c5fd]/90">Sign in</p>
-                      <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Welcome to EventPilot AI</h1>
-                    </div>
+          <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden px-6 py-3 sm:px-10 sm:py-4">
+            {joinInviteCode ? (
+              <p className="mb-3 shrink-0 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-center text-sm text-muted-foreground">
+                Team invitation — sign in with the invited email to continue.
+              </p>
+            ) : null}
 
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#8898c8]" htmlFor="email">
-                        <Mail className="size-[1.125rem] shrink-0 text-[#6b7aa8]" aria-hidden />
-                        Email
-                      </label>
-                      <div className="relative">
-                        <Input
-                          aria-invalid={emailHasIssue}
-                          aria-describedby={emailAriaDescribedBy}
-                          className={cn(
-                            "h-12 border-white/15 bg-black/35 px-4 text-[0.9375rem] text-white placeholder:text-[#62708f]",
-                            emailHasIssue
-                              ? "border-rose-500/65 ring-2 ring-inset ring-rose-500/25 focus-visible:border-rose-400/75 focus-visible:ring-rose-500/30"
-                              : "focus-visible:border-sky-400/60 focus-visible:ring-sky-500/25"
-                          )}
-                          id="email"
-                          type="text"
-                          inputMode="email"
-                          autoCapitalize="off"
-                          autoCorrect="off"
-                          spellCheck={false}
-                          value={email}
-                          onChange={(e) => {
-                            setEmail(e.target.value);
-                            setEmailFieldError("");
-                            setError("");
-                          }}
-                          placeholder="you@company.com"
-                          autoComplete="email"
-                        />
-                      </div>
-                      {emailFieldError ? (
-                        <p id="email-format-msg" role="alert" className="text-[13px] leading-snug text-rose-300">
-                          {emailFieldError}
-                        </p>
-                      ) : null}
-                      {error ? (
-                        <p id="email-api-msg" role="alert" className="text-[13px] leading-snug text-rose-300">
-                          {error}
-                        </p>
-                      ) : null}
-                    </div>
+            {step === "email" ? (
+              <form noValidate className="mx-auto w-full max-w-[360px] space-y-4" onSubmit={(e) => void requestOtp(e)}>
+                <div className="space-y-1">
+                  <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Sign in</h1>
+                  <p className="text-sm text-muted-foreground">
+                    Use your work email. We&apos;ll send a one-time passcode — no password to remember.
+                  </p>
+                </div>
 
-                    <Button
-                      type="submit"
-                      disabled={busy}
-                      className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#2563eb] text-[15px] font-semibold text-white shadow-[0_0_32px_-4px_rgba(37,99,235,0.85)] transition-all hover:bg-[#1d4ed8] hover:shadow-[0_0_48px_-4px_rgba(59,130,246,0.9)] disabled:opacity-60"
-                    >
-                      {busy ? (
-                        <>
-                          <Loader2 className="size-5 animate-spin" />
-                          Sending…
-                        </>
-                      ) : (
-                        <>
-                          Send OTP
-                          <ArrowRight className="size-4" />
-                        </>
-                      )}
-                    </Button>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground" htmlFor="email">
+                    Email
+                  </label>
+                  <Input
+                    id="email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    placeholder="Email or username"
+                    value={email}
+                    disabled={lockEmail || busy}
+                    readOnly={lockEmail}
+                    aria-invalid={emailHasIssue}
+                    className={cn(
+                      "h-12 rounded-xl border-border text-base",
+                      emailHasIssue && "border-destructive",
+                    )}
+                    style={{ backgroundColor: colors.ivory }}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setEmailFieldError("");
+                      setError("");
+                    }}
+                  />
+                  {emailFieldError ? (
+                    <p className="text-sm text-destructive" role="alert">
+                      {emailFieldError}
+                    </p>
+                  ) : null}
+                  {error ? (
+                    <p className="text-sm text-destructive" role="alert">
+                      {error}
+                    </p>
+                  ) : null}
+                </div>
 
-                    <AuthDivider label="OR" />
+                <Button
+                  type="submit"
+                  disabled={busy}
+                  className="h-12 w-full gap-2 rounded-full border-0 text-base font-semibold text-[#2c2419] shadow-md"
+                  style={{
+                    background: loginTheme.goldGradient,
+                  }}
+                >
+                  {busy ? (
+                    <Loader2 className="size-5 animate-spin" />
+                  ) : (
+                    <>
+                      <LogIn className="size-5" />
+                      Sign in
+                    </>
+                  )}
+                </Button>
 
-                    <Button
-                      type="button"
-                      className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-white/12 bg-white text-[15px] font-semibold text-slate-900 shadow-sm hover:bg-neutral-50"
-                    >
-                      <GoogleIcon />
-                      Continue with Google
-                    </Button>
+                <div className="relative flex items-center gap-3 py-1">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs text-muted-foreground">or</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
 
-                    <LoginFormFootnotes />
-                  </form>
-                ) : (
-                  <form noValidate className={`${glassSurface} p-5 sm:p-8`} onSubmit={verifyOtp}>
-                    <div className="pointer-events-none absolute left-6 right-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/35 to-transparent sm:left-10 sm:right-10" />
-                    <div className="mb-4">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="group size-10 shrink-0 rounded-full border-white/10 bg-white/5 text-[#9fb0d9] hover:bg-white/10 hover:text-white"
-                        type="button"
-                        aria-label="Back to email sign-in"
-                        onClick={() => {
-                          setStep("email");
-                          setOtp("");
-                          setMessage("");
-                          clearOtpAlerts();
-                          setEmailFieldError("");
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 w-full gap-2 rounded-full border-border bg-white text-base font-medium"
+                  disabled
+                  title="Google sign-in coming soon"
+                >
+                  <GoogleIcon />
+                  Continue with Google
+                </Button>
+              </form>
+            ) : (
+              <form noValidate className="mx-auto w-full max-w-[360px] space-y-4" onSubmit={(e) => void verifyOtp(e)}>
+                <div className="flex items-start gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="mt-0.5 size-9 shrink-0 rounded-full"
+                    aria-label="Back"
+                    onClick={() => {
+                      setStep("email");
+                      setOtp("");
+                      setMessage("");
+                      setError("");
+                    }}
+                  >
+                    <ArrowLeft className="size-4" />
+                  </Button>
+                  <div className="space-y-1">
+                    <h1 className="text-2xl font-bold tracking-tight">Verify your email</h1>
+                    <p className="text-sm text-muted-foreground">
+                      Enter the 6-digit code sent to{" "}
+                      <span className="font-medium text-foreground">{email}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <fieldset className="space-y-3">
+                  <legend className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <KeyRound className="size-4 text-muted-foreground" />
+                    One-time code
+                  </legend>
+                  <div className="flex justify-between gap-2">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <Input
+                        key={index}
+                        id={`otp-${index}`}
+                        className="h-12 w-full max-w-[48px] rounded-xl border-border p-0 text-center text-lg font-semibold"
+                        style={{ backgroundColor: colors.ivory }}
+                        maxLength={1}
+                        inputMode="numeric"
+                        autoComplete={index === 0 ? "one-time-code" : "off"}
+                        value={otp[index] || ""}
+                        onChange={(e) => updateOtpDigit(index, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Backspace" && !otp[index]) {
+                            document.getElementById(`otp-${index - 1}`)?.focus();
+                          }
                         }}
-                      >
-                        <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" aria-hidden />
-                      </Button>
-                    </div>
-
-                    <div className="mb-8 text-center lg:text-left">
-                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#93c5fd]/90">Verify</p>
-                      <p className="max-w-md text-sm leading-relaxed text-[#9fb0d9]">
-                        Enter the 6-digit code we sent to{" "}
-                        <span className="font-medium text-[#c7d5f0]" title={email}>
-                          {email}
-                        </span>
-                      </p>
-                    </div>
-
-                    <fieldset
-                      className="space-y-2"
-                      aria-describedby={
-                        [message ? "otp-help-msg" : "", error ? "otp-error-msg" : ""].filter(Boolean).join(" ") ||
-                        undefined
-                      }
+                        onPaste={(e) => {
+                          e.preventDefault();
+                          applyOtpFromDigits(
+                            e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6),
+                          );
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 tabular-nums">
+                      <Clock3 className="size-3.5" />
+                      Resend in {formatHms(otpCountdownSec)}
+                    </span>
+                    <button
+                      type="button"
+                      className={cn(
+                        "font-semibold",
+                        otpCountdownSec > 0 || busy ? "pointer-events-none opacity-50" : "text-primary",
+                      )}
+                      style={{ color: otpCountdownSec === 0 && !busy ? colors.primary : undefined }}
+                      disabled={otpCountdownSec > 0 || busy}
+                      onClick={() => void resendOtp()}
                     >
-                      <legend className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#8898c8]">
-                        <KeyRound className="size-[1.125rem] shrink-0 text-[#6b7aa8]" aria-hidden />
-                        OTP
-                      </legend>
-                      <div className="flex justify-center gap-2 sm:gap-3 lg:justify-start">
-                        {Array.from({ length: 6 }).map((_, index) => (
-                          <Input
-                            key={index}
-                            id={`otp-${index}`}
-                            className="aspect-square max-h-[52px] min-h-[48px] w-full max-w-[48px] rounded-xl border border-white/14 bg-black/45 p-0 text-center text-xl font-semibold tracking-tight text-[#bae6fd] shadow-inner focus-visible:border-sky-400/70 focus-visible:ring-[3px] focus-visible:ring-sky-500/35 sm:h-14 sm:max-h-[56px] sm:max-w-[52px] sm:text-2xl"
-                            maxLength={1}
-                            inputMode="numeric"
-                            autoComplete={index === 0 ? "one-time-code" : "off"}
-                            value={otp[index] || ""}
-                            onChange={(e) => updateOtpDigit(index, e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Backspace" && !otp[index]) {
-                                document.getElementById(`otp-${index - 1}`)?.focus();
-                              }
-                            }}
-                            onPaste={(e) => {
-                              e.preventDefault();
-                              const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-                              applyOtpFromDigits(digits);
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <div className="flex w-full flex-col gap-2 pt-1 text-xs text-[#8b98bc] sm:flex-row sm:items-center sm:justify-between sm:text-sm">
-                        <div className="flex items-center justify-center gap-2 tabular-nums sm:justify-start">
-                          <Clock3 className="size-4 text-sky-400/70" aria-hidden />
-                          <span>Countdown:</span>
-                          <span className="font-semibold text-[#c7d9ff]">{formatHms(otpCountdownSec)}</span>
-                        </div>
-                        <button
-                          type="button"
-                          className={`text-center font-semibold transition-colors sm:text-right ${otpCountdownSec === 0 ? "cursor-pointer text-sky-300 hover:text-white" : "cursor-not-allowed opacity-55"}`}
-                          disabled={otpCountdownSec > 0 || busy}
-                          onClick={() => void resendOtp()}
-                        >
-                          Resend OTP
-                        </button>
-                      </div>
-                      {message ? (
-                        <p id="otp-help-msg" className="text-[13px] leading-snug text-sky-200/92 whitespace-pre-line">
-                          {message}
-                        </p>
-                      ) : null}
-                      {error ? (
-                        <p id="otp-error-msg" role="alert" className="text-[13px] leading-snug text-rose-300">
-                          {error}
-                        </p>
-                      ) : null}
-                    </fieldset>
+                      Resend code
+                    </button>
+                  </div>
+                  {message ? (
+                    <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">{message}</p>
+                  ) : null}
+                  {error ? (
+                    <p className="text-sm text-destructive" role="alert">
+                      {error}
+                    </p>
+                  ) : null}
+                </fieldset>
 
-                    <Button
-                      type="submit"
-                      disabled={busy || otpCode.length < 6}
-                      className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#2563eb] text-[15px] font-semibold text-white shadow-[0_0_32px_-4px_rgba(37,99,235,0.85)] transition-all hover:bg-[#1d4ed8] disabled:opacity-50"
-                    >
-                      {busy ? <Loader2 className="size-5 animate-spin" /> : null}
-                      Verify &amp; Continue
-                      {!busy ? <ArrowRight className="size-4" /> : null}
-                    </Button>
-
-                    <LoginFormFootnotes showTrustLine={false} />
-                  </form>
-                )}
-              </div>
-            </div>
+                <Button
+                  type="submit"
+                  disabled={busy || otpCode.length < 6}
+                  className="h-12 w-full gap-2 rounded-full border-0 text-base font-semibold text-[#2c2419] shadow-md"
+                  style={{
+                    background: loginTheme.goldGradient,
+                  }}
+                >
+                  {busy ? <Loader2 className="size-5 animate-spin" /> : null}
+                  Continue
+                  {!busy ? <ArrowRight className="size-5" /> : null}
+                </Button>
+              </form>
+            )}
           </div>
+
+          <footer className="mt-auto flex shrink-0 flex-col gap-2 border-t border-border/80 px-6 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-10">
+            <span>© {new Date().getFullYear()} {brand.name}</span>
+            <nav className="flex gap-4">
+              <Link href="/privacy" className="hover:text-foreground">
+                Privacy
+              </Link>
+              <Link href="/terms" className="hover:text-foreground">
+                Terms
+              </Link>
+            </nav>
+          </footer>
         </section>
+        </div>
       </div>
     </main>
   );
 }
 
-function LoginFormFootnotes({ showTrustLine = true }: { showTrustLine?: boolean }) {
+function LoginPageBackdrop() {
   return (
-    <footer className="mt-8 border-t border-white/10 pt-6">
-      <div className="flex flex-col items-center gap-4 text-center">
-        <nav
-          className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-medium text-[#97a7ce]"
-          aria-label="Legal"
-        >
-          <Link href="/privacy" className="transition-colors hover:text-white">
-            Privacy Policy
-          </Link>
-          <span className="text-[#3d4a66]" aria-hidden>
-            ·
-          </span>
-          <Link href="/terms" className="transition-colors hover:text-white">
-            Terms of Service
-          </Link>
-        </nav>
-        {showTrustLine ? (
-          <p className="text-xs leading-relaxed text-[#8890a8]">
-            Trusted for managing modern events &amp; guest experiences.
-          </p>
-        ) : null}
-        <p className="text-[10px] text-[#5c637a]">© 2026 EventPilot AI. All rights reserved.</p>
-      </div>
-    </footer>
-  );
-}
-
-function LoginAmbientOrbs() {
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute -left-[15%] -top-[20%] h-[min(560px,80vw)] w-[min(560px,80vw)] rounded-full bg-cyan-500/[0.16] blur-[100px]" />
-      <div className="absolute -right-[8%] top-[35%] h-[420px] w-[420px] rounded-full bg-violet-600/[0.22] blur-[90px]" />
-      <div className="absolute bottom-[-18%] left-[35%] h-[340px] w-[340px] rounded-full bg-blue-600/[0.15] blur-[80px]" />
-      <div className="absolute right-[12%] top-[8%] h-[220px] w-[220px] rounded-full bg-sky-400/10 blur-[72px]" />
+    <div aria-hidden className="pointer-events-none absolute inset-0">
+      <div className="absolute inset-0" style={{ background: loginTheme.pageGradient }} />
+      <div className="absolute inset-0" style={{ background: loginTheme.pageGlow }} />
     </div>
   );
 }
 
-const BRAND_FEATURES_LEFT = [
-  { Icon: UserRoundCheck, label: "Smart RSVP tracking" },
-  { Icon: ScanLine, label: "Real-time check-ins" },
-] as const;
-
-const BRAND_FEATURES_RIGHT = [
-  { Icon: LayoutDashboard, label: "Operations dashboard" },
-  { Icon: ListChecks, label: "Cab & hotel logistics" },
-] as const;
-
-function FloatingFeatureBadge({ Icon, label }: { Icon: LucideIcon; label: string }) {
+function HeroRings() {
+  const sizes = [300, 236, 172, 108];
   return (
-    <div className="z-10 w-full max-w-[148px] rounded-xl border border-white/15 bg-white/[0.07] px-3 py-2.5 shadow-lg shadow-black/20 backdrop-blur-xl">
-      <Icon className="mb-1.5 size-4 text-sky-300" aria-hidden />
-      <p className="text-[11px] font-semibold leading-snug text-white">{label}</p>
+    <div
+      aria-hidden
+      className="pointer-events-none absolute left-1/2 top-[34%] -translate-x-1/2 -translate-y-1/2"
+    >
+      {sizes.map((size) => (
+        <span
+          key={size}
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{
+            width: size,
+            height: size,
+            border: "1px solid rgba(243, 229, 171, 0.2)",
+          }}
+        />
+      ))}
     </div>
   );
 }
 
-function BrandPanel() {
+function LoginBrandPanel({ step }: { step: "email" | "otp" }) {
   return (
-    <section className="relative hidden h-full flex-1 flex-col overflow-hidden border-r border-white/10 lg:flex lg:max-w-[52%]">
-      <LoginAmbientOrbs />
-      <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(15,23,42,0.4)_0%,rgba(6,11,26,0.75)_42%,rgba(5,7,12,0.95)_100%)]" />
-      <div className="relative z-10 flex h-full flex-col px-10 py-12 xl:px-16 xl:py-14">
-        <div className="flex items-center gap-3">
-          <div className="grid size-11 place-items-center rounded-xl bg-gradient-to-br from-[#3b82f6] to-[#9333ea] shadow-lg shadow-indigo-500/35">
-            <Rocket className="size-6 text-white" aria-hidden />
-          </div>
-          <span className="bg-gradient-to-r from-white via-[#dbeafe] to-[#cfc5ff] bg-clip-text text-xl font-bold tracking-tight text-transparent xl:text-[1.35rem]">
-            EventPilot AI
-          </span>
-        </div>
+    <aside
+      className="relative hidden min-h-0 flex-col overflow-hidden rounded-l-[22px] text-white md:flex md:w-[48%] lg:w-1/2"
+      style={{ background: loginTheme.heroGradient }}
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-45"
+        style={{ background: loginTheme.pageGlow }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-24 -top-20 h-64 w-64 rounded-full blur-3xl"
+        style={{ background: loginTheme.goldGradient, opacity: 0.2 }}
+      />
+      <HeroRings />
 
-        <h2 className="mt-14 max-w-lg text-[1.85rem] font-bold leading-[1.2] tracking-tight text-white xl:mt-[4.25rem] xl:text-[clamp(2rem,2.6vw,2.85rem)]">
-          Managing Guests, Logistics &amp; Check-ins{" "}
-          <span className="bg-gradient-to-r from-[#7dd3fc] via-[#93c5fd] to-[#c4b5fd] bg-clip-text text-transparent">
-            in One Platform
+      <div className="relative z-10 flex flex-col items-center px-8 pt-10 text-center lg:px-10 lg:pt-12">
+        <p className="max-w-[15rem] text-xs leading-relaxed text-white/70 lg:max-w-[18rem] lg:text-[13px]">
+          Event operations made simple — guests, RSVP, transport, and check-in in one place.
+        </p>
+        <h2 className="mt-8 max-w-[12rem] text-[1.75rem] font-bold leading-[1.15] tracking-tight lg:mt-10 lg:max-w-sm lg:text-4xl">
+          <span
+            className="bg-clip-text text-transparent"
+            style={{
+              backgroundImage: "linear-gradient(180deg, #ffffff 0%, #f3e5ab 100%)",
+            }}
+          >
+          {step === "email" ? (
+            <>
+              Manage
+              <br />
+              your events
+            </>
+          ) : (
+            <>
+              Almost
+              <br />
+              there
+            </>
+          )}
           </span>
         </h2>
-        <p className="mt-5 max-w-md text-[15px] leading-relaxed text-[#98aaca] xl:text-[0.9725rem]">
-          RSVP, transport, hotels, QR check-in, and live ops—purpose-built so your team executes smoothly from doorstep to ballroom.
-        </p>
-
-        <div className="relative mt-auto flex min-h-[min(340px,36vh)] w-full shrink-0 items-end justify-between gap-6 pb-4 pt-8 xl:gap-10 xl:pb-6 xl:pt-12">
-          <div className="pointer-events-none absolute bottom-[12%] left-1/2 h-[200px] w-[200px] -translate-x-1/2 rounded-full bg-gradient-to-tr from-[#06b6d4]/30 via-[#6366f1]/35 to-[#a855f7]/30 blur-[50px]" />
-          <div className="relative z-10 flex min-w-0 flex-1 flex-col gap-[3.75rem] xl:gap-[4.5rem]">
-            {BRAND_FEATURES_LEFT.map(({ Icon, label }, row) => (
-              <div key={label} className={row === 1 ? "pl-[2.5rem] xl:pl-14" : ""}>
-                <FloatingFeatureBadge Icon={Icon} label={label} />
-              </div>
-            ))}
-          </div>
-          <div className="relative z-10 flex min-w-0 flex-1 flex-col items-end gap-[3.75rem] xl:gap-[4.5rem]">
-            {BRAND_FEATURES_RIGHT.map(({ Icon, label }, row) => (
-              <div key={label} className={row === 1 ? "pr-[2.5rem] xl:pr-14" : ""}>
-                <FloatingFeatureBadge Icon={Icon} label={label} />
-              </div>
-            ))}
-          </div>
-        </div>
+        {step === "otp" ? (
+          <p className="mt-4 max-w-[14rem] text-xs text-white/65">
+            Enter the code we sent to your email.
+          </p>
+        ) : null}
       </div>
-    </section>
-  );
-}
 
-function AuthDivider({ label }: { label: string }) {
-  return (
-    <div className="relative my-7 flex items-center gap-4">
-      <div className="min-h-px flex-1 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-      <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.2em] text-[#7383a9]">{label}</span>
-      <div className="min-h-px flex-1 bg-gradient-to-l from-transparent via-white/15 to-transparent" />
-    </div>
+      <LoginHeroMockup className="relative z-10" />
+    </aside>
   );
 }

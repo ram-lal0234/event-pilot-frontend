@@ -1,107 +1,152 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Camera, Clock3, MapPin, QrCode, Search, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Clock3, MapPin, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { OptionDropdown } from "@/components/ui/option-dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api, type CheckinLocationType, type GuestRecord } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
+import { useEventAccess } from "@/hooks/use-event-access";
 
-type CheckinMode = "scanner" | "manual";
+const SCAN_COOLDOWN_MS = 2500;
 
 export default function CheckInPage() {
   const { token, currentEvent, eventsLoaded, eventsLoading } = useApp();
-  const [mode, setMode] = useState<CheckinMode>("scanner");
-  const [qrCode, setQrCode] = useState("");
+  const { canWrite } = useEventAccess();
   const [locationType, setLocationType] = useState<CheckinLocationType>("EVENT_GATE");
   const [guest, setGuest] = useState<GuestRecord | null>(null);
   const [recent, setRecent] = useState<Array<{ guest: GuestRecord; at: string; location: CheckinLocationType }>>([]);
   const [busy, setBusy] = useState(false);
+  const [scannerReady, setScannerReady] = useState(false);
   const [lastCheckedQr, setLastCheckedQr] = useState<string | null>(null);
-  const [scannerOpen, setScannerOpen] = useState(true);
-  const scannerRef = useRef<{ clear: () => Promise<void> } | null>(null);
+  const [lastLocationType, setLastLocationType] = useState<CheckinLocationType | null>(null);
+  const scannerRef = useRef<{ stop: () => Promise<void>; clear: () => void } | null>(null);
+  const busyRef = useRef(false);
+  const lastScanRef = useRef("");
+  const lastScanAtRef = useRef(0);
+
+  const performCheckIn = useCallback(
+    async (qrCode: string) => {
+      if (!canWrite) {
+        toast.error("Read-only access — you cannot check in guests");
+        return;
+      }
+      if (busyRef.current) return;
+
+      const trimmed = qrCode.trim();
+      if (!trimmed) return;
+
+      busyRef.current = true;
+      setBusy(true);
+      try {
+        const result = await api.scanQr(token, {
+          qrCode: trimmed,
+          method: "QR",
+          locationType,
+        });
+        setGuest(result.guest);
+        setLastCheckedQr(trimmed);
+        setLastLocationType(locationType);
+        setRecent((prev) => [
+          { guest: result.guest, at: new Date().toISOString(), location: locationType },
+          ...prev.filter((item) => item.guest.id !== result.guest.id).slice(0, 11),
+        ]);
+        toast.success(result.alreadyCheckedIn ? "Guest already checked in" : "Check-in completed");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Could not check in guest");
+      } finally {
+        busyRef.current = false;
+        setBusy(false);
+      }
+    },
+    [canWrite, locationType, token],
+  );
+
+  const onQrDecoded = useCallback(
+    (decodedText: string) => {
+      const now = Date.now();
+      if (decodedText === lastScanRef.current && now - lastScanAtRef.current < SCAN_COOLDOWN_MS) {
+        return;
+      }
+      lastScanRef.current = decodedText;
+      lastScanAtRef.current = now;
+      void performCheckIn(decodedText);
+    },
+    [performCheckIn],
+  );
 
   useEffect(() => {
+    if (!eventsLoaded || eventsLoading) return undefined;
+
     let cancelled = false;
+    setScannerReady(false);
 
-    if (!scannerOpen || mode !== "scanner") {
-      return undefined;
-    }
-
-    void import("html5-qrcode").then(({ Html5QrcodeScanner, Html5QrcodeScanType }) => {
+    void import("html5-qrcode").then(async ({ Html5Qrcode }) => {
       if (cancelled) return;
 
-      const scanner = new Html5QrcodeScanner(
-        "qr-reader",
-        {
-          fps: 10,
-          qrbox: { width: 260, height: 260 },
-          rememberLastUsedCamera: true,
-          supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-        },
-        false
-      );
+      const reader = new Html5Qrcode("qr-reader");
+      scannerRef.current = reader;
 
-      scannerRef.current = scanner;
-      scanner.render(
-        (decodedText) => {
-          setQrCode(decodedText);
-          toast.success("QR code scanned");
-          setScannerOpen(false);
-          void scanner.clear().catch(() => undefined);
-        },
-        () => undefined
-      );
-    }).catch(() => {
-      toast.error("Could not start QR scanner");
-      setScannerOpen(false);
+      try {
+        await reader.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            aspectRatio: 1,
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+              const edge = Math.min(viewfinderWidth, viewfinderHeight);
+              const size = Math.floor(edge * 0.72);
+              return { width: size, height: size };
+            },
+          },
+          onQrDecoded,
+          () => undefined,
+        );
+        if (!cancelled) setScannerReady(true);
+      } catch {
+        toast.error("Could not start camera — allow camera access and reload");
+      }
     });
 
     return () => {
       cancelled = true;
-      if (scannerRef.current) {
-        void scannerRef.current.clear().catch(() => undefined);
-        scannerRef.current = null;
+      const reader = scannerRef.current;
+      scannerRef.current = null;
+      if (reader) {
+        void reader
+          .stop()
+          .catch(() => undefined)
+          .finally(() => {
+            try {
+              reader.clear();
+            } catch {
+              /* ignore */
+            }
+          });
       }
     };
-  }, [mode, scannerOpen]);
-
-  const scan = async (event: FormEvent) => {
-    event.preventDefault();
-    setBusy(true);
-    try {
-      const result = await api.scanQr(token, { qrCode, method: mode === "manual" ? "MANUAL" : "QR", locationType });
-      setGuest(result.guest);
-      setLastCheckedQr(qrCode);
-      setRecent((prev) => [
-        { guest: result.guest, at: new Date().toISOString(), location: locationType },
-        ...prev.filter((item) => item.guest.id !== result.guest.id).slice(0, 11),
-      ]);
-      toast.success(result.alreadyCheckedIn ? "Guest already checked in" : "Check-in completed");
-      setQrCode("");
-      if (mode === "scanner") {
-        setScannerOpen(true);
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not check in guest");
-    } finally {
-      setBusy(false);
-    }
-  };
+  }, [eventsLoaded, eventsLoading, onQrDecoded]);
 
   const undoLastCheckin = async () => {
     if (!lastCheckedQr) return;
+    if (!canWrite) {
+      toast.error("Read-only access — you cannot undo check-in");
+      return;
+    }
     setBusy(true);
     try {
-      await api.undoCheckin(token, { qrCode: lastCheckedQr });
+      await api.undoCheckin(token, {
+        qrCode: lastCheckedQr,
+        locationType: lastLocationType || locationType,
+      });
       toast.success("Last check-in undone");
       setGuest(null);
       setRecent((prev) => prev.slice(1));
+      lastScanRef.current = "";
+      lastScanAtRef.current = 0;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not undo check-in");
     } finally {
@@ -114,190 +159,101 @@ export default function CheckInPage() {
   }
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="rounded-xl border border-border bg-card p-4 md:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <QrCode className="size-5" />
-            </div>
-            <div>
-              <h1 className="text-base font-semibold md:text-lg">Check-In Console</h1>
-              <p className="text-sm text-muted-foreground">
-                Fast QR scan and manual fallback for gate and hotel desks.
-              </p>
-            </div>
+    <div className="flex h-[calc(100dvh-5.5rem)] max-h-[calc(100dvh-5.5rem)] flex-col gap-3 overflow-hidden">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <QrCode className="size-5" />
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="h-6 px-2 text-xs">
-              {currentEvent?.name || "No event selected"}
-            </Badge>
-            <Badge variant="outline" className="h-6 px-2 text-xs">
-              {locationType === "HOTEL" ? "Hotel desk" : "Event gate"}
-            </Badge>
+          <div>
+            <h1 className="text-base font-semibold md:text-lg">Check-In</h1>
+            <p className="text-sm text-muted-foreground">Point the camera at a guest QR — check-in runs automatically.</p>
           </div>
         </div>
-      </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="h-7 px-2 text-xs">
+            {currentEvent?.name || "No event selected"}
+          </Badge>
+          <OptionDropdown
+            triggerClassName="h-8 w-[140px] text-xs"
+            value={locationType}
+            onValueChange={(value) => setLocationType(value as CheckinLocationType)}
+            options={[
+              { value: "EVENT_GATE", label: "Event gate" },
+              { value: "HOTEL", label: "Hotel" },
+            ]}
+          />
+        </div>
+      </header>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:gap-6">
-        <form
-          className="flex min-h-[520px] flex-col overflow-hidden rounded-xl border border-border bg-card"
-          onSubmit={scan}
-        >
-          <Tabs
-            value={mode}
-            onValueChange={(value) => {
-              const nextMode = value as CheckinMode;
-              setMode(nextMode);
-              setScannerOpen(nextMode === "scanner");
-            }}
-            className="gap-0"
-          >
-            <div className="border-b border-border px-4 py-3 md:px-5">
-              <TabsList variant="line" className="h-9 w-full justify-start sm:w-auto">
-                <TabsTrigger value="scanner" className="gap-1.5">
-                  <Camera className="size-4" />
-                  Scanner
-                </TabsTrigger>
-                <TabsTrigger value="manual" className="gap-1.5">
-                  <Search className="size-4" />
-                  Manual
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent value="scanner" className="mt-0 flex-1 p-4 md:p-5">
-              <div className="overflow-hidden rounded-xl border border-border bg-surface-container-low">
-                <div className="flex flex-col gap-3 border-b border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Camera className="size-5" />
-                    </div>
-                    <div>
-                      <p className="font-semibold">Scan Guest QR</p>
-                      <p className="text-sm text-muted-foreground">Hold camera steady and align QR within frame.</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-2 sm:w-auto"
-                    type="button"
-                    onClick={() => setScannerOpen((value) => !value)}
-                  >
-                    {scannerOpen ? <X className="size-4" /> : <Camera className="size-4" />}
-                    {scannerOpen ? "Pause Scanner" : "Start Scanner"}
-                  </Button>
-                </div>
-                {scannerOpen ? (
-                  <div className="bg-background p-3">
-                    <div
-                      id="qr-reader"
-                      className="min-h-[280px] overflow-hidden rounded-lg border border-dashed border-primary/30 bg-card md:min-h-[360px]"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 bg-background p-6 text-center md:min-h-[360px]">
-                    <div className="flex size-16 items-center justify-center rounded-xl border border-border bg-surface-container-low text-primary">
-                      <Camera className="size-8" />
-                    </div>
-                    <div>
-                      <p className="font-semibold">Scanner paused</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Resume camera when the next guest is ready.</p>
-                    </div>
-                  </div>
-                )}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
+          <div className="shrink-0 border-b border-border px-4 py-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              {scannerReady ? (busy ? "Processing check-in…" : "Scanner active") : "Starting camera…"}
+            </p>
+          </div>
+          <div className="relative min-h-0 flex-1 bg-background p-2">
+            <div id="qr-reader" className="h-full min-h-[240px] w-full [&_video]:!h-full [&_video]:!w-full [&_video]:object-cover" />
+            {!scannerReady ? (
+              <div className="pointer-events-none absolute inset-2 flex items-center justify-center rounded-lg bg-background/80">
+                <Skeleton className="h-full w-full rounded-lg" />
               </div>
-            </TabsContent>
+            ) : null}
+          </div>
+        </div>
 
-            <TabsContent value="manual" className="mt-0 flex-1 p-4 md:p-5">
-              <div className="grid h-full gap-4 rounded-xl border border-border bg-background p-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Manual fallback</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Use this when camera cannot read badge or staff receives code verbally.
-                  </p>
-                </div>
-                <Input
-                  value={qrCode}
-                  onChange={(event) => setQrCode(event.target.value)}
-                  placeholder="guest:event-id:uuid"
-                  required
-                />
-                <Select
-                  value={locationType}
-                  onChange={(event) => setLocationType(event.target.value as CheckinLocationType)}
-                >
-                  <option value="EVENT_GATE">Event gate</option>
-                  <option value="HOTEL">Hotel</option>
-                </Select>
-                <div className="mt-auto">
-                  <Button
-                    className="h-10 w-full gap-2"
-                    type="submit"
-                    loading={busy}
-                    loadingText="Checking in"
-                    disabled={!qrCode.trim()}
-                  >
-                    <Search className="size-4" />
-                    Validate and Check In
-                  </Button>
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </form>
-
-        <div className="space-y-4">
-          <div className="rounded-xl border border-border bg-card p-4 md:p-5">
-            <h2 className="font-semibold">Guest Confirmation</h2>
+        <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+          <div className="shrink-0 rounded-xl border border-border bg-card p-4">
+            <h2 className="font-semibold">Guest</h2>
             {guest ? (
-              <div className="mt-4 space-y-4">
-                <div className="flex size-11 items-center justify-center rounded-lg bg-status-success text-white">
-                  <QrCode className="size-5" />
-                </div>
+              <div className="mt-3 space-y-3">
                 <div>
                   <p className="text-lg font-bold">{guest.name}</p>
                   <p className="text-sm text-muted-foreground">{guest.email || guest.phone}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-sm sm:gap-3">
+                <div className="grid grid-cols-2 gap-2 text-sm">
                   <Info label="Category" value={guest.category} />
                   <Info label="Group" value={String(guest.groupSize)} />
                   <Info label="RSVP" value={guest.rsvpStatus} />
                   <Info label="Location" value={locationType === "HOTEL" ? "Hotel" : "Event gate"} />
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={undoLastCheckin} disabled={!lastCheckedQr || busy}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void undoLastCheckin()}
+                  disabled={!lastCheckedQr || busy}
+                >
                   Undo check-in
                 </Button>
               </div>
             ) : (
-              <p className="mt-3 text-sm text-muted-foreground">
-                No guest checked in yet. Start scanner or switch to manual mode.
-              </p>
+              <p className="mt-2 text-sm text-muted-foreground">Scan a QR code to see guest details here.</p>
             )}
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-4 md:p-5">
-            <h2 className="font-semibold">Recent Check-Ins</h2>
-            <div className="mt-3 space-y-2">
+          <div className="min-h-0 flex-1 rounded-xl border border-border bg-card p-4">
+            <h2 className="font-semibold">Recent</h2>
+            <div className="mt-2 space-y-2">
               {recent.map((item) => (
-                <div key={item.guest.id} className="rounded-lg border border-border p-3">
-                  <p className="font-medium">{item.guest.name}</p>
+                <div key={`${item.guest.id}-${item.at}`} className="rounded-lg border border-border p-2.5">
+                  <p className="text-sm font-medium">{item.guest.name}</p>
                   <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                     <Clock3 className="size-3.5" />
                     {new Date(item.at).toLocaleTimeString()}
-                    <span className="mx-1">•</span>
+                    <span>·</span>
                     <MapPin className="size-3.5" />
-                    {item.location === "HOTEL" ? "Hotel" : "Event gate"}
+                    {item.location === "HOTEL" ? "Hotel" : "Gate"}
                   </p>
                 </div>
               ))}
               {!recent.length ? (
-                <p className="text-sm text-muted-foreground">No check-ins in this session yet.</p>
+                <p className="text-sm text-muted-foreground">No check-ins this session yet.</p>
               ) : null}
             </div>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );
@@ -305,28 +261,13 @@ export default function CheckInPage() {
 
 function CheckInSkeleton() {
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="rounded-xl border border-border bg-card p-4 md:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-center gap-3">
-            <Skeleton className="size-10" />
-            <div className="space-y-2">
-              <Skeleton className="h-5 w-36" />
-              <Skeleton className="h-4 w-56" />
-            </div>
-          </div>
-          <Skeleton className="h-6 w-32" />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:gap-6">
-        <div className="overflow-hidden rounded-xl border border-border bg-card p-4 md:p-5">
-          <Skeleton className="h-9 w-44" />
-          <Skeleton className="mt-4 h-[360px] w-full rounded-xl" />
-        </div>
-        <div className="space-y-4">
-          <Skeleton className="h-64 w-full rounded-xl" />
-          <Skeleton className="h-56 w-full rounded-xl" />
+    <div className="flex h-[calc(100dvh-5.5rem)] flex-col gap-3 overflow-hidden">
+      <Skeleton className="h-[4.5rem] shrink-0 rounded-xl" />
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <Skeleton className="min-h-0 flex-1 rounded-xl" />
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-40 rounded-xl" />
+          <Skeleton className="min-h-0 flex-1 rounded-xl" />
         </div>
       </div>
     </div>
@@ -335,9 +276,9 @@ function CheckInSkeleton() {
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-surface-container-low p-3">
-      <p className="text-[11px] font-semibold uppercase text-muted-foreground">{label}</p>
-      <p className="mt-1 font-semibold text-primary">{value}</p>
+    <div className="rounded-lg bg-surface-container-low p-2.5">
+      <p className="text-[10px] font-semibold uppercase text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold text-primary">{value}</p>
     </div>
   );
 }

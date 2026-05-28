@@ -6,12 +6,14 @@ import { CalendarPlus, Check, ChevronDown, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   brand,
+  colors,
   eventViewItems,
   isEventHrefActive,
   navItems,
   scopedEventHref,
 } from "@/lib/design-tokens";
 import { useApp } from "@/components/providers/app-provider";
+import { useEventAccess } from "@/hooks/use-event-access";
 import { Button } from "@/components/ui/button";
 import { CreateEventSheet } from "@/components/domain/events/create-event-sheet";
 import {
@@ -25,6 +27,7 @@ export function Sidebar({ className }: { className?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const { currentEvent, currentEventId, events, setCurrentEventId } = useApp();
+  const { isOwner } = useEventAccess();
 
   const onEventSelect = (nextEventId: string) => {
     if (!nextEventId || nextEventId === currentEventId) return;
@@ -40,7 +43,10 @@ export function Sidebar({ className }: { className?: string }) {
       )}
     >
       <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-        <div className="flex size-7 items-center justify-center rounded bg-foreground text-background">
+        <div
+          className="flex size-7 items-center justify-center rounded text-white"
+          style={{ backgroundColor: colors.primary }}
+        >
           <Sparkles className="size-4" />
         </div>
         <h1 className="text-lg font-bold leading-none text-foreground">{brand.name}</h1>
@@ -61,7 +67,7 @@ export function Sidebar({ className }: { className?: string }) {
               EP
             </span>
             <span className="min-w-0 flex-1 truncate text-left">
-              {currentEvent?.name || brand.tagline}
+              {currentEvent?.name || "Select event"}
             </span>
             <ChevronDown className="size-4 text-muted-foreground" />
           </DropdownMenuTrigger>
@@ -92,22 +98,24 @@ export function Sidebar({ className }: { className?: string }) {
         {eventViewItems.map((item) => (
           <SidebarLink
             key={item.href}
-            item={{ ...item, icon: Sparkles }}
+            item={item}
             pathname={pathname}
             currentEventId={currentEventId}
           />
         ))}
       </nav>
-      <div className="border-t border-border p-3">
-        <CreateEventSheet
-          trigger={
-            <Button variant="outline" className="w-full justify-start gap-2 bg-card" type="button">
-              <CalendarPlus className="size-4" />
-              Create Event
-            </Button>
-          }
-        />
-      </div>
+      {isOwner ? (
+        <div className="border-t border-border p-3">
+          <CreateEventSheet
+            trigger={
+              <Button variant="outline" className="w-full justify-start gap-2 bg-card" type="button">
+                <CalendarPlus className="size-4" />
+                Create Event
+              </Button>
+            }
+          />
+        </div>
+      ) : null}
     </aside>
   );
 }
@@ -116,10 +124,10 @@ function getCurrentSection(pathname: string) {
   if (pathname === "/" || /^\/events\/[^/]+\/dashboard$/.test(pathname)) {
     return "/";
   }
-  if (/^\/events\/[^/]+\/(guests|operations|check-in|live|analytics|reports|call-logs)$/.test(pathname)) {
+  if (/^\/events\/[^/]+\/(guests|follow-up|operations|check-in|live|analytics|reports|call-logs|team|events)$/.test(pathname)) {
     return pathname.replace(/^\/events\/[^/]+/, "");
   }
-  if (/^\/(guests|operations|check-in|live|analytics|reports|call-logs)$/.test(pathname)) {
+  if (/^\/(guests|follow-up|operations|check-in|live|analytics|reports|call-logs|team|events)$/.test(pathname)) {
     return pathname;
   }
   return "/";

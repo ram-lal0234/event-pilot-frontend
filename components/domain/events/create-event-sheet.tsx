@@ -6,8 +6,10 @@ import { toast } from "sonner";
 import { useApp } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formLimits } from "@/lib/form-limits";
 import {
   Sheet,
+  SheetBody,
   SheetContent,
   SheetFooter,
   SheetHeader,
@@ -44,17 +46,23 @@ export function CreateEventSheet({ trigger }: { trigger: ReactElement }) {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger render={trigger} />
       <SheetContent className="sm:max-w-md">
-        <form className="flex h-full flex-col" onSubmit={submit}>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={submit}>
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <CalendarPlus className="size-5 text-primary" />
               Create Event
             </SheetTitle>
           </SheetHeader>
-          <div className="space-y-4 px-4">
+          <SheetBody className="space-y-4">
             <label className="block space-y-1 text-sm font-medium">
               <span>Name</span>
-              <Input value={name} onChange={(event) => setName(event.target.value)} required />
+              <Input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+                minLength={formLimits.eventName.minLength}
+                maxLength={formLimits.eventName.maxLength}
+              />
             </label>
             <label className="block space-y-1 text-sm font-medium">
               <span>Date</span>
@@ -62,9 +70,15 @@ export function CreateEventSheet({ trigger }: { trigger: ReactElement }) {
             </label>
             <label className="block space-y-1 text-sm font-medium">
               <span>Location</span>
-              <Input value={location} onChange={(event) => setLocation(event.target.value)} required />
+              <Input
+                value={location}
+                onChange={(event) => setLocation(event.target.value)}
+                required
+                minLength={formLimits.location.minLength}
+                maxLength={formLimits.location.maxLength}
+              />
             </label>
-          </div>
+          </SheetBody>
           <SheetFooter>
             <Button type="submit" loading={busy} loadingText="Creating event">Create Event</Button>
           </SheetFooter>

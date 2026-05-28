@@ -7,6 +7,9 @@ export type ApiEnvelope<T> = {
 };
 
 export type UserRole = "ADMIN" | "STAFF";
+export type AccountRole = "OWNER" | "ADMIN" | "STAFF";
+export type AccessLevel = "FULL" | "READ_ONLY";
+export type InviteStatus = "PENDING" | "ACCEPTED" | "REVOKED";
 export type GuestCategory = "VIP" | "FAMILY" | "GENERAL";
 export type RsvpStatus = "PENDING" | "CONFIRMED" | "DECLINED";
 export type CheckinMethod = "QR" | "MANUAL";
@@ -15,7 +18,45 @@ export type CheckinLocationType = "EVENT_GATE" | "HOTEL";
 export type AuthUser = {
   id: string;
   email: string;
-  role: UserRole;
+  role?: UserRole;
+  accountId?: string;
+  memberId?: string;
+  accountRole?: AccountRole;
+  accountName?: string;
+};
+
+export type AccountInfo = {
+  id: string;
+  name: string;
+  ownerId: string;
+};
+
+export type AccountMembership = {
+  id: string;
+  role: AccountRole;
+  email: string;
+  name: string | null;
+  phone?: string | null;
+  status: InviteStatus;
+  onboardingCompletedAt?: string | null;
+};
+
+export type TeamMemberRecord = {
+  id: string;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  role: AccountRole;
+  status: InviteStatus;
+  inviteCode?: string;
+  inviteUrl?: string;
+  acceptedAt?: string | null;
+  revokedAt?: string | null;
+  eventAccess: Array<{
+    eventId: string;
+    eventName?: string;
+    accessLevel: AccessLevel;
+  }>;
 };
 
 export type EventRecord = {
@@ -25,6 +66,9 @@ export type EventRecord = {
   location: string;
   createdBy: string;
   createdAt: string;
+  accessLevel?: AccessLevel;
+  guestCount?: number;
+  rsvpConfirmedCount?: number;
 };
 
 export type GuestRecord = {
@@ -46,8 +90,14 @@ export type GuestRecord = {
   callbackAt?: string | null;
   lastContactedAt?: string | null;
   assignedTo?: string | null;
+  needsCab?: boolean | null;
+  needsHotel?: boolean | null;
+  guestNotes?: string | null;
+  language?: string | null;
+  inviteCode?: string | null;
+  publicRsvpUrl?: string | null;
   createdAt: string;
-  checkins?: { id: string; method: CheckinMethod; locationType: string }[];
+  checkins?: { id: string; method: CheckinMethod; locationType: string; checkinTime?: string }[];
   cabAssignments?: { id: string; cabId: string }[];
   roomAssignments?: { id: string; roomId: string; assignedMembers: number }[];
 };
@@ -265,6 +315,105 @@ export const api = {
       },
     );
   },
+  getAccountMe(token: string) {
+    return request<{
+      account: AccountInfo;
+      membership: AccountMembership;
+      needsOnboarding: boolean;
+    }>("/account/me", { token });
+  },
+  completeOnboarding(
+    token: string,
+    payload: { name: string; phone: string; workspaceName?: string },
+  ) {
+    return request<{
+      account: AccountInfo;
+      membership: AccountMembership;
+      needsOnboarding: boolean;
+    }>("/account/onboarding", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  updateAccountName(token: string, name: string) {
+    return request<AccountInfo>("/account/me", {
+      method: "PATCH",
+      token,
+      body: JSON.stringify({ name }),
+    });
+  },
+  updateMyProfile(token: string, payload: { name?: string; phone?: string }) {
+    return request<AccountMembership>("/account/me/profile", {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  listTeamMembers(token: string) {
+    return request<TeamMemberRecord[]>("/account/members", { token });
+  },
+  inviteTeamMember(
+    token: string,
+    payload: {
+      email: string;
+      role: "ADMIN" | "STAFF";
+      name?: string;
+      phone?: string;
+      eventAssignments?: Array<{ eventId: string; accessLevel?: AccessLevel }>;
+    },
+  ) {
+    return request<TeamMemberRecord & { inviteUrl?: string }>("/account/members/invite", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  revokeTeamMember(token: string, memberId: string) {
+    return request<{ id: string }>(`/account/members/${memberId}/revoke`, {
+      method: "POST",
+      token,
+    });
+  },
+  updateTeamMemberRole(token: string, memberId: string, role: "ADMIN" | "STAFF") {
+    return request<TeamMemberRecord>(`/account/members/${memberId}`, {
+      method: "PATCH",
+      token,
+      body: JSON.stringify({ role }),
+    });
+  },
+  updateTeamMemberEvents(
+    token: string,
+    memberId: string,
+    eventAssignments: Array<{ eventId: string; accessLevel: AccessLevel }>,
+  ) {
+    return request<TeamMemberRecord>(`/account/members/${memberId}/events`, {
+      method: "PUT",
+      token,
+      body: JSON.stringify({ eventAssignments }),
+    });
+  },
+  getJoinPreview(code: string) {
+    return request<{
+      code: string;
+      accountName: string;
+      email: string;
+      role: AccountRole;
+      status: InviteStatus;
+    }>(`/join/${code}`);
+  },
+  acceptJoin(token: string, code: string) {
+    return request<{ user: AuthUser; accessToken: string }>(`/join/${code}/accept`, {
+      method: "POST",
+      token,
+    });
+  },
+  verifyJoinOtp(code: string, email: string, otp: string) {
+    return request<{ user: AuthUser; accessToken: string }>(`/join/${code}/verify-otp`, {
+      method: "POST",
+      body: JSON.stringify({ email, otp }),
+    });
+  },
   listEvents(token: string) {
     return request<EventRecord[]>("/events", { token });
   },
@@ -301,6 +450,10 @@ export const api = {
       q?: string;
       rsvpStatus?: string;
       category?: string;
+      followUpStatus?: string;
+      needsCab?: string;
+      needsHotel?: string;
+      assignedTo?: string;
     },
   ) {
     return request<PaginatedGuests>(
@@ -311,6 +464,10 @@ export const api = {
         q: params.q,
         rsvpStatus: params.rsvpStatus,
         category: params.category,
+        followUpStatus: params.followUpStatus,
+        needsCab: params.needsCab,
+        needsHotel: params.needsHotel,
+        assignedTo: params.assignedTo,
       })}`,
       { token },
     );
@@ -359,12 +516,25 @@ export const api = {
       pickupLat?: number;
       pickupLng?: number;
       rsvpStatus?: RsvpStatus;
+      followUpStatus?: GuestRecord["followUpStatus"];
+      callbackAt?: string | null;
+      lastContactedAt?: string | null;
+      assignedTo?: string | null;
+      needsCab?: boolean | null;
+      needsHotel?: boolean | null;
+      guestNotes?: string | null;
+      language?: string | null;
     },
   ) {
     return request<GuestRecord>(`/guests/${guestId}`, {
       method: "PATCH",
       token,
       body: JSON.stringify(payload),
+    });
+  },
+  getGuestRsvpLink(token: string, guestId: string) {
+    return request<{ inviteCode: string; publicRsvpUrl: string }>(`/guests/${guestId}/rsvp-link`, {
+      token,
     });
   },
   updateGuestRsvp(
@@ -405,7 +575,7 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
-  undoCheckin(token: string, payload: { qrCode: string }) {
+  undoCheckin(token: string, payload: { qrCode: string; locationType?: CheckinLocationType }) {
     return request<{ guestId: string }>("/checkin/undo", {
       method: "POST",
       token,
@@ -503,7 +673,18 @@ export const api = {
     return request<{
       code: string;
       expiresAt: string | null;
-      guest: { id: string; name: string; phone: string; email: string | null; rsvpStatus: RsvpStatus; groupSize: number; pickupLocation: string | null };
+      guest: {
+        id: string;
+        name: string;
+        phone: string;
+        email: string | null;
+        rsvpStatus: RsvpStatus;
+        groupSize: number;
+        pickupLocation: string | null;
+        needsCab?: boolean | null;
+        needsHotel?: boolean | null;
+        guestNotes?: string | null;
+      };
       event: EventRecord;
     }>(`/public-rsvp/${code}`);
   },
@@ -513,6 +694,9 @@ export const api = {
       rsvpStatus: RsvpStatus;
       groupSize: number;
       pickupLocation?: string | null;
+      needsCab?: boolean | null;
+      needsHotel?: boolean | null;
+      guestNotes?: string | null;
       callbackAt?: string | null;
       followUpStatus?: "NONE" | "NEEDS_FOLLOW_UP" | "CALLBACK_LATER" | "NO_ANSWER" | "VOICEMAIL" | "COMPLETED";
     },

@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Bot, ChevronRight, Download, MapPin, Phone, QrCode, Radio } from "lucide-react";
+import { Bot, ChevronRight, Copy, Download, MapPin, Phone, QrCode, Radio } from "lucide-react";
 import { GuestEditSheet } from "@/components/domain/guests/guest-edit-sheet";
 import type { GuestFormState } from "@/lib/guest-form";
+import type { GuestOpsFormState } from "@/components/domain/guests/guest-ops-fields";
 import { toast } from "sonner";
 import { QRCodeCanvas } from "qrcode.react";
-import type { GuestRecord, RsvpStatus } from "@/lib/api";
+import { api, type GuestRecord, RsvpStatus } from "@/lib/api";
+import { useApp } from "@/components/providers/app-provider";
+import { useEventAccess } from "@/hooks/use-event-access";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,9 +23,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { OptionDropdown } from "@/components/ui/option-dropdown";
 import {
   Sheet,
+  SheetBody,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -162,9 +166,10 @@ function GuestVoiceActionButtons({
   onTriggerVoiceCall: (guestId: string, callMode: VoiceCallMode) => Promise<string | null>;
   compact?: boolean;
 }) {
+  const { canTriggerVoice } = useEventAccess();
   const [confirmMode, setConfirmMode] = useState<VoiceCallMode | null>(null);
   const [voiceBusy, setVoiceBusy] = useState<VoiceCallMode | null>(null);
-  const voiceDisabled = rsvpStatus !== "PENDING";
+  const voiceDisabled = rsvpStatus !== "PENDING" || !canTriggerVoice;
 
   const triggerCall = async (mode: VoiceCallMode) => {
     if (voiceDisabled || voiceBusy) return;
@@ -298,6 +303,54 @@ function GuestVoiceActionButtons({
   );
 }
 
+function GuestRsvpLinkButton({ guest, compact = false }: { guest: GuestRecord; compact?: boolean }) {
+  const { token } = useApp();
+  const [busy, setBusy] = useState(false);
+
+  const copyLink = async () => {
+    setBusy(true);
+    try {
+      let url = guest.publicRsvpUrl;
+      if (!url) {
+        const link = await api.getGuestRsvpLink(token, guest.id);
+        url = link.publicRsvpUrl;
+      }
+      await navigator.clipboard.writeText(url);
+      toast.success("RSVP link copied");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not get RSVP link");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const trigger = (
+    <Button
+      variant="ghost"
+      size={compact ? "icon-sm" : "sm"}
+      type="button"
+      className={compact ? undefined : "gap-2"}
+      onClick={() => void copyLink()}
+      disabled={busy}
+      loading={busy}
+    >
+      <Copy className="size-4" />
+      {!compact ? "Copy RSVP link" : null}
+    </Button>
+  );
+
+  if (compact) {
+    return (
+      <Tooltip>
+        <TooltipTrigger render={trigger} />
+        <TooltipContent>Copy public RSVP link</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return trigger;
+}
+
 function GuestTableQuickActions({
   guest,
   onTriggerVoiceCall,
@@ -305,11 +358,14 @@ function GuestTableQuickActions({
 }: {
   guest: GuestRecord;
   onTriggerVoiceCall: (guestId: string, callMode: VoiceCallMode) => Promise<string | null>;
-  onUpdateGuest: (guestId: string, form: GuestFormState) => Promise<string | null>;
+  onUpdateGuest: (guestId: string, form: GuestFormState, ops: GuestOpsFormState) => Promise<string | null>;
 }) {
+  const { canWrite } = useEventAccess();
+
   return (
     <div className="flex items-center justify-end gap-0.5">
-      <GuestEditSheet guest={guest} onSave={onUpdateGuest} compact />
+      <GuestRsvpLinkButton guest={guest} compact />
+      {canWrite ? <GuestEditSheet guest={guest} onSave={onUpdateGuest} compact /> : null}
       <GuestVoiceActionButtons
         guestId={guest.id}
         guestName={guest.name}
@@ -331,7 +387,7 @@ function GuestDetailsSheet({
   guest: GuestRecord;
   onTriggerVoiceCall: (guestId: string, callMode: VoiceCallMode) => Promise<string | null>;
   onUpdateRsvp: (guestId: string, payload: { rsvpStatus: RsvpStatus; groupSize: number }) => Promise<string | null>;
-  onUpdateGuest: (guestId: string, form: GuestFormState) => Promise<string | null>;
+  onUpdateGuest: (guestId: string, form: GuestFormState, ops: GuestOpsFormState) => Promise<string | null>;
 }) {
   const [open, setOpen] = useState(false);
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus>(guest.rsvpStatus);
@@ -339,7 +395,8 @@ function GuestDetailsSheet({
   const [savedRsvpStatus, setSavedRsvpStatus] = useState<RsvpStatus>(guest.rsvpStatus);
   const [savedGroupSize, setSavedGroupSize] = useState(guest.groupSize);
   const [busy, setBusy] = useState(false);
-  const voiceDisabled = savedRsvpStatus !== "PENDING";
+  const { canWrite, canTriggerVoice } = useEventAccess();
+  const voiceDisabled = savedRsvpStatus !== "PENDING" || !canTriggerVoice;
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -369,22 +426,28 @@ function GuestDetailsSheet({
       >
         <ChevronRight className="size-4 text-muted-foreground" />
       </SheetTrigger>
-      <SheetContent className="min-h-0 overflow-hidden sm:max-w-2xl">
-        <SheetHeader className="shrink-0">
+      <SheetContent className="sm:max-w-2xl">
+        <SheetHeader>
           <SheetTitle>{guest.name}</SheetTitle>
           <SheetDescription>
             Guest profile, pickup details, voice call status, and check-in context.
           </SheetDescription>
         </SheetHeader>
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-6">
+        <SheetBody className="space-y-5">
           <section className="rounded-lg border border-border p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
               <p className="text-[11px] font-semibold uppercase text-muted-foreground">
                 Contact Info
               </p>
-              <GuestEditSheet guest={guest} onSave={onUpdateGuest} />
+              <div className="flex gap-2">
+                <GuestRsvpLinkButton guest={guest} />
+                {canWrite ? <GuestEditSheet guest={guest} onSave={onUpdateGuest} /> : null}
+              </div>
             </div>
+            {guest.publicRsvpUrl ? (
+              <p className="mb-2 break-all text-xs text-muted-foreground">{guest.publicRsvpUrl}</p>
+            ) : null}
             {guest.phone && (
               <p className="flex items-center gap-2 text-sm">
                 <Phone className="size-4" />
@@ -402,30 +465,35 @@ function GuestDetailsSheet({
             <p className="mb-3 text-[11px] font-semibold uppercase text-muted-foreground">
               Manual RSVP
             </p>
-            <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_auto]" onSubmit={submitRsvp}>
-              <Select
+            <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_auto]" onSubmit={canWrite ? submitRsvp : (e) => e.preventDefault()}>
+              <OptionDropdown
                 value={rsvpStatus}
-                onChange={(event) => setRsvpStatus(event.target.value as RsvpStatus)}
-                aria-label="RSVP status"
-              >
-                <option value="PENDING">Pending</option>
-                <option value="CONFIRMED">Confirmed</option>
-                <option value="DECLINED">Declined</option>
-              </Select>
+                disabled={!canWrite}
+                onValueChange={(status) => setRsvpStatus(status as RsvpStatus)}
+                options={[
+                  { value: "PENDING", label: "Pending" },
+                  { value: "CONFIRMED", label: "Confirmed" },
+                  { value: "DECLINED", label: "Declined" },
+                ]}
+                placeholder="RSVP status"
+              />
               <Input
                 type="number"
                 min={1}
-                max={100}
+                max={20}
                 value={groupSize}
+                disabled={!canWrite}
                 onChange={(event) => setGroupSize(Number(event.target.value))}
                 aria-label="Group size"
               />
-              <Button type="submit" loading={busy} loadingText="Saving RSVP">
+              <Button type="submit" loading={busy} loadingText="Saving RSVP" disabled={!canWrite}>
                 Save
               </Button>
             </form>
             <p className="mt-2 text-xs text-muted-foreground">
-              Use this when the guest confirms directly with staff.
+              {canWrite
+                ? "Use this when the guest confirms directly with staff."
+                : "Read-only access — you cannot edit RSVP here."}
             </p>
           </section>
 
@@ -481,14 +549,25 @@ function GuestDetailsSheet({
               <p className="text-[11px] font-semibold uppercase text-muted-foreground">RSVP</p>
               <p className="mt-1 font-semibold">{savedRsvpStatus}</p>
             </div>
-            <div className="rounded-lg bg-surface-container-low p-3">
+            <div className="col-span-2 rounded-lg bg-surface-container-low p-3">
               <p className="text-[11px] font-semibold uppercase text-muted-foreground">Check-In</p>
-              <p className="mt-1 font-semibold">
-                {guest.checkins?.length ? "Checked-in" : "Pending"}
-              </p>
+              {guest.checkins?.length ? (
+                <ul className="mt-1 space-y-1 text-sm font-semibold">
+                  {guest.checkins.map((checkin) => (
+                    <li key={checkin.id}>
+                      {checkin.locationType === "HOTEL" ? "Hotel" : "Event gate"}
+                      {checkin.checkinTime
+                        ? ` · ${new Date(checkin.checkinTime).toLocaleString()}`
+                        : ""}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 font-semibold">Pending</p>
+              )}
             </div>
           </section>
-        </div>
+        </SheetBody>
       </SheetContent>
     </Sheet>
   );
@@ -503,7 +582,7 @@ export function GuestTable({
   guests: GuestRecord[];
   onTriggerVoiceCall: (guestId: string, callMode: VoiceCallMode) => Promise<string | null>;
   onUpdateRsvp: (guestId: string, payload: { rsvpStatus: RsvpStatus; groupSize: number }) => Promise<string | null>;
-  onUpdateGuest: (guestId: string, form: GuestFormState) => Promise<string | null>;
+  onUpdateGuest: (guestId: string, form: GuestFormState, ops: GuestOpsFormState) => Promise<string | null>;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -559,8 +638,15 @@ export function GuestTable({
                   {guest.rsvpStatus}
                 </span>
               </TableCell>
-              <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
-                Group {guest.groupSize} · {guest.pickupLocation || "No pickup"}
+              <TableCell className="max-w-[220px] text-sm text-muted-foreground">
+                <p className="truncate">Group {guest.groupSize} · {guest.pickupLocation || "No pickup"}</p>
+                <p className="mt-1 truncate text-xs">
+                  {guest.needsCab === true ? "Cab " : ""}
+                  {guest.needsHotel === true ? "Hotel " : ""}
+                  {guest.followUpStatus && guest.followUpStatus !== "NONE"
+                    ? guest.followUpStatus.replaceAll("_", " ").toLowerCase()
+                    : ""}
+                </p>
               </TableCell>
               <TableCell>
                 <StatusBadge
@@ -568,8 +654,17 @@ export function GuestTable({
                     guest.checkins?.length ? "success" : "neutral"
                   }
                 >
-                  {guest.checkins?.length ? "CHECKED-IN" : "PENDING"}
+                  {guest.checkins?.length
+                    ? `${guest.checkins.length} check-in${guest.checkins.length > 1 ? "s" : ""}`
+                    : "PENDING"}
                 </StatusBadge>
+                {guest.checkins?.length ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {guest.checkins
+                      .map((c) => (c.locationType === "HOTEL" ? "Hotel" : "Gate"))
+                      .join(", ")}
+                  </p>
+                ) : null}
               </TableCell>
               <TableCell className="text-right">
                 <GuestTableQuickActions

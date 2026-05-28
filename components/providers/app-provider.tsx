@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -8,34 +8,44 @@ import {
   useEffect,
   useMemo,
   useState,
-  type FormEvent,
   type ReactNode,
 } from "react";
-import { CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
-import { api, ApiError, type AuthUser, type EventRecord } from "@/lib/api";
-import { LoginScreen } from "@/components/auth/login-screen";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  api,
+  ApiError,
+  type AccountInfo,
+  type AccountMembership,
+  type AuthUser,
+  type EventRecord,
+} from "@/lib/api";
+import { AUTH_EVENT_KEY, clearAuthSession, readAuthSession } from "@/lib/auth-session";
 
 type AppContextValue = {
   token: string;
   user: AuthUser;
+  account: AccountInfo | null;
+  membership: AccountMembership | null;
+  needsOnboarding: boolean;
   events: EventRecord[];
   currentEvent: EventRecord | null;
   currentEventId: string;
   eventsLoading: boolean;
   eventsLoaded: boolean;
+  accountLoading: boolean;
   setCurrentEventId: (id: string) => void;
   refreshEvents: () => Promise<void>;
+  refreshAccount: () => Promise<void>;
+  completeOnboarding: (payload: {
+    name: string;
+    phone: string;
+    workspaceName?: string;
+  }) => Promise<void>;
   createEvent: (payload: { name: string; date: string; location: string }) => Promise<EventRecord>;
   logout: () => void;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
-const TOKEN_KEY = "eventpilot.token";
-const USER_KEY = "eventpilot.user";
-const EVENT_KEY = "eventpilot.currentEventId";
 
 export function useApp() {
   const value = useContext(AppContext);
@@ -47,12 +57,17 @@ export function useApp() {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [authReady, setAuthReady] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [account, setAccount] = useState<AccountInfo | null>(null);
+  const [membership, setMembership] = useState<AccountMembership | null>(null);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsLoaded, setEventsLoaded] = useState(false);
+  const [accountLoading, setAccountLoading] = useState(false);
   const [currentEventId, setCurrentEventIdState] = useState("");
 
   useEffect(() => {
@@ -61,17 +76,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     void Promise.resolve().then(() => {
       if (!active) return;
 
-      const storedToken = window.localStorage.getItem(TOKEN_KEY);
-      const storedUser = window.localStorage.getItem(USER_KEY);
-      const storedEventId = window.localStorage.getItem(EVENT_KEY) || "";
+      const { token: storedToken, user: storedUser } = readAuthSession();
+      const storedEventId = window.localStorage.getItem(AUTH_EVENT_KEY) || "";
 
       setToken(storedToken);
-      try {
-        setUser(storedUser ? (JSON.parse(storedUser) as AuthUser) : null);
-      } catch {
-        window.localStorage.removeItem(USER_KEY);
-        setUser(null);
-      }
+      setUser(storedUser);
       setCurrentEventIdState(storedEventId);
       setAuthReady(true);
     });
@@ -82,16 +91,60 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    window.localStorage.removeItem(TOKEN_KEY);
-    window.localStorage.removeItem(USER_KEY);
-    window.localStorage.removeItem(EVENT_KEY);
+    clearAuthSession();
     setToken(null);
     setUser(null);
+    setAccount(null);
+    setMembership(null);
+    setNeedsOnboarding(false);
     setEvents([]);
     setEventsLoading(false);
     setEventsLoaded(false);
+    setAccountLoading(false);
     setCurrentEventIdState("");
-  }, []);
+    router.replace("/login");
+  }, [router]);
+
+  const applyAccountResult = useCallback(
+    (result: {
+      account: AccountInfo;
+      membership: AccountMembership;
+      needsOnboarding: boolean;
+    }) => {
+      setAccount(result.account);
+      setMembership(result.membership);
+      setNeedsOnboarding(result.needsOnboarding);
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              accountId: result.account.id,
+              memberId: result.membership.id,
+              accountRole: result.membership.role,
+              accountName: result.account.name,
+            }
+          : prev,
+      );
+    },
+    [],
+  );
+
+  const refreshAccount = useCallback(async () => {
+    if (!token) {
+      setAccount(null);
+      setMembership(null);
+      setNeedsOnboarding(false);
+      return;
+    }
+
+    setAccountLoading(true);
+    try {
+      const result = await api.getAccountMe(token);
+      applyAccountResult(result);
+    } finally {
+      setAccountLoading(false);
+    }
+  }, [applyAccountResult, token]);
 
   const refreshEvents = useCallback(async () => {
     if (!token) {
@@ -105,15 +158,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const nextEvents = await api.listEvents(token);
       setEvents(nextEvents);
       setCurrentEventIdState((existing) => {
-        const stored = window.localStorage.getItem(EVENT_KEY);
+        const stored = window.localStorage.getItem(AUTH_EVENT_KEY);
         const preferred = existing || stored || nextEvents[0]?.id || "";
         const next = nextEvents.some((event) => event.id === preferred)
           ? preferred
           : nextEvents[0]?.id || "";
         if (next) {
-          window.localStorage.setItem(EVENT_KEY, next);
+          window.localStorage.setItem(AUTH_EVENT_KEY, next);
         } else {
-          window.localStorage.removeItem(EVENT_KEY);
+          window.localStorage.removeItem(AUTH_EVENT_KEY);
         }
         return next;
       });
@@ -126,18 +179,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!token) return;
     void Promise.resolve().then(() =>
-      refreshEvents().catch((error) => {
+      Promise.all([refreshAccount(), refreshEvents()]).catch((error) => {
         if (error instanceof ApiError && error.code === "UNAUTHENTICATED") {
           logout();
         }
-      })
+      }),
     );
-  }, [logout, refreshEvents, token]);
+  }, [logout, refreshAccount, refreshEvents, token]);
+
+  useEffect(() => {
+    if (!authReady || token) return;
+    const next = pathname && pathname !== "/login" ? pathname : "/";
+    const params = new URLSearchParams({ next });
+    router.replace(`/login?${params.toString()}`);
+  }, [authReady, pathname, router, token]);
 
   const setCurrentEventId = useCallback((id: string) => {
     setCurrentEventIdState(id);
-    window.localStorage.setItem(EVENT_KEY, id);
+    window.localStorage.setItem(AUTH_EVENT_KEY, id);
   }, []);
+
+  const completeOnboarding = useCallback(
+    async (payload: { name: string; phone: string; workspaceName?: string }) => {
+      if (!token) throw new Error("Missing token");
+      const result = await api.completeOnboarding(token, payload);
+      applyAccountResult(result);
+    },
+    [applyAccountResult, token],
+  );
 
   const createEvent = useCallback(
     async (payload: { name: string; date: string; location: string }) => {
@@ -147,13 +216,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCurrentEventId(event.id);
       return event;
     },
-    [refreshEvents, setCurrentEventId, token]
+    [refreshEvents, setCurrentEventId, token],
   );
 
   const currentEvent = useMemo(
     () => events.find((event) => event.id === currentEventId) || events[0] || null,
-    [currentEventId, events]
+    [currentEventId, events],
   );
+
+  const bootstrapping = Boolean(token && (!eventsLoaded || accountLoading));
 
   if (!authReady) {
     return null;
@@ -161,81 +232,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   if (!token || !user) {
     return (
-      <LoginScreen
-        onAuthenticated={({ accessToken, user: authedUser }) => {
-          window.localStorage.setItem(TOKEN_KEY, accessToken);
-          window.localStorage.setItem(USER_KEY, JSON.stringify(authedUser));
-          setEvents([]);
-          setEventsLoaded(false);
-          setToken(accessToken);
-          setUser(authedUser);
-          router.replace("/");
-        }}
-      />
+      <main className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+        Redirecting to sign in…
+      </main>
+    );
+  }
+
+  if (bootstrapping) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+        Loading workspace…
+      </main>
     );
   }
 
   const value: AppContextValue = {
     token,
     user,
+    account,
+    membership,
+    needsOnboarding,
     events,
     currentEvent,
     currentEventId: currentEvent?.id || currentEventId,
     eventsLoading,
     eventsLoaded,
+    accountLoading,
     setCurrentEventId,
     refreshEvents,
+    refreshAccount,
+    completeOnboarding,
     createEvent,
     logout,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
-}
-
-export function EmptyEventState() {
-  const { createEvent, logout } = useApp();
-  const [name, setName] = useState("");
-  const [date, setDate] = useState("");
-  const [location, setLocation] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    setBusy(true);
-    try {
-      await createEvent({ name, date, location });
-      toast.success("Event created");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not create event");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4">
-      <form className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-sm" onSubmit={submit}>
-        <div className="mb-5 flex items-center gap-3">
-          <CalendarPlus className="size-6 text-primary" />
-          <div>
-            <h1 className="text-lg font-bold">Create your first event</h1>
-            <p className="text-sm text-muted-foreground">This becomes the active workspace.</p>
-          </div>
-        </div>
-        <div className="space-y-3">
-          <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Event name" required />
-          <Input type="datetime-local" value={date} onChange={(event) => setDate(event.target.value)} required />
-          <Input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Location" required />
-        </div>
-        <div className="mt-5 flex gap-2">
-          <Button className="flex-1" type="submit" loading={busy} loadingText="Creating event">
-            Create Event
-          </Button>
-          <Button variant="outline" type="button" onClick={logout}>
-            Logout
-          </Button>
-        </div>
-      </form>
-    </main>
-  );
 }

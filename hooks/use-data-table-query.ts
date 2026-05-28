@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 function splitParam(value: string | null) {
@@ -48,6 +48,49 @@ export function useDataTableQuery(fields: DataTableQueryField[]) {
         searchParams.get(pageSizeKey) || pageSizeField?.defaultValue || 10
       )
   )
+
+  useEffect(() => {
+    const nextSearch = searchParams.get(searchKey) || searchField?.defaultValue || ""
+    if (nextSearch !== search) {
+      setSearchState(nextSearch)
+    }
+
+    const nextFilters = Object.fromEntries(
+      filterFields.map((field) => [field.id, splitParam(searchParams.get(field.key))])
+    )
+    const filtersChanged = filterFields.some(
+      (field) =>
+        (filters[field.id] || []).join(",") !== (nextFilters[field.id] || []).join(",")
+    )
+    if (filtersChanged) {
+      setFiltersState(nextFilters)
+    }
+
+    const nextPage = Number(searchParams.get(pageKey) || pageField?.defaultValue || 1)
+    if (nextPage !== page) {
+      setPageState(nextPage)
+    }
+
+    const nextPageSize = Number(
+      searchParams.get(pageSizeKey) || pageSizeField?.defaultValue || 10
+    )
+    if (nextPageSize !== pageSize) {
+      setPageSizeState(nextPageSize)
+    }
+  }, [
+    filterFields,
+    filters,
+    page,
+    pageField?.defaultValue,
+    pageKey,
+    pageSize,
+    pageSizeField?.defaultValue,
+    pageSizeKey,
+    search,
+    searchField?.defaultValue,
+    searchKey,
+    searchParams,
+  ])
 
   const updateQueryParams = useCallback(
     (
