@@ -102,14 +102,24 @@ export function TopBar({ mobileMenu }: TopBarProps) {
                   <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
                 </span>
               </DropdownMenuItem>
-              <DropdownMenuItem className="gap-3 px-4 py-2.5">
+              <DropdownMenuItem
+                className="gap-3 px-4 py-2.5"
+                render={<Link href="/profile" />}
+                nativeButton={false}
+              >
                 <Building2 className="size-4" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem className="gap-3 px-4 py-2.5">
-                <Users className="size-4" />
-                Team Setup
-              </DropdownMenuItem>
+              {isOwner ? (
+                <DropdownMenuItem
+                  className="gap-3 px-4 py-2.5"
+                  render={<Link href="/team" />}
+                  nativeButton={false}
+                >
+                  <Users className="size-4" />
+                  Team
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem className="gap-3 px-4 py-2.5">
                 <Shield className="size-4" />
                 Account Limits

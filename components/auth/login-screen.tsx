@@ -53,9 +53,17 @@ function userFacingAuthMessage(error: unknown): string {
 type LoginScreenProps = {
   onAuthenticated: (result: { accessToken: string; user: AuthUser }) => void;
   initialEmail?: string;
+  /** When set, OTP verify accepts the team invite in one step (join flow). */
+  joinInviteCode?: string;
+  lockEmail?: boolean;
 };
 
-export function LoginScreen({ onAuthenticated, initialEmail = "" }: LoginScreenProps) {
+export function LoginScreen({
+  onAuthenticated,
+  initialEmail = "",
+  joinInviteCode,
+  lockEmail = Boolean(joinInviteCode),
+}: LoginScreenProps) {
   const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"email" | "otp">("email");
@@ -64,6 +72,10 @@ export function LoginScreen({ onAuthenticated, initialEmail = "" }: LoginScreenP
   const [emailFieldError, setEmailFieldError] = useState("");
   const [busy, setBusy] = useState(false);
   const [otpCountdownSec, setOtpCountdownSec] = useState(0);
+
+  useEffect(() => {
+    if (initialEmail) setEmail(initialEmail);
+  }, [initialEmail]);
 
   useEffect(() => {
     if (step !== "otp") return;
@@ -138,7 +150,10 @@ export function LoginScreen({ onAuthenticated, initialEmail = "" }: LoginScreenP
     setBusy(true);
     clearOtpAlerts();
     try {
-      const result = await api.verifyOtp(email.trim(), otpCode);
+      const trimmedEmail = email.trim();
+      const result = joinInviteCode
+        ? await api.verifyJoinOtp(joinInviteCode, trimmedEmail, otpCode)
+        : await api.verifyOtp(trimmedEmail, otpCode);
       onAuthenticated(result);
     } catch (err) {
       setError(userFacingAuthMessage(err));
@@ -249,6 +264,8 @@ export function LoginScreen({ onAuthenticated, initialEmail = "" }: LoginScreenP
                           }}
                           placeholder="you@company.com"
                           autoComplete="email"
+                          disabled={lockEmail || busy}
+                          readOnly={lockEmail}
                         />
                       </div>
                       {emailFieldError ? (

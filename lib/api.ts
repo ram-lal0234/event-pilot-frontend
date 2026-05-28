@@ -36,6 +36,7 @@ export type AccountMembership = {
   role: AccountRole;
   email: string;
   name: string | null;
+  phone?: string | null;
   status: InviteStatus;
 };
 
@@ -321,6 +322,13 @@ export const api = {
       body: JSON.stringify({ name }),
     });
   },
+  updateMyProfile(token: string, payload: { name?: string; phone?: string }) {
+    return request<AccountMembership>("/account/me/profile", {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
   listTeamMembers(token: string) {
     return request<TeamMemberRecord[]>("/account/members", { token });
   },
@@ -377,6 +385,12 @@ export const api = {
     return request<{ user: AuthUser; accessToken: string }>(`/join/${code}/accept`, {
       method: "POST",
       token,
+    });
+  },
+  verifyJoinOtp(code: string, email: string, otp: string) {
+    return request<{ user: AuthUser; accessToken: string }>(`/join/${code}/verify-otp`, {
+      method: "POST",
+      body: JSON.stringify({ email, otp }),
     });
   },
   listEvents(token: string) {

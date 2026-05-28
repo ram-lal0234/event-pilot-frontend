@@ -30,15 +30,19 @@ export default function JoinPage() {
     setToken(stored);
   }, []);
 
+  const finishJoin = (accessToken: string, user: { accountName?: string }) => {
+    window.localStorage.setItem("eventpilot.token", accessToken);
+    window.localStorage.setItem("eventpilot.user", JSON.stringify(user));
+    toast.success(`Welcome to ${preview?.accountName || "the team"}`);
+    router.replace("/");
+  };
+
   const accept = async (accessToken: string) => {
     if (!code) return;
     setAccepting(true);
     try {
       const result = await api.acceptJoin(accessToken, code);
-      window.localStorage.setItem("eventpilot.token", result.accessToken);
-      window.localStorage.setItem("eventpilot.user", JSON.stringify(result.user));
-      toast.success(`Welcome to ${preview?.accountName || "the team"}`);
-      router.replace("/");
+      finishJoin(result.accessToken, result.user);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not accept invite");
     } finally {
@@ -65,9 +69,10 @@ export default function JoinPage() {
         </main>
         <LoginScreen
           initialEmail={preview.email}
-          onAuthenticated={({ accessToken }) => {
-            setToken(accessToken);
-            void accept(accessToken);
+          joinInviteCode={code}
+          lockEmail
+          onAuthenticated={({ accessToken, user }) => {
+            finishJoin(accessToken, user);
           }}
         />
       </div>
