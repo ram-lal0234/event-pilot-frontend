@@ -6,5 +6,7 @@ export const metadata: Metadata = {
 };
 
 export default function LoginLayout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-dvh text-foreground">{children}</div>;
+  return (
+    <div className="h-dvh max-h-dvh overflow-hidden text-foreground overscroll-none">{children}</div>
+  );
 }

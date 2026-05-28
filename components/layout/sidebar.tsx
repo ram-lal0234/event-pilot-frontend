@@ -6,6 +6,7 @@ import { CalendarPlus, Check, ChevronDown, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   brand,
+  colors,
   eventViewItems,
   isEventHrefActive,
   navItems,
@@ -42,7 +43,10 @@ export function Sidebar({ className }: { className?: string }) {
       )}
     >
       <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-        <div className="flex size-7 items-center justify-center rounded bg-foreground text-background">
+        <div
+          className="flex size-7 items-center justify-center rounded text-white"
+          style={{ backgroundColor: colors.primary }}
+        >
           <Sparkles className="size-4" />
         </div>
         <h1 className="text-lg font-bold leading-none text-foreground">{brand.name}</h1>

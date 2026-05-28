@@ -17,7 +17,7 @@ import { LoginHeroMockup } from "@/components/auth/login-hero-mockup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api, ApiError, type AuthUser } from "@/lib/api";
-import { brand, colors } from "@/lib/design-tokens";
+import { brand, colors, loginTheme } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -72,6 +72,17 @@ export function LoginScreen({
   useEffect(() => {
     if (initialEmail) setEmail(initialEmail);
   }, [initialEmail]);
+
+  useEffect(() => {
+    const prevHtml = document.documentElement.style.overflow;
+    const prevBody = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = prevHtml;
+      document.body.style.overflow = prevBody;
+    };
+  }, []);
 
   useEffect(() => {
     if (step !== "otp") return;
@@ -168,14 +179,21 @@ export function LoginScreen({
   const emailHasIssue = Boolean(emailFieldError || error);
 
   return (
-    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[#e8ecf4] px-4 py-8">
+    <main className="relative flex h-full max-h-dvh items-center justify-center overflow-hidden p-3 sm:p-4">
       <LoginPageBackdrop />
 
-      <div className="relative z-10 flex w-full max-w-[980px] overflow-hidden rounded-[28px] bg-white shadow-[0_24px_80px_-24px_rgba(15,23,42,0.28)] md:min-h-[580px]">
+      <div
+        className="relative z-10 flex h-full max-h-full w-full max-w-[980px] flex-col rounded-[24px] p-px shadow-[0_28px_72px_-24px_rgba(179,89,0,0.28)]"
+        style={{ background: loginTheme.goldGradient }}
+      >
+        <div className="relative flex min-h-0 flex-1 overflow-hidden rounded-[23px] bg-white">
         <LoginBrandPanel step={step} />
 
-        <section className="flex w-full flex-col bg-white md:w-[52%] lg:w-1/2">
-          <header className="flex items-center justify-between px-6 pt-6 sm:px-10 sm:pt-8">
+        <section
+          className="flex min-h-0 w-full flex-col md:w-[52%] lg:w-1/2"
+          style={{ backgroundColor: colors.surface }}
+        >
+          <header className="flex shrink-0 items-center justify-between px-6 pt-4 sm:px-10 sm:pt-5">
             <Link href="/login" className="flex items-center gap-2.5">
               <div
                 className="grid size-9 place-items-center rounded-lg text-white shadow-sm"
@@ -193,17 +211,17 @@ export function LoginScreen({
             </Link>
           </header>
 
-          <div className="flex flex-1 flex-col justify-center px-6 py-8 sm:px-10 sm:py-10">
+          <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden px-6 py-3 sm:px-10 sm:py-4">
             {joinInviteCode ? (
-              <p className="mb-5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-center text-sm text-muted-foreground">
+              <p className="mb-3 shrink-0 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-center text-sm text-muted-foreground">
                 Team invitation — sign in with the invited email to continue.
               </p>
             ) : null}
 
             {step === "email" ? (
-              <form noValidate className="mx-auto w-full max-w-[360px] space-y-6" onSubmit={(e) => void requestOtp(e)}>
+              <form noValidate className="mx-auto w-full max-w-[360px] space-y-4" onSubmit={(e) => void requestOtp(e)}>
                 <div className="space-y-1">
-                  <h1 className="text-3xl font-bold tracking-tight text-foreground">Sign in</h1>
+                  <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Sign in</h1>
                   <p className="text-sm text-muted-foreground">
                     Use your work email. We&apos;ll send a one-time passcode — no password to remember.
                   </p>
@@ -224,9 +242,10 @@ export function LoginScreen({
                     readOnly={lockEmail}
                     aria-invalid={emailHasIssue}
                     className={cn(
-                      "h-12 rounded-xl border-border bg-[#fafbfc] text-base",
+                      "h-12 rounded-xl border-border text-base",
                       emailHasIssue && "border-destructive",
                     )}
+                    style={{ backgroundColor: colors.ivory }}
                     onChange={(e) => {
                       setEmail(e.target.value);
                       setEmailFieldError("");
@@ -248,9 +267,9 @@ export function LoginScreen({
                 <Button
                   type="submit"
                   disabled={busy}
-                  className="h-12 w-full gap-2 rounded-full text-base font-semibold text-white shadow-md"
+                  className="h-12 w-full gap-2 rounded-full border-0 text-base font-semibold text-[#2c2419] shadow-md"
                   style={{
-                    background: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.primaryContainer} 55%, #7c3aed 100%)`,
+                    background: loginTheme.goldGradient,
                   }}
                 >
                   {busy ? (
@@ -281,7 +300,7 @@ export function LoginScreen({
                 </Button>
               </form>
             ) : (
-              <form noValidate className="mx-auto w-full max-w-[360px] space-y-6" onSubmit={(e) => void verifyOtp(e)}>
+              <form noValidate className="mx-auto w-full max-w-[360px] space-y-4" onSubmit={(e) => void verifyOtp(e)}>
                 <div className="flex items-start gap-2">
                   <Button
                     type="button"
@@ -317,7 +336,8 @@ export function LoginScreen({
                       <Input
                         key={index}
                         id={`otp-${index}`}
-                        className="h-12 w-full max-w-[48px] rounded-xl border-border bg-[#fafbfc] p-0 text-center text-lg font-semibold"
+                        className="h-12 w-full max-w-[48px] rounded-xl border-border p-0 text-center text-lg font-semibold"
+                        style={{ backgroundColor: colors.ivory }}
                         maxLength={1}
                         inputMode="numeric"
                         autoComplete={index === 0 ? "one-time-code" : "off"}
@@ -368,9 +388,9 @@ export function LoginScreen({
                 <Button
                   type="submit"
                   disabled={busy || otpCode.length < 6}
-                  className="h-12 w-full gap-2 rounded-full text-base font-semibold text-white shadow-md"
+                  className="h-12 w-full gap-2 rounded-full border-0 text-base font-semibold text-[#2c2419] shadow-md"
                   style={{
-                    background: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.primaryContainer} 55%, #7c3aed 100%)`,
+                    background: loginTheme.goldGradient,
                   }}
                 >
                   {busy ? <Loader2 className="size-5 animate-spin" /> : null}
@@ -381,7 +401,7 @@ export function LoginScreen({
             )}
           </div>
 
-          <footer className="mt-auto flex flex-col gap-3 border-t border-border/80 px-6 py-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-10">
+          <footer className="mt-auto flex shrink-0 flex-col gap-2 border-t border-border/80 px-6 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-10">
             <span>© {new Date().getFullYear()} {brand.name}</span>
             <nav className="flex gap-4">
               <Link href="/privacy" className="hover:text-foreground">
@@ -393,6 +413,7 @@ export function LoginScreen({
             </nav>
           </footer>
         </section>
+        </div>
       </div>
     </main>
   );
@@ -401,15 +422,30 @@ export function LoginScreen({
 function LoginPageBackdrop() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,#dce4f5_0%,#e8ecf4_45%,#e2e8f0_100%)]" />
-      <div
-        className="absolute inset-0 opacity-40"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 1px 1px, rgb(148 163 184 / 0.4) 1px, transparent 0)",
-          backgroundSize: "28px 28px",
-        }}
-      />
+      <div className="absolute inset-0" style={{ background: loginTheme.pageGradient }} />
+      <div className="absolute inset-0" style={{ background: loginTheme.pageGlow }} />
+    </div>
+  );
+}
+
+function HeroRings() {
+  const sizes = [300, 236, 172, 108];
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute left-1/2 top-[34%] -translate-x-1/2 -translate-y-1/2"
+    >
+      {sizes.map((size) => (
+        <span
+          key={size}
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{
+            width: size,
+            height: size,
+            border: "1px solid rgba(243, 229, 171, 0.2)",
+          }}
+        />
+      ))}
     </div>
   );
 }
@@ -417,37 +453,55 @@ function LoginPageBackdrop() {
 function LoginBrandPanel({ step }: { step: "email" | "otp" }) {
   return (
     <aside
-      className="relative hidden flex-col justify-between overflow-hidden p-8 text-white md:flex md:w-[48%] lg:w-1/2 lg:p-10"
-      style={{
-        background: `linear-gradient(145deg, ${colors.primary} 0%, #4338ca 42%, #312e81 100%)`,
-      }}
+      className="relative hidden min-h-0 flex-col overflow-hidden rounded-l-[22px] text-white md:flex md:w-[48%] lg:w-1/2"
+      style={{ background: loginTheme.heroGradient }}
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl"
+        className="pointer-events-none absolute inset-0 opacity-45"
+        style={{ background: loginTheme.pageGlow }}
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-violet-400/20 blur-3xl"
+        className="pointer-events-none absolute -right-24 -top-20 h-64 w-64 rounded-full blur-3xl"
+        style={{ background: loginTheme.goldGradient, opacity: 0.2 }}
       />
+      <HeroRings />
 
-      <p className="relative z-10 max-w-xs text-sm leading-relaxed text-white/75">
-        Event operations made simple — guests, RSVP, transport, hotels, and check-in in one place.
-      </p>
-
-      <div className="relative z-10 flex flex-1 flex-col justify-center py-6">
-        <h2 className="max-w-sm text-3xl font-bold leading-tight tracking-tight lg:text-4xl">
-          {step === "email" ? "Manage your events" : "Almost there"}
-        </h2>
-        <p className="mt-3 max-w-sm text-sm text-white/70">
-          {step === "email"
-            ? "Plan weddings and corporate events with clarity from invite to last guest checkout."
-            : "Enter the code we emailed you to access your workspace."}
+      <div className="relative z-10 flex flex-col items-center px-8 pt-10 text-center lg:px-10 lg:pt-12">
+        <p className="max-w-[15rem] text-xs leading-relaxed text-white/70 lg:max-w-[18rem] lg:text-[13px]">
+          Event operations made simple — guests, RSVP, transport, and check-in in one place.
         </p>
-        <LoginHeroMockup />
+        <h2 className="mt-8 max-w-[12rem] text-[1.75rem] font-bold leading-[1.15] tracking-tight lg:mt-10 lg:max-w-sm lg:text-4xl">
+          <span
+            className="bg-clip-text text-transparent"
+            style={{
+              backgroundImage: "linear-gradient(180deg, #ffffff 0%, #f3e5ab 100%)",
+            }}
+          >
+          {step === "email" ? (
+            <>
+              Manage
+              <br />
+              your events
+            </>
+          ) : (
+            <>
+              Almost
+              <br />
+              there
+            </>
+          )}
+          </span>
+        </h2>
+        {step === "otp" ? (
+          <p className="mt-4 max-w-[14rem] text-xs text-white/65">
+            Enter the code we sent to your email.
+          </p>
+        ) : null}
       </div>
 
-      <p className="relative z-10 text-xs text-white/50">Trusted by professional event planners</p>
+      <LoginHeroMockup className="relative z-10" />
     </aside>
   );
 }

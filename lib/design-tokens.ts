@@ -28,20 +28,44 @@ export const pageLayout = {
   },
 } as const;
 
+/** Ivory & Saffron — warm ivory surfaces, saffron primary, forest/red status. */
 export const colors = {
-  primary: "#3525cd",
-  primaryContainer: "#4f46e5",
-  background: "#f8f9fa",
-  surface: "#ffffff",
-  borderSubtle: "#E5E7EB",
-  textMain: "#333333",
-  onSurfaceVariant: "#464555",
-  success: "#00CA72",
-  successBg: "#E6F9F1",
-  warning: "#F59E0B",
-  warningBg: "#FFFBEB",
-  error: "#EF4444",
-  errorBg: "#FEF2F2",
+  ivory: "#FCFBF7",
+  saffron: "#B35900",
+  saffronLight: "#D4781A",
+  saffronDark: "#8F4500",
+  saffronDeep: "#5C2D00",
+  forest: "#1B5E20",
+  alert: "#D32F2F",
+  primary: "#B35900",
+  primaryContainer: "#D4781A",
+  background: "#FCFBF7",
+  surface: "#FFFFFF",
+  borderSubtle: "#E8E2D6",
+  textMain: "#2C2419",
+  onSurfaceVariant: "#5C5348",
+  success: "#1B5E20",
+  successBg: "#E8F5E9",
+  warning: "#B35900",
+  warningBg: "#FFF4E6",
+  error: "#D32F2F",
+  errorBg: "#FFEBEE",
+} as const;
+
+/** Login-only gradients and hero preview surfaces. */
+export const loginTheme = {
+  pageGradient:
+    "linear-gradient(135deg, #3d2814 0%, #6b3f1a 28%, #b35900 55%, #d4781a 78%, #f5e6c8 100%)",
+  pageGlow:
+    "radial-gradient(ellipse 80% 60% at 20% 10%, rgba(243, 229, 171, 0.35) 0%, transparent 55%)",
+  heroGradient:
+    "linear-gradient(155deg, #2a1a0e 0%, #5c2d00 22%, #8f4500 48%, #b35900 72%, #d4781a 100%)",
+  /** Deep saffron anchor (login accents) */
+  heroSolid: "#5c2d00",
+  goldGradient: "linear-gradient(90deg, #d9a74a 0%, #f3e5ab 100%)",
+  previewCard: "#0f1117",
+  previewMuted: "#9ca3af",
+  previewLive: "#1b4332",
 } as const;
 
 export type NavItem = {

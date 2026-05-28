@@ -43,7 +43,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-dvh items-center justify-center text-sm text-muted-foreground">
+        <main className="flex h-dvh items-center justify-center overflow-hidden text-sm text-muted-foreground">
           Loading…
         </main>
       }
