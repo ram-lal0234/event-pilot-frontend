@@ -19,6 +19,7 @@ import {
   type AuthUser,
   type EventRecord,
 } from "@/lib/api";
+import { WorkspaceBootstrapScreen } from "@/components/layout/workspace-bootstrap-screen";
 import { AUTH_EVENT_KEY, clearAuthSession, readAuthSession } from "@/lib/auth-session";
 
 type AppContextValue = {
@@ -227,7 +228,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const bootstrapping = Boolean(token && (!eventsLoaded || accountLoading));
 
   if (!authReady) {
-    return null;
+    return <WorkspaceBootstrapScreen message="Preparing your workspace" />;
   }
 
   if (!token || !user) {
@@ -239,11 +240,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   if (bootstrapping) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-        Loading workspace…
-      </main>
-    );
+    return <WorkspaceBootstrapScreen />;
   }
 
   const value: AppContextValue = {

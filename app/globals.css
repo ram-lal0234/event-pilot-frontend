@@ -54,6 +54,8 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --animate-workspace-bootstrap-pulse: workspace-bootstrap-pulse 2s ease-in-out infinite;
+  --animate-workspace-bootstrap-bar: workspace-bootstrap-bar 1.35s ease-in-out infinite;
 }
 
 :root {
@@ -144,5 +146,33 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@keyframes workspace-bootstrap-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.92;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes workspace-bootstrap-bar {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(280%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-workspace-bootstrap-pulse,
+  .animate-workspace-bootstrap-bar {
+    animation: none !important;
   }
 }

@@ -10,8 +10,8 @@ import {
   Loader2,
   LogIn,
   Mail,
-  Sparkles,
 } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { GoogleIcon } from "@/components/icons/google-icon";
 import { LoginHeroMockup } from "@/components/auth/login-hero-mockup";
 import { Button } from "@/components/ui/button";
@@ -195,12 +195,7 @@ export function LoginScreen({
         >
           <header className="flex shrink-0 items-center justify-between px-6 pt-4 sm:px-10 sm:pt-5">
             <Link href="/login" className="flex items-center gap-2.5">
-              <div
-                className="grid size-9 place-items-center rounded-lg text-white shadow-sm"
-                style={{ backgroundColor: colors.primary }}
-              >
-                <Sparkles className="size-4" aria-hidden />
-              </div>
+              <BrandLogo priority imageClassName="size-9" />
               <span className="text-base font-bold tracking-tight text-foreground">{brand.name}</span>
             </Link>
             <Link
