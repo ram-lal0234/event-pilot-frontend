@@ -7,6 +7,7 @@ import {
   PhoneCall,
   PhoneForwarded,
   Radio,
+  MessageCircle,
   ScanLine,
   Truck,
   Users,
@@ -83,6 +84,7 @@ export type NavItem = {
 export const navItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Guests", href: "/guests", icon: Users },
+  { label: "WhatsApp (Beta)", href: "/whatsapp", icon: MessageCircle },
   { label: "Follow-up", href: "/follow-up", icon: PhoneForwarded },
   { label: "Operations", href: "/operations", icon: Truck },
   { label: "Check-In", href: "/check-in", icon: ScanLine },

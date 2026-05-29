@@ -119,10 +119,10 @@ function getCurrentSection(pathname: string) {
   if (pathname === "/" || /^\/events\/[^/]+\/dashboard$/.test(pathname)) {
     return "/";
   }
-  if (/^\/events\/[^/]+\/(guests|follow-up|operations|check-in|live|analytics|reports|call-logs|team|events)$/.test(pathname)) {
+  if (/^\/events\/[^/]+\/(guests|whatsapp|follow-up|operations|check-in|live|analytics|reports|call-logs|team|events)$/.test(pathname)) {
     return pathname.replace(/^\/events\/[^/]+/, "");
   }
-  if (/^\/(guests|follow-up|operations|check-in|live|analytics|reports|call-logs|team|events)$/.test(pathname)) {
+  if (/^\/(guests|whatsapp|follow-up|operations|check-in|live|analytics|reports|call-logs|team|events)$/.test(pathname)) {
     return pathname;
   }
   return "/";
@@ -152,6 +152,11 @@ function SidebarLink({
     >
       <Icon className="size-4 shrink-0" />
       <span className="truncate">{item.label}</span>
+      {item.label === "WhatsApp (Beta)" ? (
+        <span className="ml-auto shrink-0 rounded px-1.5 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-warning">
+          Beta
+        </span>
+      ) : null}
     </Link>
   );
 }
