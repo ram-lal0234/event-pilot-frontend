@@ -29,27 +29,44 @@ export class RealtimeClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
   private stopped = false;
+  private displaced = false;
   private subscribedEventId: string | undefined;
   private awaitingPong = false;
   private visibilityHandler: (() => void) | null = null;
 
-  constructor(private readonly options: RealtimeClientOptions) {
+  constructor(private options: RealtimeClientOptions) {
     this.subscribedEventId = options.eventId;
   }
 
   start() {
+    if (
+      !this.stopped
+      && this.ws
+      && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+
     this.stopped = false;
+    this.displaced = false;
     this.reconnectAttempt = 0;
     this.bindVisibilityRecovery();
     this.connect();
+  }
+
+  updateHandlers(
+    onMessage: RealtimeClientOptions["onMessage"],
+    onStateChange?: RealtimeClientOptions["onStateChange"],
+  ) {
+    this.options.onMessage = onMessage;
+    this.options.onStateChange = onStateChange;
   }
 
   stop() {
     this.stopped = true;
     this.unbindVisibilityRecovery();
     this.clearTimers();
-    this.ws?.close();
-    this.ws = null;
+    this.closeActiveSocket();
     this.options.onStateChange?.("idle");
   }
 
@@ -68,7 +85,7 @@ export class RealtimeClient {
         return;
       }
 
-      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
         this.reconnectAttempt = 0;
         this.scheduleReconnect(0);
       }
@@ -89,7 +106,15 @@ export class RealtimeClient {
       return;
     }
 
+    if (
+      this.ws?.readyState === WebSocket.OPEN
+      || this.ws?.readyState === WebSocket.CONNECTING
+    ) {
+      return;
+    }
+
     this.clearReconnect();
+    this.closeActiveSocket();
     this.options.onStateChange?.(
       this.reconnectAttempt > 0 ? "reconnecting" : "connecting",
     );
@@ -130,6 +155,7 @@ export class RealtimeClient {
         }
 
         if (message.type === "replaced") {
+          this.displaced = true;
           ws.close(4000, "replaced");
           return;
         }
@@ -144,12 +170,12 @@ export class RealtimeClient {
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       this.stopPingLoop();
       this.clearPongWatchdog();
       this.ws = null;
 
-      if (this.stopped) {
+      if (this.stopped || this.displaced || event.code === 4000) {
         this.options.onStateChange?.("idle");
         return;
       }
@@ -241,6 +267,19 @@ export class RealtimeClient {
     this.reconnectTimer = setTimeout(() => {
       this.connect();
     }, delay);
+  }
+
+  private closeActiveSocket() {
+    if (!this.ws) {
+      return;
+    }
+
+    this.ws.onclose = null;
+    this.ws.onerror = null;
+    this.ws.onmessage = null;
+    this.ws.onopen = null;
+    this.ws.close();
+    this.ws = null;
   }
 
   private clearReconnect() {

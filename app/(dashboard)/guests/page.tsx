@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
 import { z } from "zod";
 import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, FileUp, PhoneCall, Plus, RefreshCw, Upload, XCircle } from "lucide-react";
@@ -133,11 +133,16 @@ export default function GuestsPage() {
     resetFilters,
     isFiltered,
   } = useDataTableQuery(guestTableQueryFields);
-  const selectedRsvpStatuses = filters.rsvpStatus || [];
-  const selectedCategories = filters.category || [];
-  const selectedFollowUpStatuses = filters.followUpStatus || [];
+  const selectedRsvpStatuses = filters.rsvpStatus ?? [];
+  const rsvpTab =
+    selectedRsvpStatuses.length === 1 ? selectedRsvpStatuses[0] : "all";
+  const selectedCategories = filters.category ?? [];
+  const selectedFollowUpStatuses = filters.followUpStatus ?? [];
   const selectedNeedsCab = filters.needsCab?.[0];
   const selectedNeedsHotel = filters.needsHotel?.[0];
+  const rsvpFilter = selectedRsvpStatuses.join(",");
+  const categoryFilter = selectedCategories.join(",");
+  const followUpFilter = selectedFollowUpStatuses.join(",");
   const [guests, setGuests] = useState<GuestRecord[]>([]);
   const [guestForm, setGuestForm] = useState(emptyGuestForm);
   const [csv, setCsv] = useState("name,phone,email,category,group_size,pickup_location\n");
@@ -145,10 +150,8 @@ export default function GuestsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [guestsLoaded, setGuestsLoaded] = useState(false);
   const [pendingRsvpTotal, setPendingRsvpTotal] = useState(0);
-  const [rsvpTab, setRsvpTab] = useState(() => {
-    if (selectedRsvpStatuses.length === 1) return selectedRsvpStatuses[0];
-    return "all";
-  });
+  const fetchGenerationRef = useRef(0);
+  const hasLoadedOnceRef = useRef(false);
   const [pagination, setPagination] = useState<PaginationMeta>({
     page: 1,
     pageSize: 10,
@@ -162,10 +165,7 @@ export default function GuestsPage() {
       label: "Status",
       options: rsvpFilterOptions,
       selected: selectedRsvpStatuses,
-      onChange: (values) => {
-        setFilter("rsvpStatus", values);
-        setRsvpTab(values.length === 1 ? values[0] : "all");
-      },
+      onChange: (values) => setFilter("rsvpStatus", values),
     },
     {
       id: "category",
@@ -204,7 +204,6 @@ export default function GuestsPage() {
   ];
 
   const handleRsvpTabChange = (value: string) => {
-    setRsvpTab(value);
     if (value === "all") {
       setFilter("rsvpStatus", []);
       return;
@@ -214,45 +213,68 @@ export default function GuestsPage() {
 
   const loadGuests = useCallback(async () => {
     if (!currentEventId) {
+      hasLoadedOnceRef.current = false;
       setGuestsLoaded(false);
       return;
     }
-    try {
+
+    const generation = ++fetchGenerationRef.current;
+    const showFullSkeleton = !hasLoadedOnceRef.current;
+
+    if (showFullSkeleton) {
       setGuestsLoaded(false);
+    }
+
+    try {
       const result = await api.listGuestsPage(token, currentEventId, {
         page,
         pageSize,
         q: search,
-        rsvpStatus: selectedRsvpStatuses.join(","),
-        category: selectedCategories.join(","),
-        followUpStatus: selectedFollowUpStatuses.join(","),
+        rsvpStatus: rsvpFilter,
+        category: categoryFilter,
+        followUpStatus: followUpFilter,
         needsCab: selectedNeedsCab,
         needsHotel: selectedNeedsHotel,
       });
-      if (page > result.pagination.totalPages && result.pagination.totalPages > 0) {
-        setPage(result.pagination.totalPages);
+
+      if (generation !== fetchGenerationRef.current) {
         return;
       }
-      setGuests(result.items);
-      setPagination(result.pagination);
+
+      if (page > result.pagination.totalPages && result.pagination.totalPages > 0) {
+        setPage(result.pagination.totalPages);
+      } else {
+        setGuests(result.items);
+        setPagination(result.pagination);
+        hasLoadedOnceRef.current = true;
+      }
     } catch (err) {
-      toast.error("We couldn't load guests right now.");
+      if (generation === fetchGenerationRef.current) {
+        toast.error("We couldn't load guests right now.");
+      }
     } finally {
-      setGuestsLoaded(true);
+      if (generation === fetchGenerationRef.current) {
+        setGuestsLoaded(true);
+      }
     }
   }, [
+    categoryFilter,
     currentEventId,
+    followUpFilter,
     page,
     pageSize,
+    rsvpFilter,
     search,
-    selectedCategories,
-    selectedRsvpStatuses,
-    selectedFollowUpStatuses,
     selectedNeedsCab,
     selectedNeedsHotel,
     setPage,
     token,
   ]);
+
+  useEffect(() => {
+    hasLoadedOnceRef.current = false;
+    fetchGenerationRef.current += 1;
+  }, [currentEventId]);
 
   useEffect(() => {
     void Promise.resolve().then(loadGuests);
@@ -546,10 +568,7 @@ export default function GuestsPage() {
             }}
             filters={tableFilters}
             isFiltered={isFiltered}
-            onReset={() => {
-              resetFilters();
-              setRsvpTab("all");
-            }}
+            onReset={resetFilters}
           />
         }
       >

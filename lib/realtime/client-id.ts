@@ -1,19 +1,29 @@
 const CLIENT_ID_KEY = "eventpilot.realtime.clientId";
 
+let cachedClientId: string | null = null;
+
 /** Stable per-browser id (localStorage) — multiple tabs share it; server dedupes stale sockets. */
 export function getOrCreateRealtimeClientId(): string {
   if (typeof window === "undefined") {
     return "ssr";
   }
 
-  const existing = window.localStorage.getItem(CLIENT_ID_KEY);
-  if (existing && isValidClientId(existing)) {
-    return existing;
+  const stored = window.localStorage.getItem(CLIENT_ID_KEY);
+  if (stored && isValidClientId(stored)) {
+    cachedClientId = stored;
+    return stored;
+  }
+
+  if (cachedClientId) {
+    return cachedClientId;
   }
 
   const id = crypto.randomUUID();
   window.localStorage.setItem(CLIENT_ID_KEY, id);
-  return id;
+
+  const winner = window.localStorage.getItem(CLIENT_ID_KEY);
+  cachedClientId = winner && isValidClientId(winner) ? winner : id;
+  return cachedClientId;
 }
 
 export function isValidClientId(value: string): boolean {
