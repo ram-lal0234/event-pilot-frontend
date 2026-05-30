@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import { RsvpThankYou, type RsvpThankYouSummary } from "@/components/domain/public-rsvp/rsvp-thank-you";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OptionDropdown } from "@/components/ui/option-dropdown";
@@ -14,6 +15,7 @@ export default function PublicRsvpPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [invite, setInvite] = useState<Awaited<ReturnType<typeof api.getPublicRsvp>> | null>(null);
+  const [submitted, setSubmitted] = useState<RsvpThankYouSummary | null>(null);
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus>("PENDING");
   const [groupSize, setGroupSize] = useState(1);
   const [pickupLocation, setPickupLocation] = useState("");
@@ -38,7 +40,7 @@ export default function PublicRsvpPage() {
   }, [code]);
 
   const submit = async () => {
-    if (!code) return;
+    if (!code || !invite) return;
     setSaving(true);
     try {
       await api.submitPublicRsvp(code, {
@@ -49,7 +51,13 @@ export default function PublicRsvpPage() {
         needsHotel,
         guestNotes: guestNotes.trim() || null,
       });
-      toast.success("RSVP submitted. Thank you!");
+      setSubmitted({
+        guestName: invite.guest.name,
+        rsvpStatus,
+        groupSize,
+        needsCab,
+        needsHotel,
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not submit RSVP");
     } finally {
@@ -57,8 +65,29 @@ export default function PublicRsvpPage() {
     }
   };
 
-  if (loading) return <div className="mx-auto max-w-xl p-6 text-sm text-muted-foreground">Loading RSVP...</div>;
-  if (!invite) return <div className="mx-auto max-w-xl p-6 text-sm text-destructive">This RSVP link is invalid or expired.</div>;
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-xl p-6 text-sm text-muted-foreground">Loading RSVP...</div>
+    );
+  }
+
+  if (!invite) {
+    return (
+      <div className="mx-auto max-w-xl p-6 text-sm text-destructive">
+        This RSVP link is invalid or expired.
+      </div>
+    );
+  }
+
+  if (submitted) {
+    return (
+      <RsvpThankYou
+        event={invite.event}
+        summary={submitted}
+        onEdit={() => setSubmitted(null)}
+      />
+    );
+  }
 
   return (
     <main className="mx-auto max-w-xl space-y-4 p-6">
@@ -88,12 +117,22 @@ export default function PublicRsvpPage() {
         onChange={(event) => setPickupLocation(event.target.value)}
         placeholder="Pickup location (optional)"
       />
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={needsCab} onChange={(event) => setNeedsCab(event.target.checked)} />
+      <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+        <input
+          type="checkbox"
+          className="size-5 shrink-0"
+          checked={needsCab}
+          onChange={(event) => setNeedsCab(event.target.checked)}
+        />
         I need cab pickup
       </label>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={needsHotel} onChange={(event) => setNeedsHotel(event.target.checked)} />
+      <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+        <input
+          type="checkbox"
+          className="size-5 shrink-0"
+          checked={needsHotel}
+          onChange={(event) => setNeedsHotel(event.target.checked)}
+        />
         I need hotel accommodation
       </label>
       <textarea
@@ -102,7 +141,13 @@ export default function PublicRsvpPage() {
         onChange={(event) => setGuestNotes(event.target.value)}
         placeholder="Notes for the host (dietary needs, arrival time, etc.)"
       />
-      <Button onClick={submit} loading={saving} loadingText="Submitting" className="w-full">
+      <Button
+        type="button"
+        onClick={() => void submit()}
+        loading={saving}
+        loadingText="Submitting"
+        className="min-h-11 w-full"
+      >
         Submit RSVP
       </Button>
     </main>

@@ -26,6 +26,8 @@ type GuestWhatsAppActionsProps = {
   guest: GuestRecord;
   event: EventRecord;
   compact?: boolean;
+  /** Full-width outline button for guest detail sheet */
+  stacked?: boolean;
 };
 
 async function resolveGuestRsvpUrl(token: string, guest: GuestRecord) {
@@ -34,7 +36,12 @@ async function resolveGuestRsvpUrl(token: string, guest: GuestRecord) {
   return link.publicRsvpUrl;
 }
 
-export function GuestWhatsAppActions({ guest, event, compact = false }: GuestWhatsAppActionsProps) {
+export function GuestWhatsAppActions({
+  guest,
+  event,
+  compact = false,
+  stacked = false,
+}: GuestWhatsAppActionsProps) {
   const { token, currentEventId } = useApp();
   const [busy, setBusy] = useState(false);
 
@@ -123,10 +130,10 @@ export function GuestWhatsAppActions({ guest, event, compact = false }: GuestWha
 
   const trigger = (
     <Button
-      variant="ghost"
+      variant={stacked || !compact ? "outline" : "ghost"}
       size={compact ? "icon-sm" : "sm"}
       type="button"
-      className={compact ? undefined : "gap-2"}
+      className={stacked ? "w-full justify-center gap-2" : compact ? undefined : "gap-2"}
       disabled={busy}
       loading={busy}
     >

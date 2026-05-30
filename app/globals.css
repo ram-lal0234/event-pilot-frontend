@@ -176,3 +176,14 @@
     animation: none !important;
   }
 }
+
+/* iOS Safari: ensure tap targets are clickable and large enough on touch devices */
+@layer base {
+  button,
+  [role="button"],
+  a[href] {
+    cursor: pointer;
+  }
+}
+
+/* Icon-only controls: 44px min on touch (see button.tsx icon-* sizes). */

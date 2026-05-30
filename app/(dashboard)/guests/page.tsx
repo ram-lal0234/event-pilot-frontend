@@ -33,7 +33,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { api, type GuestRecord, type PaginationMeta } from "@/lib/api";
+import { ApiError, api, type GuestRecord, type PaginationMeta } from "@/lib/api";
+import {
+  buildTemplateContext,
+  buildWhatsAppWebUrl,
+  loadWhatsAppInviteSettings,
+  phoneToWhatsAppRecipient,
+  renderWhatsAppMessage,
+} from "@/lib/whatsapp-invite";
 import {
   buildGuestCreatePayload,
   buildGuestUpdatePayload,
@@ -262,9 +269,47 @@ export default function GuestsPage() {
     setBusy(true);
     try {
       const payload = buildGuestCreatePayload(guestForm, currentEventId);
-      await api.createGuest(token, payload);
+      const created = await api.createGuest(token, payload);
       setGuestForm(emptyGuestForm());
-      toast.success("Guest created");
+
+      if (created.publicRsvpUrl) {
+        try {
+          await navigator.clipboard.writeText(created.publicRsvpUrl);
+        } catch {
+          // Clipboard may be blocked on some mobile browsers.
+        }
+      }
+
+      const openWhatsApp = () => {
+        if (!currentEventId || !currentEvent) return;
+        try {
+          const settings = loadWhatsAppInviteSettings(currentEventId);
+          const context = buildTemplateContext(
+            created,
+            currentEvent,
+            created.publicRsvpUrl || "",
+          );
+          const message = renderWhatsAppMessage(settings.messageTemplate, context, {
+            includeRsvpLink: settings.includeRsvpLink,
+          });
+          const recipient = phoneToWhatsAppRecipient(created.phone);
+          if (!recipient) {
+            toast.error("Guest phone is not valid for WhatsApp");
+            return;
+          }
+          window.open(buildWhatsAppWebUrl(recipient, message), "_blank", "noopener,noreferrer");
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Could not open WhatsApp");
+        }
+      };
+
+      toast.success(created.publicRsvpUrl ? "Guest created — RSVP link copied" : "Guest created", {
+        action:
+          currentEvent && created.phone
+            ? { label: "Open WhatsApp", onClick: openWhatsApp }
+            : undefined,
+      });
+
       await loadGuests();
       return null;
     } catch (err) {
@@ -322,6 +367,9 @@ export default function GuestsPage() {
       await api.triggerVoiceCall(token, guestId, callMode);
       return null;
     } catch (err) {
+      if (err instanceof ApiError) {
+        return err.message;
+      }
       return "We couldn't start the call. Please try again.";
     }
   };
