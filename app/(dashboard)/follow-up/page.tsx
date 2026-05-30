@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { PhoneCall } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/components/providers/app-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
@@ -10,15 +11,17 @@ import {
   DashboardPageSkeleton,
 } from "@/components/layout/dashboard-page";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { OptionDropdown } from "@/components/ui/option-dropdown";
-import { api, type GuestRecord } from "@/lib/api";
+import { ApiError, api, type GuestRecord } from "@/lib/api";
+import { formatCallbackAt } from "@/lib/format-callback-time";
 
 const ACTIVE_FOLLOW_UP =
   "NEEDS_FOLLOW_UP,CALLBACK_LATER,NO_ANSWER,VOICEMAIL";
 
 export default function FollowUpPage() {
   const { token, currentEventId, eventsLoaded, eventsLoading } = useApp();
-  const { canWrite } = useEventAccess();
+  const { canWrite, canTriggerVoice } = useEventAccess();
   const [guests, setGuests] = useState<GuestRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -48,6 +51,31 @@ export default function FollowUpPage() {
     void load();
   }, [load]);
 
+  const scheduledCallbacks = useMemo(
+    () =>
+      guests
+        .filter(
+          (guest) =>
+            guest.followUpStatus === "CALLBACK_LATER" && Boolean(guest.callbackAt),
+        )
+        .sort(
+          (a, b) =>
+            new Date(a.callbackAt || 0).getTime() - new Date(b.callbackAt || 0).getTime(),
+        ),
+    [guests],
+  );
+
+  const otherFollowUps = useMemo(
+    () =>
+      guests.filter(
+        (guest) =>
+          !(
+            guest.followUpStatus === "CALLBACK_LATER" && Boolean(guest.callbackAt)
+          ),
+      ),
+    [guests],
+  );
+
   const updateStatus = async (
     guestId: string,
     followUpStatus: NonNullable<GuestRecord["followUpStatus"]>,
@@ -59,6 +87,56 @@ export default function FollowUpPage() {
       await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Update failed");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const callNow = async (guestId: string) => {
+    setBusyId(guestId);
+    try {
+      await api.triggerVoiceCall(token, guestId, "ai");
+      toast.success("Call queued");
+      await load();
+    } catch (err) {
+      const message =
+        err instanceof ApiError ? err.message : "Could not start the call";
+      toast.error(message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const reschedule = async (guest: GuestRecord, value: string) => {
+    if (!value) return;
+    setBusyId(guest.id);
+    try {
+      await api.updateGuest(token, guest.id, {
+        followUpStatus: "CALLBACK_LATER",
+        callbackAt: new Date(value).toISOString(),
+        callbackTriggered: false,
+      });
+      toast.success("Callback rescheduled");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Reschedule failed");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const cancelCallback = async (guestId: string) => {
+    setBusyId(guestId);
+    try {
+      await api.updateGuest(token, guestId, {
+        followUpStatus: "NONE",
+        callbackAt: null,
+        callbackTriggered: false,
+      });
+      toast.success("Scheduled callback cancelled");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Cancel failed");
     } finally {
       setBusyId(null);
     }
@@ -78,8 +156,83 @@ export default function FollowUpPage() {
         </Button>
       }
     >
-      <div className="space-y-3">
-        {guests.map((guest) => (
+      {scheduledCallbacks.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">
+            Scheduled callbacks ({scheduledCallbacks.length})
+          </h2>
+          {scheduledCallbacks.map((guest) => (
+            <div
+              key={guest.id}
+              className="rounded-lg border border-primary/20 bg-card p-4"
+            >
+              <div className="flex flex-col gap-3">
+                <div>
+                  <p className="font-semibold">{guest.name}</p>
+                  <p className="text-sm text-muted-foreground">{guest.phone}</p>
+                  <p className="mt-1 text-sm font-medium text-primary">
+                    {formatCallbackAt(guest.callbackAt)}
+                    {guest.callbackTriggered ? " · dial queued" : ""}
+                  </p>
+                  {guest.guestNotes ? (
+                    <p className="mt-1 text-xs text-muted-foreground">{guest.guestNotes}</p>
+                  ) : null}
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  {canTriggerVoice ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="min-h-11 gap-2"
+                      disabled={busyId === guest.id || guest.rsvpStatus !== "PENDING"}
+                      onClick={() => void callNow(guest.id)}
+                    >
+                      <PhoneCall className="size-4" />
+                      Call now
+                    </Button>
+                  ) : null}
+                  {canWrite ? (
+                    <>
+                      <Input
+                        type="datetime-local"
+                        className="min-h-11 sm:max-w-[220px]"
+                        defaultValue={
+                          guest.callbackAt
+                            ? guest.callbackAt.slice(0, 16)
+                            : ""
+                        }
+                        disabled={busyId === guest.id}
+                        onBlur={(event) => {
+                          if (event.target.value) {
+                            void reschedule(guest, event.target.value);
+                          }
+                        }}
+                        aria-label={`Reschedule callback for ${guest.name}`}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="min-h-11"
+                        disabled={busyId === guest.id}
+                        onClick={() => void cancelCallback(guest.id)}
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      <section className="space-y-3">
+        {scheduledCallbacks.length > 0 ? (
+          <h2 className="text-sm font-semibold text-foreground">Other follow-ups</h2>
+        ) : null}
+        {otherFollowUps.map((guest) => (
           <div
             key={guest.id}
             className="rounded-lg border border-border bg-card p-4"
@@ -123,7 +276,7 @@ export default function FollowUpPage() {
             No guests in the follow-up queue. Use voice calls or edit a guest to set follow-up status.
           </p>
         ) : null}
-      </div>
+      </section>
     </DashboardPage>
   );
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Bed, Car, Hotel, Plus, RefreshCw, Users } from "lucide-react";
 import { toast } from "sonner";
+import { CreateCabSheet } from "@/components/domain/operations/create-cab-sheet";
 import { PageHeader } from "@/components/domain/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,15 +44,6 @@ export default function OperationsPage() {
   const [busy, setBusy] = useState(false);
   const [operationsLoaded, setOperationsLoaded] = useState(false);
 
-  const [cabForm, setCabForm] = useState({
-    driverName: "",
-    driverPhone: "",
-    vehicleNumber: "",
-    capacity: 4,
-    routeZone: "",
-    tripStatus: "",
-    pickupTime: "",
-  });
   const [hotelForm, setHotelForm] = useState({ name: "", location: "" });
   const [roomForm, setRoomForm] = useState({
     hotelId: "",
@@ -126,19 +118,6 @@ export default function OperationsPage() {
     } finally {
       setBusy(false);
     }
-  };
-
-  const createCab = (event: FormEvent) => {
-    event.preventDefault();
-    submit(
-      () => api.createCab(token, {
-        eventId: currentEventId,
-        ...cabForm,
-        capacity: Number(cabForm.capacity),
-        pickupTime: cabForm.pickupTime ? new Date(cabForm.pickupTime).toISOString() : undefined,
-      }),
-      "Cab created"
-    );
   };
 
   const createHotel = (event: FormEvent) => {
@@ -253,7 +232,11 @@ export default function OperationsPage() {
           </TabsContent>
 
           <TabsContent value="cabs" className="space-y-4 p-4 pt-5">
-            {canWrite ? <CreateCabCard form={cabForm} setForm={setCabForm} onSubmit={createCab} busy={busy} /> : null}
+            {canWrite && currentEventId ? (
+              <div className="flex justify-end">
+                <CreateCabSheet eventId={currentEventId} token={token} onCreated={load} />
+              </div>
+            ) : null}
             <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
               {cabs.map((cab) => (
                 <CabCard key={cab.id} cab={cab} onAssign={() => openAssignment("cab", cab.id)} onUnassign={unassignCabGuest} />
@@ -304,41 +287,6 @@ export default function OperationsPage() {
         busy={busy}
       />
     </div>
-  );
-}
-
-function CreateCabCard({
-  form,
-  setForm,
-  onSubmit,
-  busy,
-}: {
-  form: { driverName: string; driverPhone: string; vehicleNumber: string; capacity: number; routeZone: string; tripStatus: string; pickupTime: string };
-  setForm: (form: { driverName: string; driverPhone: string; vehicleNumber: string; capacity: number; routeZone: string; tripStatus: string; pickupTime: string }) => void;
-  onSubmit: (event: FormEvent) => void;
-  busy: boolean;
-}) {
-  return (
-    <Card className="border-border shadow-none">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Plus className="size-5 text-primary" />
-          Create Cab
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form className="grid gap-2 md:grid-cols-4" onSubmit={onSubmit}>
-          <Input value={form.driverName} onChange={(event) => setForm({ ...form, driverName: event.target.value })} placeholder="Driver" required />
-          <Input value={form.driverPhone} onChange={(event) => setForm({ ...form, driverPhone: event.target.value })} placeholder="Driver phone" />
-          <Input value={form.vehicleNumber} onChange={(event) => setForm({ ...form, vehicleNumber: event.target.value })} placeholder="Vehicle" required />
-          <Input type="datetime-local" value={form.pickupTime} onChange={(event) => setForm({ ...form, pickupTime: event.target.value })} placeholder="Pickup time" />
-          <Input value={form.routeZone} onChange={(event) => setForm({ ...form, routeZone: event.target.value })} placeholder="Route/zone" />
-          <Input value={form.tripStatus} onChange={(event) => setForm({ ...form, tripStatus: event.target.value })} placeholder="Trip status" />
-          <Input type="number" min={1} value={form.capacity} onChange={(event) => setForm({ ...form, capacity: Number(event.target.value) })} placeholder="Capacity" required />
-          <Button type="submit" loading={busy} loadingText="Creating cab" className="gap-2 md:col-span-4"><Plus className="size-4" />Cab</Button>
-        </form>
-      </CardContent>
-    </Card>
   );
 }
 
