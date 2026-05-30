@@ -30,6 +30,7 @@ import {
   SheetBody,
   SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -55,6 +56,19 @@ function categoryVariant(category: GuestRecord["category"]) {
       return "attendee" as const;
   }
 }
+
+function rsvpVariant(status: RsvpStatus) {
+  switch (status) {
+    case "CONFIRMED":
+      return "success" as const;
+    case "DECLINED":
+      return "error" as const;
+    default:
+      return "warning" as const;
+  }
+}
+
+type GuestActionLayout = "compact" | "inline" | "stacked";
 
 function GuestQrDialog({ guest, compact = false }: { guest: GuestRecord; compact?: boolean }) {
   const qrCanvasId = `guest-qr-${guest.id}`;
@@ -178,7 +192,7 @@ function GuestVoiceActionButtons({
     setVoiceBusy(mode);
     const errorMessage = await onTriggerVoiceCall(guestId, mode);
     if (errorMessage) {
-      toast.error("We could not start the call. Please try again.");
+      toast.error(errorMessage);
     } else {
       toast.success("Call request sent");
     }
@@ -276,7 +290,7 @@ function GuestVoiceActionButtons({
   if (!compact) {
     return (
       <>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {aiButton}
           {ivrButton}
         </div>
@@ -304,9 +318,18 @@ function GuestVoiceActionButtons({
   );
 }
 
-function GuestRsvpLinkButton({ guest, compact = false }: { guest: GuestRecord; compact?: boolean }) {
+function GuestRsvpLinkButton({
+  guest,
+  compact = false,
+  layout = "inline",
+}: {
+  guest: GuestRecord;
+  compact?: boolean;
+  layout?: GuestActionLayout;
+}) {
   const { token } = useApp();
   const [busy, setBusy] = useState(false);
+  const stacked = layout === "stacked";
 
   const copyLink = async () => {
     setBusy(true);
@@ -327,10 +350,10 @@ function GuestRsvpLinkButton({ guest, compact = false }: { guest: GuestRecord; c
 
   const trigger = (
     <Button
-      variant="ghost"
+      variant={stacked || !compact ? "outline" : "ghost"}
       size={compact ? "icon-sm" : "sm"}
       type="button"
-      className={compact ? undefined : "gap-2"}
+      className={stacked ? "w-full justify-center gap-2" : compact ? undefined : "gap-2"}
       onClick={() => void copyLink()}
       disabled={busy}
       loading={busy}
@@ -430,151 +453,190 @@ function GuestDetailsSheet({
       >
         <ChevronRight className="size-4 text-muted-foreground" />
       </SheetTrigger>
-      <SheetContent className="sm:max-w-2xl">
+      <SheetContent className="flex w-full flex-col sm:max-w-lg">
         <SheetHeader>
-          <SheetTitle>{guest.name}</SheetTitle>
+          <SheetTitle className="pr-2 text-lg">{guest.name}</SheetTitle>
           <SheetDescription>
-            Guest profile, pickup details, voice call status, and check-in context.
+            Guest profile, pickup, voice outreach, and check-in.
           </SheetDescription>
         </SheetHeader>
 
-        <SheetBody className="space-y-5">
-          <section className="rounded-lg border border-border p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-[11px] font-semibold uppercase text-muted-foreground">
-                Contact Info
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <GuestRsvpLinkButton guest={guest} />
-                {currentEvent ? (
-                  <GuestWhatsAppActions guest={guest} event={currentEvent} />
-                ) : null}
-                {canWrite ? <GuestEditSheet guest={guest} onSave={onUpdateGuest} /> : null}
-              </div>
+        <SheetBody className="space-y-4">
+          <section className="rounded-lg border border-border bg-card p-4">
+            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Contact
+            </p>
+            <div className="mt-3 grid grid-cols-1 gap-2">
+              <GuestRsvpLinkButton guest={guest} layout="stacked" />
+              {currentEvent ? (
+                <GuestWhatsAppActions guest={guest} event={currentEvent} stacked />
+              ) : null}
+              {canWrite ? (
+                <GuestEditSheet guest={guest} onSave={onUpdateGuest} stacked />
+              ) : null}
             </div>
             {guest.publicRsvpUrl ? (
-              <p className="mb-2 break-all text-xs text-muted-foreground">{guest.publicRsvpUrl}</p>
+              <div className="mt-3 rounded-md border border-border bg-surface-container-low px-3 py-2">
+                <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  Public RSVP link
+                </p>
+                <p className="mt-1 line-clamp-2 font-mono text-xs text-foreground" title={guest.publicRsvpUrl}>
+                  {guest.publicRsvpUrl}
+                </p>
+              </div>
             ) : null}
-            {guest.phone && (
-              <p className="flex items-center gap-2 text-sm">
-                <Phone className="size-4" />
-                {guest.phone}
-              </p>
-            )}
-            <p className="mt-1 text-sm text-muted-foreground">{guest.email || "No email"}</p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Category {guest.category} · Group {guest.groupSize}
-              {guest.pickupLocation ? ` · ${guest.pickupLocation}` : ""}
-            </p>
+            <dl className="mt-4 space-y-2 text-sm">
+              {guest.phone ? (
+                <div className="flex gap-2">
+                  <dt className="sr-only">Phone</dt>
+                  <dd className="flex items-center gap-2 text-foreground">
+                    <Phone className="size-4 shrink-0 text-muted-foreground" />
+                    {guest.phone}
+                  </dd>
+                </div>
+              ) : null}
+              <div className="flex gap-2">
+                <dt className="sr-only">Email</dt>
+                <dd className="text-muted-foreground">{guest.email || "No email"}</dd>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge variant={categoryVariant(guest.category)}>{guest.category}</StatusBadge>
+                <span className="text-xs text-muted-foreground">Group {guest.groupSize}</span>
+              </div>
+            </dl>
           </section>
 
-          <section className="rounded-lg border border-border p-4">
-            <p className="mb-3 text-[11px] font-semibold uppercase text-muted-foreground">
+          <section className="rounded-lg border border-border bg-card p-4">
+            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
               Manual RSVP
             </p>
-            <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_auto]" onSubmit={canWrite ? submitRsvp : (e) => e.preventDefault()}>
-              <OptionDropdown
-                value={rsvpStatus}
+            <form
+              className="mt-3 flex flex-col gap-3"
+              onSubmit={canWrite ? submitRsvp : (e) => e.preventDefault()}
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <OptionDropdown
+                  value={rsvpStatus}
+                  disabled={!canWrite}
+                  onValueChange={(status) => setRsvpStatus(status as RsvpStatus)}
+                  options={[
+                    { value: "PENDING", label: "Pending" },
+                    { value: "CONFIRMED", label: "Confirmed" },
+                    { value: "DECLINED", label: "Declined" },
+                  ]}
+                  placeholder="RSVP status"
+                />
+                <Input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={groupSize}
+                  disabled={!canWrite}
+                  onChange={(event) => setGroupSize(Number(event.target.value))}
+                  aria-label="Group size"
+                  placeholder="Group size"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="min-h-11 w-full sm:w-auto sm:self-start"
+                loading={busy}
+                loadingText="Saving RSVP"
                 disabled={!canWrite}
-                onValueChange={(status) => setRsvpStatus(status as RsvpStatus)}
-                options={[
-                  { value: "PENDING", label: "Pending" },
-                  { value: "CONFIRMED", label: "Confirmed" },
-                  { value: "DECLINED", label: "Declined" },
-                ]}
-                placeholder="RSVP status"
-              />
-              <Input
-                type="number"
-                min={1}
-                max={20}
-                value={groupSize}
-                disabled={!canWrite}
-                onChange={(event) => setGroupSize(Number(event.target.value))}
-                aria-label="Group size"
-              />
-              <Button type="submit" loading={busy} loadingText="Saving RSVP" disabled={!canWrite}>
-                Save
+              >
+                Save RSVP
               </Button>
             </form>
             <p className="mt-2 text-xs text-muted-foreground">
               {canWrite
-                ? "Use this when the guest confirms directly with staff."
-                : "Read-only access — you cannot edit RSVP here."}
+                ? "Use when the guest confirms directly with your team."
+                : "Read-only — you cannot edit RSVP here."}
             </p>
           </section>
 
-          <section className="rounded-lg border border-border p-4">
-            <p className="mb-3 text-[11px] font-semibold uppercase text-muted-foreground">
+          <section className="rounded-lg border border-border bg-card p-4">
+            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
               Pickup
             </p>
-            <p className="flex items-center gap-2 text-sm">
-              <MapPin className="size-4" />
+            <p className="mt-3 flex items-start gap-2 text-sm text-foreground">
+              <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
               {guest.pickupLocation || "Not provided"}
             </p>
-            {guest.pickupLat && guest.pickupLng && (
-              <p className="mt-1 text-sm text-muted-foreground">
+            {guest.pickupLat && guest.pickupLng ? (
+              <p className="mt-1 pl-6 text-xs text-muted-foreground">
                 {guest.pickupLat}, {guest.pickupLng}
               </p>
+            ) : null}
+          </section>
+
+          <section className="rounded-lg border border-border bg-card p-4">
+            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Voice outreach
+            </p>
+            {voiceDisabled ? (
+              <p className="mt-3 rounded-md border border-dashed border-border bg-surface-container-low px-3 py-2 text-sm text-muted-foreground">
+                Outbound calls are only available while RSVP is{" "}
+                <span className="font-medium text-foreground">Pending</span>. Change RSVP above to
+                call this guest.
+              </p>
+            ) : (
+              <>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {guest.ivrRespondedAt
+                    ? `Last voice response ${new Date(guest.ivrRespondedAt).toLocaleString()}`
+                    : "No voice response yet."}
+                </p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <GuestVoiceActionButtons
+                    guestId={guest.id}
+                    guestName={guest.name}
+                    rsvpStatus={savedRsvpStatus}
+                    onTriggerVoiceCall={onTriggerVoiceCall}
+                  />
+                </div>
+              </>
             )}
           </section>
 
-          <section className="rounded-lg border border-border p-4">
-            <p className="mb-3 text-[11px] font-semibold uppercase text-muted-foreground">
-              Voice outreach and QR
+          <section className="rounded-lg border border-border bg-card p-4">
+            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Check-in QR
             </p>
-            <p className="text-sm text-muted-foreground">
-              {voiceDisabled
-                ? `Outbound calls disabled because RSVP is ${savedRsvpStatus.toLowerCase()}.`
-                : guest.ivrRespondedAt
-                  ? `Last voice response ${new Date(guest.ivrRespondedAt).toLocaleString()}`
-                  : "No voice response yet"}
+            <p className="mt-2 text-sm text-muted-foreground">
+              Gate scan code for this guest — available regardless of RSVP status.
             </p>
-            <div className="mt-4">
-              <GuestVoiceActionButtons
-                guestId={guest.id}
-                guestName={guest.name}
-                rsvpStatus={savedRsvpStatus}
-                onTriggerVoiceCall={onTriggerVoiceCall}
-              />
-            </div>
             <div className="mt-3">
               <GuestQrDialog guest={guest} />
             </div>
           </section>
-
-          <section className="grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-lg bg-surface-container-low p-3">
-              <p className="text-[11px] font-semibold uppercase text-muted-foreground">Category</p>
-              <p className="mt-1 font-semibold">{guest.category}</p>
-            </div>
-            <div className="rounded-lg bg-surface-container-low p-3">
-              <p className="text-[11px] font-semibold uppercase text-muted-foreground">Group</p>
-              <p className="mt-1 font-semibold">{savedGroupSize}</p>
-            </div>
-            <div className="rounded-lg bg-surface-container-low p-3">
-              <p className="text-[11px] font-semibold uppercase text-muted-foreground">RSVP</p>
-              <p className="mt-1 font-semibold">{savedRsvpStatus}</p>
-            </div>
-            <div className="col-span-2 rounded-lg bg-surface-container-low p-3">
-              <p className="text-[11px] font-semibold uppercase text-muted-foreground">Check-In</p>
-              {guest.checkins?.length ? (
-                <ul className="mt-1 space-y-1 text-sm font-semibold">
-                  {guest.checkins.map((checkin) => (
-                    <li key={checkin.id}>
-                      {checkin.locationType === "HOTEL" ? "Hotel" : "Event gate"}
-                      {checkin.checkinTime
-                        ? ` · ${new Date(checkin.checkinTime).toLocaleString()}`
-                        : ""}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-1 font-semibold">Pending</p>
-              )}
-            </div>
-          </section>
         </SheetBody>
+
+        <SheetFooter className="grid grid-cols-2 gap-2 border-t border-border bg-surface-container-low/50 p-4">
+          <div className="rounded-lg border border-border bg-card p-3">
+            <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              RSVP
+            </p>
+            <div className="mt-2">
+              <StatusBadge variant={rsvpVariant(savedRsvpStatus)}>{savedRsvpStatus}</StatusBadge>
+            </div>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-3">
+            <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Check-in
+            </p>
+            {guest.checkins?.length ? (
+              <ul className="mt-2 space-y-0.5 text-xs font-medium text-foreground">
+                {guest.checkins.map((checkin) => (
+                  <li key={checkin.id}>
+                    {checkin.locationType === "HOTEL" ? "Hotel" : "Gate"}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm font-medium text-muted-foreground">Pending</p>
+            )}
+          </div>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );

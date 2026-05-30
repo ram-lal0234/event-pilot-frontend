@@ -28,10 +28,12 @@ export function GuestEditSheet({
   guest,
   onSave,
   compact = false,
+  stacked = false,
 }: {
   guest: GuestRecord;
   onSave: (guestId: string, form: GuestFormState, ops: GuestOpsFormState) => Promise<string | null>;
   compact?: boolean;
+  stacked?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(() => guestToFormState(guest));
@@ -68,7 +70,12 @@ export function GuestEditSheet({
       <Pencil className="size-4" />
     </Button>
   ) : (
-    <Button variant="outline" size="sm" className="gap-2" type="button">
+    <Button
+      variant="outline"
+      size="sm"
+      className={stacked ? "w-full justify-center gap-2" : "gap-2"}
+      type="button"
+    >
       <Pencil className="size-4" />
       Edit guest
     </Button>

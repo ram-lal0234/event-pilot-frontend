@@ -31,7 +31,7 @@ const buttonVariants = cva(
         "icon-xs":
           "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
         "icon-sm":
-          "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
+          "size-7 min-h-11 min-w-11 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg sm:min-h-7 sm:min-w-7",
         "icon-lg": "size-9",
       },
     },
