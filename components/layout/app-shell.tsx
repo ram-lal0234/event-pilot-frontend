@@ -9,6 +9,7 @@ import { PlannerSetupGuard } from "@/components/onboarding/planner-setup-guard";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { AppProvider } from "@/components/providers/app-provider";
+import { RealtimeProvider } from "@/components/providers/realtime-provider";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -20,7 +21,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <AppProvider>
       <AuthGuard>
-        <AppShellInner>{children}</AppShellInner>
+        <RealtimeProvider>
+          <AppShellInner>{children}</AppShellInner>
+        </RealtimeProvider>
       </AuthGuard>
     </AppProvider>
   );

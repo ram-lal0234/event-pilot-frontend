@@ -4,23 +4,26 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
-  BarChart3,
-  Bot,
   CheckCircle2,
   FileText,
   Phone,
+  PhoneForwarded,
   QrCode,
+  Radio,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { LiveCampaignTeaser } from "@/components/domain/dashboard/live-campaign-teaser";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type AuditRecord, type DashboardSummary } from "@/lib/api";
 import { scopedEventHref } from "@/lib/design-tokens";
 import { useApp } from "@/components/providers/app-provider";
+import { userDisplayName } from "@/lib/user-display";
 
 export default function DashboardPage() {
-  const { token, currentEventId, currentEvent, eventsLoaded, eventsLoading, user } = useApp();
+  const { token, currentEventId, currentEvent, eventsLoaded, eventsLoading, user, membership } =
+    useApp();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [feed, setFeed] = useState<AuditRecord[]>([]);
   const [error, setError] = useState(false);
@@ -43,10 +46,10 @@ export default function DashboardPage() {
       });
   }, [currentEventId, token]);
 
-  const firstName = useMemo(() => {
-    const name = user.email.split("@")[0] || "there";
-    return name.split(/[._-]/)[0] || name;
-  }, [user.email]);
+  const welcomeName = useMemo(
+    () => userDisplayName(membership?.name, user.email),
+    [membership?.name, user.email],
+  );
 
   return loading ? (
     <DashboardSkeleton />
@@ -54,54 +57,60 @@ export default function DashboardPage() {
     <div className="space-y-7">
       <div>
         <h1 className="text-2xl font-bold tracking-normal text-foreground">
-          Welcome {firstName[0]?.toUpperCase()}{firstName.slice(1)}!
+          Welcome, {welcomeName}!
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {currentEvent?.name || "Select an event"} operations console
+          {currentEvent?.name || "Select an event"} — overview and shortcuts
         </p>
       </div>
+
+      {currentEventId ? <LiveCampaignTeaser eventId={currentEventId} summary={summary} /> : null}
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric label="Total guests" value={`${summary?.totalGuests || 0}`} />
+        <Metric label="Confirmed" value={`${summary?.confirmed || 0}`} />
+        <Metric label="Declined" value={`${summary?.declined || 0}`} />
+        <Metric label="Pending RSVP" value={`${summary?.pendingRsvp || 0}`} />
+      </section>
 
       <section>
         <h2 className="mb-4 text-base font-bold text-foreground">Let&apos;s get you started</h2>
         <div className="grid gap-3 xl:grid-cols-3">
           <WorkflowPanel
-            title="Build your guest list"
-            description="Import guests and prepare RSVP outreach."
+            title="Guests & outreach"
+            description="Import guests, call individuals, or start a bulk campaign from Live."
             actions={[
-              { label: "Guests", caption: "Create and manage invitees", icon: Users, href: "/guests" },
-              { label: "AI Voice Calls", caption: "Queue conversational RSVP calls", icon: Bot, href: "/guests" },
+              { label: "Guests", caption: "Manage list, RSVP tabs, call all", icon: Users, href: "/guests" },
+              {
+                label: "Follow-up",
+                caption: "Callbacks, no-answer, voicemail",
+                icon: PhoneForwarded,
+                href: "/follow-up",
+              },
             ]}
           />
           <WorkflowPanel
-            title="Deploy event operations"
-            description="Set up check-in and logistics workflows."
+            title="Event day"
+            description="Check-in, pickups, and room assignments."
             actions={[
-              { label: "Check-In Mode", caption: "Scan QR codes at entry", icon: QrCode, href: "/check-in" },
-              { label: "Operations", caption: "Manage pickup and accommodation", icon: Phone, href: "/operations" },
+              { label: "Check-in", caption: "Scan QR at the gate or hotel", icon: QrCode, href: "/check-in" },
+              { label: "Operations", caption: "Cabs, hotels, assignments", icon: Phone, href: "/operations" },
             ]}
           />
           <WorkflowPanel
-            title="Monitor performance"
-            description="Track responses and operational activity."
+            title="Monitor"
+            description="Real-time voice campaign and operations feed."
             actions={[
-              { label: "Live View", caption: "Watch guest activity in real time", icon: BarChart3, href: "/live" },
-              { label: "Reports", caption: "Export guest and RSVP reports", icon: FileText, href: "/reports" },
+              {
+                label: "Live",
+                caption: "Campaign progress, calls, check-ins",
+                icon: Radio,
+                href: "/live",
+              },
+              { label: "Reports", caption: "Export guest and RSVP data", icon: FileText, href: "/reports" },
             ]}
           />
         </div>
-      </section>
-
-      <section className="grid gap-3 md:grid-cols-3 sm:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-10">
-        <Metric label="Total Guests" value={`${summary?.totalGuests || 0}`} />
-        <Metric label="Confirmed RSVP" value={`${summary?.confirmed || 0}`} />
-        <Metric label="Declined RSVP" value={`${summary?.declined || 0}`} />
-        <Metric label="Pending RSVP" value={`${summary?.pendingRsvp || 0}`} />
-        <Metric label="Checked In" value={`${summary?.checkedIn || 0}`} />
-        <Metric label="Pending Pickups" value={`${summary?.pendingPickups || 0}`} />
-        <Metric label="Callback Later" value={`${summary?.callbackLater || 0}`} />
-        <Metric label="Needs Follow-up" value={`${summary?.needsFollowUp || 0}`} />
-        <Metric label="No Answer" value={`${summary?.noAnswer || 0}`} />
-        <Metric label="Voicemail" value={`${summary?.voicemail || 0}`} />
       </section>
 
       <section className="rounded-lg border border-border bg-card">
@@ -114,7 +123,7 @@ export default function DashboardPage() {
             size="sm"
             className="gap-2"
           >
-            View all
+            Open Live
             <ArrowRight className="size-4" />
           </Button>
         </div>
@@ -132,27 +141,46 @@ export default function DashboardPage() {
                   {item.entityType} {item.entityId.slice(0, 8)}
                 </span>
               </span>
-              <span className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()}</span>
+              <span className="text-xs text-muted-foreground">
+                {new Date(item.createdAt).toLocaleString()}
+              </span>
             </div>
           ))}
           {!feed.length ? (
             <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-              Activity will appear here once guests start responding.
+              Activity will appear here once guests start responding. Full feed is on Live.
             </p>
           ) : null}
         </div>
       </section>
 
       <section className="rounded-lg border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-foreground">Needs Follow-up</h2>
-        <div className="mt-3 space-y-2">
-          {summary?.needsFollowUpGuests?.map((guest) => (
-            <div key={guest.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-foreground">Needs follow-up</h2>
+          <Button
+            render={<Link href={scopedEventHref(currentEventId, "/follow-up")} />}
+            nativeButton={false}
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1 text-xs"
+          >
+            View all
+            <ArrowRight className="size-3.5" />
+          </Button>
+        </div>
+        <div className="space-y-2">
+          {summary?.needsFollowUpGuests?.slice(0, 5).map((guest) => (
+            <div
+              key={guest.id}
+              className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
+            >
               <span>
                 <span className="font-medium">{guest.name}</span>
                 <span className="ml-2 text-muted-foreground">{guest.phone}</span>
               </span>
-              <span className="text-xs text-muted-foreground">{guest.followUpStatus.replaceAll("_", " ")}</span>
+              <span className="text-xs text-muted-foreground">
+                {guest.followUpStatus.replaceAll("_", " ")}
+              </span>
             </div>
           ))}
           {!summary?.needsFollowUpGuests?.length ? (
@@ -222,9 +250,15 @@ function DashboardSkeleton() {
   return (
     <div className="space-y-7">
       <Skeleton className="h-9 w-56" />
+      <Skeleton className="h-16 w-full rounded-lg" />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Skeleton key={index} className="h-24 rounded-lg" />
+        ))}
+      </div>
       <div className="grid gap-3 xl:grid-cols-3">
         {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-60 rounded-lg" />
+          <Skeleton key={index} className="h-52 rounded-lg" />
         ))}
       </div>
     </div>

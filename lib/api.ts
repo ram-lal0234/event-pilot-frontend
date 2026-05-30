@@ -563,6 +563,20 @@ export const api = {
       },
     );
   },
+  triggerBulkVoiceCalls(token: string, eventId: string, callMode: "ai" | "ivr" = "ai") {
+    return request<{
+      callMode: "ai" | "ivr";
+      totalPending: number;
+      queued: number;
+      skipped: number;
+      skippedReasons: { callInProgress: number; error: number };
+      callIds: string[];
+    }>("/ivr/call-all", {
+      method: "POST",
+      token,
+      body: JSON.stringify({ eventId, callMode }),
+    });
+  },
   scanQr(
     token: string,
     payload: {

@@ -92,7 +92,7 @@ export const navItems: NavItem[] = [
 
 export const eventViewItems: NavItem[] = [
   { label: "Events", href: "/events", icon: CalendarDays },
-  { label: "Live View", href: "/live", icon: Radio },
+  { label: "Live", href: "/live", icon: Radio },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "Reports", href: "/reports", icon: FileText },
   { label: "Call Logs", href: "/call-logs", icon: PhoneCall },

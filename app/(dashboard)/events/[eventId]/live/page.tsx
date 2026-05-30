@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Activity, Car, CheckCircle2, RefreshCw, Users } from "lucide-react";
+import { Activity, Car, CheckCircle2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { LiveCampaignCard } from "@/components/domain/dashboard/live-campaign-card";
+import { LiveOperationsFeed } from "@/components/domain/dashboard/live-operations-feed";
 import { PageHeader } from "@/components/domain/page-header";
 import { StatCard } from "@/components/domain/stat-card";
-import { LiveOperationsFeed } from "@/components/domain/dashboard/live-operations-feed";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useEventAccess } from "@/hooks/use-event-access";
 import { api, type AuditRecord, type DashboardSummary } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
 
-export default function LiveViewPage() {
+export default function LivePage() {
   const { token, currentEventId, currentEvent, eventsLoaded, eventsLoading } = useApp();
+  const { canTriggerVoice } = useEventAccess();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [feed, setFeed] = useState<AuditRecord[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -61,7 +64,7 @@ export default function LiveViewPage() {
                 ? ("room" as const)
                 : ("guest" as const),
       })),
-    [feed]
+    [feed],
   );
 
   if (loading) return <LiveSkeleton />;
@@ -70,20 +73,46 @@ export default function LiveViewPage() {
     <div className="space-y-6">
       <PageHeader
         breadcrumb={`EVENTS / ${currentEvent?.name || "SELECTED EVENT"}`}
-        title="Live View"
-        description="Real-time event activity, check-ins, operations updates, and alerts."
+        title="Live"
+        description="Voice campaign progress, live call outcomes, and day-of operations in one place."
         actions={
-          <Button variant="outline" type="button" className="gap-2" onClick={load}>
+          <Button variant="outline" type="button" className="gap-2" onClick={() => void load()}>
             <RefreshCw className="size-4" />
             Refresh
           </Button>
         }
       />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Live Activity" value={`${feed.length}`} subtext="Recent actions from this event" icon={Activity} />
-        <StatCard label="Check-in Progress" value={`${checkInPercent}%`} trend={`${summary?.checkedIn || 0}/${summary?.totalGuests || 0}`} icon={CheckCircle2} progress={checkInPercent} />
-        <StatCard label="Pending Pickups" value={`${summary?.pendingPickups || 0}`} subtext="Confirmed without cab" icon={Car} />
-        <StatCard label="Total Guests" value={`${summary?.totalGuests || 0}`} subtext="Guests in event" icon={Users} />
+
+      {currentEventId ? (
+        <LiveCampaignCard
+          token={token}
+          eventId={currentEventId}
+          eventName={currentEvent?.name || "Event"}
+          summary={summary}
+          canCallAll={canTriggerVoice}
+        />
+      ) : null}
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard
+          label="Check-in progress"
+          value={`${checkInPercent}%`}
+          trend={`${summary?.checkedIn || 0} / ${summary?.totalGuests || 0} guests`}
+          icon={CheckCircle2}
+          progress={checkInPercent}
+        />
+        <StatCard
+          label="Ops activity"
+          value={`${feed.length}`}
+          subtext="Recent audit events (refresh to update)"
+          icon={Activity}
+        />
+        <StatCard
+          label="Pending pickups"
+          value={`${summary?.pendingPickups || 0}`}
+          subtext="Confirmed guests without cab"
+          icon={Car}
+        />
       </div>
 
       <LiveOperationsFeed items={feedItems} />
@@ -97,14 +126,15 @@ function LiveSkeleton() {
       <div className="flex justify-between gap-4">
         <div className="space-y-3">
           <Skeleton className="h-3 w-40" />
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-4 w-80" />
+          <Skeleton className="h-8 w-24" />
+          <Skeleton className="h-4 w-96" />
         </div>
         <Skeleton className="h-9 w-28" />
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-36 w-full rounded-xl" />
+      <Skeleton className="h-64 w-full rounded-xl" />
+      <div className="grid gap-4 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Skeleton key={index} className="h-32 w-full rounded-xl" />
         ))}
       </div>
       <Skeleton className="h-[360px] w-full rounded-xl" />

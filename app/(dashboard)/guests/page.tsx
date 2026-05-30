@@ -5,6 +5,7 @@ import Link from "next/link";
 import { z } from "zod";
 import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, FileUp, PhoneCall, Plus, RefreshCw, Upload, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { CallAllPendingButton } from "@/components/domain/guests/call-all-pending-button";
 import { GuestTable } from "@/components/domain/guests/guest-table";
 import { GuestFormFields } from "@/components/domain/guests/guest-form-fields";
 import { DataTableShell } from "@/components/data-table/data-table-shell";
@@ -50,7 +51,9 @@ import {
 import { buildGuestOpsPayload, type GuestOpsFormState } from "@/components/domain/guests/guest-ops-fields";
 import { normalizePhoneInput } from "@/lib/phone";
 import { useApp } from "@/components/providers/app-provider";
+import { useRealtimeBus } from "@/components/providers/realtime-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
+import { mergeGuestFromRealtime } from "@/lib/realtime/types";
 import { scopedEventHref } from "@/lib/design-tokens";
 
 const sampleCsv = `name,phone,email,category,group_size,pickup_location
@@ -116,7 +119,8 @@ const guestTableQueryFields = [
 
 export default function GuestsPage() {
   const { token, currentEventId, currentEvent, eventsLoaded, eventsLoading } = useApp();
-  const { canWrite } = useEventAccess();
+  const { subscribe: subscribeRealtime } = useRealtimeBus();
+  const { canWrite, canTriggerVoice } = useEventAccess();
   const {
     search,
     setSearch,
@@ -140,6 +144,7 @@ export default function GuestsPage() {
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [guestsLoaded, setGuestsLoaded] = useState(false);
+  const [pendingRsvpTotal, setPendingRsvpTotal] = useState(0);
   const [rsvpTab, setRsvpTab] = useState(() => {
     if (selectedRsvpStatuses.length === 1) return selectedRsvpStatuses[0];
     return "all";
@@ -252,6 +257,54 @@ export default function GuestsPage() {
   useEffect(() => {
     void Promise.resolve().then(loadGuests);
   }, [loadGuests]);
+
+  useEffect(() => {
+    if (!currentEventId) {
+      setPendingRsvpTotal(0);
+      return;
+    }
+
+    void api
+      .dashboardSummary(token, currentEventId)
+      .then((result) => setPendingRsvpTotal(result.pendingRsvp ?? 0))
+      .catch(() => setPendingRsvpTotal(0));
+  }, [currentEventId, token]);
+
+  useEffect(() => {
+    return subscribeRealtime((message) => {
+      if (!message.guest?.id || message.eventId !== currentEventId) {
+        return;
+      }
+
+      const guestTypes = new Set([
+        "guest_added",
+        "guest_updated",
+        "rsvp_updated",
+        "checkin",
+        "call_started",
+        "call_answered",
+        "call_completed",
+      ]);
+
+      if (!guestTypes.has(message.type)) {
+        return;
+      }
+
+      setGuests((current) => {
+        const index = current.findIndex((row) => row.id === message.guest!.id);
+        if (index === -1) {
+          if (message.type === "guest_added") {
+            return [message.guest as GuestRecord, ...current];
+          }
+          return current;
+        }
+
+        const next = [...current];
+        next[index] = mergeGuestFromRealtime(current[index], message.guest!);
+        return next;
+      });
+    });
+  }, [currentEventId, subscribeRealtime]);
 
   const stats = useMemo(
     () => ({
@@ -453,6 +506,21 @@ export default function GuestsPage() {
               <PhoneCall className="size-4" />
               Call Logs
             </Button>
+            {canTriggerVoice ? (
+              <CallAllPendingButton
+                token={token}
+                eventId={currentEventId}
+                pendingCount={pendingRsvpTotal}
+                className="gap-2"
+                onQueued={() => {
+                  void loadGuests();
+                  void api
+                    .dashboardSummary(token, currentEventId)
+                    .then((result) => setPendingRsvpTotal(result.pendingRsvp ?? 0))
+                    .catch(() => undefined);
+                }}
+              />
+            ) : null}
             {canWrite ? (
               <>
                 <CsvSheet csv={csv} setCsv={setCsv} uploadCsv={uploadCsv} busy={busy} />

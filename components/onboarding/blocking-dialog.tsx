@@ -13,7 +13,7 @@ type BlockingDialogProps = {
   open: boolean;
   title: string;
   description?: string;
-  children: ReactNode;
+  children?: ReactNode;
 };
 
 /** Modal that cannot be dismissed until the flow inside is completed. */
