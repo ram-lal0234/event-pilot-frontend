@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Bot, ChevronRight, Copy, Download, MapPin, Phone, QrCode, Radio } from "lucide-react";
 import { GuestEditSheet } from "@/components/domain/guests/guest-edit-sheet";
+import { GuestWhatsAppActions } from "@/components/domain/whatsapp/guest-whatsapp-actions";
 import type { GuestFormState } from "@/lib/guest-form";
 import type { GuestOpsFormState } from "@/components/domain/guests/guest-ops-fields";
 import { toast } from "sonner";
@@ -361,10 +362,12 @@ function GuestTableQuickActions({
   onUpdateGuest: (guestId: string, form: GuestFormState, ops: GuestOpsFormState) => Promise<string | null>;
 }) {
   const { canWrite } = useEventAccess();
+  const { currentEvent } = useApp();
 
   return (
     <div className="flex items-center justify-end gap-0.5">
       <GuestRsvpLinkButton guest={guest} compact />
+      {currentEvent ? <GuestWhatsAppActions guest={guest} event={currentEvent} compact /> : null}
       {canWrite ? <GuestEditSheet guest={guest} onSave={onUpdateGuest} compact /> : null}
       <GuestVoiceActionButtons
         guestId={guest.id}
@@ -396,6 +399,7 @@ function GuestDetailsSheet({
   const [savedGroupSize, setSavedGroupSize] = useState(guest.groupSize);
   const [busy, setBusy] = useState(false);
   const { canWrite, canTriggerVoice } = useEventAccess();
+  const { currentEvent } = useApp();
   const voiceDisabled = savedRsvpStatus !== "PENDING" || !canTriggerVoice;
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -440,8 +444,11 @@ function GuestDetailsSheet({
               <p className="text-[11px] font-semibold uppercase text-muted-foreground">
                 Contact Info
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <GuestRsvpLinkButton guest={guest} />
+                {currentEvent ? (
+                  <GuestWhatsAppActions guest={guest} event={currentEvent} />
+                ) : null}
                 {canWrite ? <GuestEditSheet guest={guest} onSave={onUpdateGuest} /> : null}
               </div>
             </div>
