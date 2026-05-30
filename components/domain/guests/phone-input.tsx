@@ -2,7 +2,13 @@
 
 import { useId } from "react";
 import { Input } from "@/components/ui/input";
-import { OptionDropdown } from "@/components/ui/option-dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { getPhoneCountry, PHONE_COUNTRIES, type PhoneCountryCode } from "@/lib/phone";
 
@@ -40,17 +46,24 @@ export function PhoneInput({
           <label htmlFor={countrySelectId} className="sr-only">
             Country
           </label>
-          <OptionDropdown
+          <Select
             value={country}
             disabled={disabled || countryLocked}
-            triggerClassName="h-9"
-            onValueChange={(code) => onCountryChange(code as PhoneCountryCode)}
-            options={PHONE_COUNTRIES.map((entry) => ({
-              value: entry.code,
-              label: `${entry.label} (+${entry.dialCode})`,
-            }))}
-            placeholder="Country"
-          />
+            onValueChange={(code) => {
+              if (code != null) onCountryChange(code as PhoneCountryCode);
+            }}
+          >
+            <SelectTrigger id={countrySelectId} className="h-9 w-full justify-between font-normal">
+              <SelectValue placeholder="Country" />
+            </SelectTrigger>
+            <SelectContent align="start">
+              {PHONE_COUNTRIES.map((entry) => (
+                <SelectItem key={entry.code} value={entry.code}>
+                  {entry.label} (+{entry.dialCode})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="relative min-w-0 flex-1">
           <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">

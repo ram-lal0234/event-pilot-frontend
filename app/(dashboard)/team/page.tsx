@@ -12,7 +12,13 @@ import {
 import { api, type AccessLevel, type TeamMemberRecord } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { OptionDropdown } from "@/components/ui/option-dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
@@ -250,15 +256,20 @@ function InviteMemberSheet({
             placeholder="Name (optional)"
             maxLength={120}
           />
-          <OptionDropdown
+          <Select
             value={role}
-            onValueChange={(next) => setRole(next as "ADMIN" | "STAFF")}
-            options={[
-              { value: "STAFF", label: "Staff" },
-              { value: "ADMIN", label: "Admin" },
-            ]}
-            placeholder="Role"
-          />
+            onValueChange={(next) => {
+              if (next != null) setRole(next as "ADMIN" | "STAFF");
+            }}
+          >
+            <SelectTrigger className="w-full justify-between font-normal">
+              <SelectValue placeholder="Role" />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value="STAFF">Staff</SelectItem>
+              <SelectItem value="ADMIN">Admin</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="space-y-2">
             <p className="text-sm font-medium">Initial event access (optional)</p>
             {events.map((event) => (
@@ -277,21 +288,25 @@ function InviteMemberSheet({
                 />
                 <span className="flex-1">{event.name}</span>
                 {selectedEvents[event.id] ? (
-                  <OptionDropdown
-                    triggerClassName="h-8 w-28"
+                  <Select
                     value={selectedEvents[event.id]}
-                    onValueChange={(level) =>
-                      setSelectedEvents((prev) => ({
-                        ...prev,
-                        [event.id]: level as AccessLevel,
-                      }))
-                    }
-                    options={[
-                      { value: "FULL", label: "Full" },
-                      { value: "READ_ONLY", label: "Read only" },
-                    ]}
-                    size="sm"
-                  />
+                    onValueChange={(level) => {
+                      if (level != null) {
+                        setSelectedEvents((prev) => ({
+                          ...prev,
+                          [event.id]: level as AccessLevel,
+                        }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger size="sm" className="h-8 w-28 justify-between font-normal">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      <SelectItem value="FULL">Full</SelectItem>
+                      <SelectItem value="READ_ONLY">Read only</SelectItem>
+                    </SelectContent>
+                  </Select>
                 ) : null}
               </label>
             ))}
@@ -347,15 +362,20 @@ function ManageMemberSheet({
           <SheetTitle>Manage {member.name || member.email}</SheetTitle>
         </SheetHeader>
         <SheetBody className="space-y-4">
-          <OptionDropdown
+          <Select
             value={role}
-            onValueChange={(next) => setRole(next as "ADMIN" | "STAFF")}
-            options={[
-              { value: "STAFF", label: "Staff" },
-              { value: "ADMIN", label: "Admin" },
-            ]}
-            placeholder="Role"
-          />
+            onValueChange={(next) => {
+              if (next != null) setRole(next as "ADMIN" | "STAFF");
+            }}
+          >
+            <SelectTrigger className="w-full justify-between font-normal">
+              <SelectValue placeholder="Role" />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value="STAFF">Staff</SelectItem>
+              <SelectItem value="ADMIN">Admin</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="space-y-2">
             <p className="text-sm font-medium">Event access</p>
             {events.map((event) => (
@@ -374,21 +394,25 @@ function ManageMemberSheet({
                 />
                 <span className="flex-1">{event.name}</span>
                 {assignments[event.id] ? (
-                  <OptionDropdown
-                    triggerClassName="h-8 w-28"
+                  <Select
                     value={assignments[event.id]}
-                    onValueChange={(level) =>
-                      setAssignments((prev) => ({
-                        ...prev,
-                        [event.id]: level as AccessLevel,
-                      }))
-                    }
-                    options={[
-                      { value: "FULL", label: "Full" },
-                      { value: "READ_ONLY", label: "Read only" },
-                    ]}
-                    size="sm"
-                  />
+                    onValueChange={(level) => {
+                      if (level != null) {
+                        setAssignments((prev) => ({
+                          ...prev,
+                          [event.id]: level as AccessLevel,
+                        }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger size="sm" className="h-8 w-28 justify-between font-normal">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      <SelectItem value="FULL">Full</SelectItem>
+                      <SelectItem value="READ_ONLY">Read only</SelectItem>
+                    </SelectContent>
+                  </Select>
                 ) : null}
               </label>
             ))}

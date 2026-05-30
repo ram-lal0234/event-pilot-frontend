@@ -717,6 +717,7 @@ export const api = {
     return request<{
       code: string;
       expiresAt: string | null;
+      hasSubmitted?: boolean;
       guest: {
         id: string;
         name: string;

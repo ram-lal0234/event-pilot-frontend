@@ -12,7 +12,13 @@ import {
 } from "@/components/layout/dashboard-page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { OptionDropdown } from "@/components/ui/option-dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ApiError, api, type GuestRecord } from "@/lib/api";
 import { formatCallbackAt } from "@/lib/format-callback-time";
 
@@ -249,25 +255,30 @@ export default function FollowUpPage() {
                   {guest.guestNotes ? ` · ${guest.guestNotes}` : ""}
                 </p>
               </div>
-              <OptionDropdown
-                triggerClassName="w-full sm:w-52"
+              <Select
                 value={guest.followUpStatus || "NEEDS_FOLLOW_UP"}
                 disabled={!canWrite || busyId === guest.id}
-                onValueChange={(status) =>
-                  void updateStatus(
-                    guest.id,
-                    status as NonNullable<GuestRecord["followUpStatus"]>,
-                  )
-                }
-                options={[
-                  { value: "NEEDS_FOLLOW_UP", label: "Needs follow-up" },
-                  { value: "CALLBACK_LATER", label: "Callback later" },
-                  { value: "NO_ANSWER", label: "No answer" },
-                  { value: "VOICEMAIL", label: "Voicemail" },
-                  { value: "COMPLETED", label: "Completed" },
-                  { value: "NONE", label: "Clear" },
-                ]}
-              />
+                onValueChange={(status) => {
+                  if (status != null) {
+                    void updateStatus(
+                      guest.id,
+                      status as NonNullable<GuestRecord["followUpStatus"]>,
+                    );
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full justify-between font-normal sm:w-52">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value="NEEDS_FOLLOW_UP">Needs follow-up</SelectItem>
+                  <SelectItem value="CALLBACK_LATER">Callback later</SelectItem>
+                  <SelectItem value="NO_ANSWER">No answer</SelectItem>
+                  <SelectItem value="VOICEMAIL">Voicemail</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="NONE">Clear</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         ))}

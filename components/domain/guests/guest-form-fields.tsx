@@ -5,7 +5,13 @@ import type { GuestCategory } from "@/lib/api";
 import { formLimits } from "@/lib/form-limits";
 import { PhoneInput } from "@/components/domain/guests/phone-input";
 import { Input } from "@/components/ui/input";
-import { OptionDropdown } from "@/components/ui/option-dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function GuestFormFields({
   form,
@@ -38,16 +44,21 @@ export function GuestFormFields({
         placeholder="Email"
         maxLength={formLimits.email.maxLength}
       />
-      <OptionDropdown
+      <Select
         value={form.category}
-        onValueChange={(category) => onChange({ ...form, category: category as GuestCategory })}
-        options={[
-          { value: "GENERAL", label: "General" },
-          { value: "FAMILY", label: "Family" },
-          { value: "VIP", label: "VIP" },
-        ]}
-        placeholder="Category"
-      />
+        onValueChange={(category) => {
+          if (category != null) onChange({ ...form, category: category as GuestCategory });
+        }}
+      >
+        <SelectTrigger className="w-full justify-between font-normal">
+          <SelectValue placeholder="Category" />
+        </SelectTrigger>
+        <SelectContent align="start">
+          <SelectItem value="GENERAL">General</SelectItem>
+          <SelectItem value="FAMILY">Family</SelectItem>
+          <SelectItem value="VIP">VIP</SelectItem>
+        </SelectContent>
+      </Select>
       <Input
         type="number"
         min={formLimits.groupSize.min}

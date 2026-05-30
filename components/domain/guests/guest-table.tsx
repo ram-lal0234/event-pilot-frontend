@@ -24,7 +24,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { OptionDropdown } from "@/components/ui/option-dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetBody,
@@ -515,17 +521,22 @@ function GuestDetailsSheet({
               onSubmit={canWrite ? submitRsvp : (e) => e.preventDefault()}
             >
               <div className="grid gap-3 sm:grid-cols-2">
-                <OptionDropdown
+                <Select
                   value={rsvpStatus}
                   disabled={!canWrite}
-                  onValueChange={(status) => setRsvpStatus(status as RsvpStatus)}
-                  options={[
-                    { value: "PENDING", label: "Pending" },
-                    { value: "CONFIRMED", label: "Confirmed" },
-                    { value: "DECLINED", label: "Declined" },
-                  ]}
-                  placeholder="RSVP status"
-                />
+                  onValueChange={(status) => {
+                    if (status != null) setRsvpStatus(status as RsvpStatus);
+                  }}
+                >
+                  <SelectTrigger className="w-full justify-between font-normal">
+                    <SelectValue placeholder="RSVP status" />
+                  </SelectTrigger>
+                  <SelectContent align="start">
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                    <SelectItem value="DECLINED">Declined</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Input
                   type="number"
                   min={1}

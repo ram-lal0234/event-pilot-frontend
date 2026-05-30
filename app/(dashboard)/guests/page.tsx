@@ -12,7 +12,13 @@ import { DataTableShell } from "@/components/data-table/data-table-shell";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { OptionDropdown } from "@/components/ui/option-dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useDataTableQuery } from "@/hooks/use-data-table-query";
@@ -1011,18 +1017,21 @@ function GuestFooter({
         </span>
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground">Rows</span>
-          <OptionDropdown
-            triggerClassName="w-20"
+          <Select
             value={String(pageSize)}
-            onValueChange={(next) => onPageSizeChange(Number(next))}
-            options={[
-              { value: "10", label: "10" },
-              { value: "25", label: "25" },
-              { value: "50", label: "50" },
-            ]}
-            size="sm"
-            align="end"
-          />
+            onValueChange={(next) => {
+              if (next != null) onPageSizeChange(Number(next));
+            }}
+          >
+            <SelectTrigger size="sm" className="w-20 justify-between font-normal">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex items-center gap-2">
           <Button

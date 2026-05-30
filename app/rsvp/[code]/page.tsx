@@ -3,19 +3,45 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import { PublicRsvpShell } from "@/components/domain/public-rsvp/public-rsvp-shell";
+import { RsvpPageSkeleton } from "@/components/domain/public-rsvp/rsvp-page-skeleton";
 import { RsvpThankYou, type RsvpThankYouSummary } from "@/components/domain/public-rsvp/rsvp-thank-you";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { OptionDropdown } from "@/components/ui/option-dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { api, type RsvpStatus } from "@/lib/api";
+
+type PublicRsvpInvite = Awaited<ReturnType<typeof api.getPublicRsvp>>;
+
+function guestToThankYouSummary(guest: PublicRsvpInvite["guest"]): RsvpThankYouSummary {
+  return {
+    guestName: guest.name,
+    rsvpStatus: guest.rsvpStatus,
+    groupSize: guest.groupSize,
+    needsCab: Boolean(guest.needsCab),
+    needsHotel: Boolean(guest.needsHotel),
+  };
+}
+
+function hasCompletedRsvp(invite: PublicRsvpInvite): boolean {
+  return Boolean(invite.hasSubmitted) || invite.guest.rsvpStatus !== "PENDING";
+}
 
 export default function PublicRsvpPage() {
   const params = useParams<{ code: string }>();
   const code = params?.code;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [invite, setInvite] = useState<Awaited<ReturnType<typeof api.getPublicRsvp>> | null>(null);
+  const [invite, setInvite] = useState<PublicRsvpInvite | null>(null);
   const [submitted, setSubmitted] = useState<RsvpThankYouSummary | null>(null);
+  const [editing, setEditing] = useState(false);
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus>("PENDING");
   const [groupSize, setGroupSize] = useState(1);
   const [pickupLocation, setPickupLocation] = useState("");
@@ -58,6 +84,7 @@ export default function PublicRsvpPage() {
         needsCab,
         needsHotel,
       });
+      setEditing(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not submit RSVP");
     } finally {
@@ -65,91 +92,90 @@ export default function PublicRsvpPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-xl p-6 text-sm text-muted-foreground">Loading RSVP...</div>
-    );
-  }
-
-  if (!invite) {
-    return (
-      <div className="mx-auto max-w-xl p-6 text-sm text-destructive">
-        This RSVP link is invalid or expired.
-      </div>
-    );
-  }
-
-  if (submitted) {
-    return (
-      <RsvpThankYou
-        event={invite.event}
-        summary={submitted}
-        onEdit={() => setSubmitted(null)}
-      />
-    );
-  }
+  const thankYouSummary =
+    submitted ?? (invite && hasCompletedRsvp(invite) ? guestToThankYouSummary(invite.guest) : null);
+  const showThankYou = Boolean(thankYouSummary) && !editing;
 
   return (
-    <main className="mx-auto max-w-xl space-y-4 p-6">
-      <h1 className="text-2xl font-bold">RSVP for {invite.event.name}</h1>
-      <p className="text-sm text-muted-foreground">
-        Hi {invite.guest.name}, please confirm your attendance.
-      </p>
-      <OptionDropdown
-        value={rsvpStatus}
-        onValueChange={(status) => setRsvpStatus(status as RsvpStatus)}
-        options={[
-          { value: "CONFIRMED", label: "Confirmed" },
-          { value: "PENDING", label: "Maybe / Pending" },
-          { value: "DECLINED", label: "Declined" },
-        ]}
-        placeholder="RSVP"
-      />
-      <Input
-        type="number"
-        min={1}
-        value={groupSize}
-        onChange={(event) => setGroupSize(Number(event.target.value))}
-        placeholder="Group size"
-      />
-      <Input
-        value={pickupLocation}
-        onChange={(event) => setPickupLocation(event.target.value)}
-        placeholder="Pickup location (optional)"
-      />
-      <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
-        <input
-          type="checkbox"
-          className="size-5 shrink-0"
-          checked={needsCab}
-          onChange={(event) => setNeedsCab(event.target.checked)}
+    <PublicRsvpShell>
+      {loading ? (
+        <RsvpPageSkeleton />
+      ) : !invite ? (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">
+          This RSVP link is invalid or expired.
+        </div>
+      ) : showThankYou && thankYouSummary ? (
+        <RsvpThankYou
+          event={invite.event}
+          summary={thankYouSummary}
+          onEdit={() => setEditing(true)}
         />
-        I need cab pickup
-      </label>
-      <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
-        <input
-          type="checkbox"
-          className="size-5 shrink-0"
-          checked={needsHotel}
-          onChange={(event) => setNeedsHotel(event.target.checked)}
-        />
-        I need hotel accommodation
-      </label>
-      <textarea
-        className="min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-        value={guestNotes}
-        onChange={(event) => setGuestNotes(event.target.value)}
-        placeholder="Notes for the host (dietary needs, arrival time, etc.)"
-      />
-      <Button
-        type="button"
-        onClick={() => void submit()}
-        loading={saving}
-        loadingText="Submitting"
-        className="min-h-11 w-full"
-      >
-        Submit RSVP
-      </Button>
-    </main>
+      ) : (
+        <div className="space-y-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">RSVP for {invite.event.name}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Hi {invite.guest.name}, please confirm your attendance.
+            </p>
+          </div>
+          <Select
+            value={rsvpStatus}
+            onValueChange={(status) => {
+              if (status != null) setRsvpStatus(status as RsvpStatus);
+            }}
+          >
+            <SelectTrigger className="w-full justify-between font-normal">
+              <SelectValue placeholder="RSVP" />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+              <SelectItem value="PENDING">Maybe / Pending</SelectItem>
+              <SelectItem value="DECLINED">Declined</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            type="number"
+            min={1}
+            value={groupSize}
+            onChange={(event) => setGroupSize(Number(event.target.value))}
+            placeholder="Group size"
+          />
+          <Input
+            value={pickupLocation}
+            onChange={(event) => setPickupLocation(event.target.value)}
+            placeholder="Pickup location (optional)"
+          />
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+            <Checkbox
+              checked={needsCab}
+              onChange={(event) => setNeedsCab(event.target.checked)}
+            />
+            I need cab pickup
+          </label>
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+            <Checkbox
+              checked={needsHotel}
+              onChange={(event) => setNeedsHotel(event.target.checked)}
+            />
+            I need hotel accommodation
+          </label>
+          <textarea
+            className="min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            value={guestNotes}
+            onChange={(event) => setGuestNotes(event.target.value)}
+            placeholder="Notes for the host (dietary needs, arrival time, etc.)"
+          />
+          <Button
+            type="button"
+            onClick={() => void submit()}
+            loading={saving}
+            loadingText="Submitting"
+            className="min-h-11 w-full"
+          >
+            Submit RSVP
+          </Button>
+        </div>
+      )}
+    </PublicRsvpShell>
   );
 }
