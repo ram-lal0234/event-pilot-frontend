@@ -36,7 +36,12 @@ export function TopBar({ mobileMenu }: TopBarProps) {
         "left-0 px-3 sm:px-4 md:left-[238px]",
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">{mobileMenu}</div>
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        {mobileMenu}
+        <span className="hidden rounded-md bg-surface-container-low px-2.5 py-1.5 text-xs font-medium text-muted-foreground md:inline">
+          Free tier
+        </span>
+      </div>
 
       <div className="flex shrink-0 items-center gap-2">
         {account?.name ? (
@@ -54,10 +59,6 @@ export function TopBar({ mobileMenu }: TopBarProps) {
           <ScanLine className="size-4" />
           <span className="hidden sm:inline">Check-in</span>
         </Button>
-
-        <span className="hidden rounded-md bg-surface-container-low px-2.5 py-1.5 text-xs font-medium text-muted-foreground md:inline">
-          Free tier
-        </span>
 
         <DropdownMenu>
           <DropdownMenuTrigger

@@ -13,7 +13,7 @@ type CreateFirstEventDialogProps = {
 };
 
 export function CreateFirstEventDialog({ open }: CreateFirstEventDialogProps) {
-  const { createEvent, logout } = useApp();
+  const { createEvent } = useApp();
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
   const [location, setLocation] = useState("");
@@ -56,12 +56,9 @@ export function CreateFirstEventDialog({ open }: CreateFirstEventDialogProps) {
           minLength={formLimits.location.minLength}
           maxLength={formLimits.location.maxLength}
         />
-        <div className="flex gap-2 pt-2">
-          <Button className="flex-1" type="submit" loading={busy} loadingText="Creating…">
+        <div className="pt-2">
+          <Button className="w-full" type="submit" loading={busy} loadingText="Creating…">
             Create event
-          </Button>
-          <Button type="button" variant="outline" onClick={logout}>
-            Logout
           </Button>
         </div>
       </form>

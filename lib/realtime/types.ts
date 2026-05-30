@@ -19,6 +19,13 @@ export type RealtimeCallHint = {
   callUuid?: string | null;
 };
 
+export type RealtimeCampaignProgress = {
+  queued?: number;
+  skipped?: number;
+  totalPending?: number;
+  callMode?: string;
+};
+
 export type RealtimeMessage = {
   type: string;
   eventId?: string;
@@ -29,6 +36,7 @@ export type RealtimeMessage = {
   callOutcome?: string;
   locationType?: string;
   method?: string;
+  campaign?: RealtimeCampaignProgress;
 };
 
 export type RealtimeConnectionState =

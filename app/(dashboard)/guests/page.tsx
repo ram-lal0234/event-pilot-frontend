@@ -5,6 +5,7 @@ import Link from "next/link";
 import { z } from "zod";
 import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, FileUp, PhoneCall, Plus, RefreshCw, Upload, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { CallAllPendingButton } from "@/components/domain/guests/call-all-pending-button";
 import { GuestTable } from "@/components/domain/guests/guest-table";
 import { GuestFormFields } from "@/components/domain/guests/guest-form-fields";
 import { DataTableShell } from "@/components/data-table/data-table-shell";
@@ -119,7 +120,7 @@ const guestTableQueryFields = [
 export default function GuestsPage() {
   const { token, currentEventId, currentEvent, eventsLoaded, eventsLoading } = useApp();
   const { subscribe: subscribeRealtime } = useRealtimeBus();
-  const { canWrite } = useEventAccess();
+  const { canWrite, canTriggerVoice } = useEventAccess();
   const {
     search,
     setSearch,
@@ -143,6 +144,7 @@ export default function GuestsPage() {
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [guestsLoaded, setGuestsLoaded] = useState(false);
+  const [pendingRsvpTotal, setPendingRsvpTotal] = useState(0);
   const [rsvpTab, setRsvpTab] = useState(() => {
     if (selectedRsvpStatuses.length === 1) return selectedRsvpStatuses[0];
     return "all";
@@ -255,6 +257,18 @@ export default function GuestsPage() {
   useEffect(() => {
     void Promise.resolve().then(loadGuests);
   }, [loadGuests]);
+
+  useEffect(() => {
+    if (!currentEventId) {
+      setPendingRsvpTotal(0);
+      return;
+    }
+
+    void api
+      .dashboardSummary(token, currentEventId)
+      .then((result) => setPendingRsvpTotal(result.pendingRsvp ?? 0))
+      .catch(() => setPendingRsvpTotal(0));
+  }, [currentEventId, token]);
 
   useEffect(() => {
     return subscribeRealtime((message) => {
@@ -492,6 +506,21 @@ export default function GuestsPage() {
               <PhoneCall className="size-4" />
               Call Logs
             </Button>
+            {canTriggerVoice ? (
+              <CallAllPendingButton
+                token={token}
+                eventId={currentEventId}
+                pendingCount={pendingRsvpTotal}
+                className="gap-2"
+                onQueued={() => {
+                  void loadGuests();
+                  void api
+                    .dashboardSummary(token, currentEventId)
+                    .then((result) => setPendingRsvpTotal(result.pendingRsvp ?? 0))
+                    .catch(() => undefined);
+                }}
+              />
+            ) : null}
             {canWrite ? (
               <>
                 <CsvSheet csv={csv} setCsv={setCsv} uploadCsv={uploadCsv} busy={busy} />
