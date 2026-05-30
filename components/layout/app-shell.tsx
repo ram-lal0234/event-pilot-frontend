@@ -6,6 +6,7 @@ import { pageLayout } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { PlannerSetupGuard } from "@/components/onboarding/planner-setup-guard";
+import { PlannerCoachMarks } from "@/components/onboarding/planner-coach-marks";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { AppProvider } from "@/components/providers/app-provider";
@@ -75,6 +76,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
           )}
         >
           <PlannerSetupGuard>{children}</PlannerSetupGuard>
+          <PlannerCoachMarks />
         </div>
       </main>
     </div>

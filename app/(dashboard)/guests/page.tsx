@@ -469,7 +469,7 @@ export default function GuestsPage() {
           ],
         }}
         headerActions={
-          <>
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Button
               variant="outline"
               type="button"
@@ -507,22 +507,24 @@ export default function GuestsPage() {
               Call Logs
             </Button>
             {canTriggerVoice ? (
-              <CallAllPendingButton
-                token={token}
-                eventId={currentEventId}
-                pendingCount={pendingRsvpTotal}
-                className="gap-2"
-                onQueued={() => {
-                  void loadGuests();
-                  void api
-                    .dashboardSummary(token, currentEventId)
-                    .then((result) => setPendingRsvpTotal(result.pendingRsvp ?? 0))
-                    .catch(() => undefined);
-                }}
-              />
+              <div data-coach="guest-call">
+                <CallAllPendingButton
+                  token={token}
+                  eventId={currentEventId}
+                  pendingCount={pendingRsvpTotal}
+                  className="gap-2"
+                  onQueued={() => {
+                    void loadGuests();
+                    void api
+                      .dashboardSummary(token, currentEventId)
+                      .then((result) => setPendingRsvpTotal(result.pendingRsvp ?? 0))
+                      .catch(() => undefined);
+                  }}
+                />
+              </div>
             ) : null}
             {canWrite ? (
-              <>
+              <div className="flex items-center gap-2" data-coach="guest-import">
                 <CsvSheet csv={csv} setCsv={setCsv} uploadCsv={uploadCsv} busy={busy} />
                 <GuestSheet
                   form={guestForm}
@@ -530,9 +532,9 @@ export default function GuestsPage() {
                   onSubmit={addGuest}
                   busy={busy}
                 />
-              </>
+              </div>
             ) : null}
-          </>
+          </div>
         }
         toolbar={
           <DataTableToolbar

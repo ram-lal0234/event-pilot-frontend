@@ -59,6 +59,12 @@ export type TeamMemberRecord = {
   }>;
 };
 
+export type EventSettingRecord = {
+  voiceAiEnabled: boolean;
+  ivrEnabled: boolean;
+  qrEnabled: boolean;
+};
+
 export type EventRecord = {
   id: string;
   name: string;
@@ -69,6 +75,7 @@ export type EventRecord = {
   accessLevel?: AccessLevel;
   guestCount?: number;
   rsvpConfirmedCount?: number;
+  setting?: EventSettingRecord;
 };
 
 export type GuestRecord = {
@@ -424,6 +431,27 @@ export const api = {
   ) {
     return request<EventRecord>("/events", {
       method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  getEvent(token: string, eventId: string) {
+    return request<EventRecord>(`/events/${eventId}`, { token });
+  },
+  updateEvent(
+    token: string,
+    eventId: string,
+    payload: {
+      name?: string;
+      date?: string;
+      location?: string;
+      voiceAiEnabled?: boolean;
+      ivrEnabled?: boolean;
+      qrEnabled?: boolean;
+    },
+  ) {
+    return request<EventRecord>(`/events/${eventId}`, {
+      method: "PATCH",
       token,
       body: JSON.stringify(payload),
     });
