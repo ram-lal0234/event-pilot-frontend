@@ -449,7 +449,7 @@ function GuestDetailsSheet({
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetTrigger
-        render={<Button variant="ghost" size="icon" type="button" aria-label={`View ${guest.name}`} />}
+        render={<Button variant="ghost" size="icon-sm" type="button" aria-label={`View ${guest.name}`} />}
       >
         <ChevronRight className="size-4 text-muted-foreground" />
       </SheetTrigger>

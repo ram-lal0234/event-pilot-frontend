@@ -177,7 +177,7 @@
   }
 }
 
-/* iOS Safari: ensure tap targets are clickable and large enough on touch devices */
+/* iOS Safari: clickable tap targets on touch devices (44×44px minimum). */
 @layer base {
   button,
   [role="button"],
@@ -186,4 +186,17 @@
   }
 }
 
-/* Icon-only controls: 44px min on touch (see button.tsx icon-* sizes). */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  [data-slot="tabs-trigger"],
+  [data-slot="sheet-trigger"],
+  [data-slot="dropdown-menu-trigger"] {
+    touch-action: manipulation;
+  }
+
+  [data-slot="checkbox"] {
+    min-height: 1.25rem;
+    min-width: 1.25rem;
+  }
+}
