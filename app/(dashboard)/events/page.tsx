@@ -6,6 +6,7 @@ import { CalendarPlus, MapPin, Settings, Users } from "lucide-react";
 import { useApp } from "@/components/providers/app-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
 import { CreateEventSheet } from "@/components/domain/events/create-event-sheet";
+import { EventSettingsSheet } from "@/components/domain/events/event-settings-sheet";
 import {
   DashboardPage,
   DashboardPageSkeleton,
@@ -14,10 +15,11 @@ import { Button } from "@/components/ui/button";
 import { scopedEventHref } from "@/lib/design-tokens";
 import { eventStatusLabel, getEventTimeStatus } from "@/lib/event-status";
 import type { EventRecord } from "@/lib/api";
+import { canWriteEvent } from "@/lib/event-access";
 import { cn } from "@/lib/utils";
 
 export default function EventsPage() {
-  const { events, eventsLoading, eventsLoaded, setCurrentEventId } = useApp();
+  const { events, eventsLoading, eventsLoaded, setCurrentEventId, user } = useApp();
   const { isOwner } = useEventAccess();
 
   const sorted = useMemo(
@@ -63,7 +65,12 @@ export default function EventsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {sorted.map((event) => (
-            <EventCard key={event.id} event={event} onOpen={() => setCurrentEventId(event.id)} />
+            <EventCard
+              key={event.id}
+              event={event}
+              canWrite={canWriteEvent(user.accountRole, event)}
+              onOpen={() => setCurrentEventId(event.id)}
+            />
           ))}
         </div>
       )}
@@ -71,7 +78,15 @@ export default function EventsPage() {
   );
 }
 
-function EventCard({ event, onOpen }: { event: EventRecord; onOpen: () => void }) {
+function EventCard({
+  event,
+  canWrite,
+  onOpen,
+}: {
+  event: EventRecord;
+  canWrite: boolean;
+  onOpen: () => void;
+}) {
   const status = getEventTimeStatus(event.date);
   const dateLabel = new Date(event.date).toLocaleString(undefined, {
     dateStyle: "medium",
@@ -113,16 +128,22 @@ function EventCard({ event, onOpen }: { event: EventRecord; onOpen: () => void }
         >
           Open
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5"
-          disabled
-          title="Event settings coming soon"
-        >
-          <Settings className="size-4" />
-          Settings
-        </Button>
+        <EventSettingsSheet
+          eventId={event.id}
+          canWrite={canWrite}
+          trigger={
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              type="button"
+              onClick={() => onOpen()}
+            >
+              <Settings className="size-4" />
+              Settings
+            </Button>
+          }
+        />
       </div>
     </article>
   );

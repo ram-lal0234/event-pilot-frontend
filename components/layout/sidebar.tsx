@@ -119,7 +119,7 @@ function getCurrentSection(pathname: string) {
   if (pathname === "/" || /^\/events\/[^/]+\/dashboard$/.test(pathname)) {
     return "/";
   }
-  if (/^\/events\/[^/]+\/(guests|whatsapp|follow-up|operations|check-in|live|analytics|reports|call-logs|team|events)$/.test(pathname)) {
+  if (/^\/events\/[^/]+\/(guests|whatsapp|follow-up|operations|check-in|live|analytics|reports|call-logs|team|events|settings)$/.test(pathname)) {
     return pathname.replace(/^\/events\/[^/]+/, "");
   }
   if (/^\/(guests|whatsapp|follow-up|operations|check-in|live|analytics|reports|call-logs|team|events)$/.test(pathname)) {
@@ -143,6 +143,7 @@ function SidebarLink({
   return (
     <Link
       href={scopedEventHref(currentEventId, item.href)}
+      data-coach={item.href === "/check-in" ? "nav-check-in" : undefined}
       className={cn(
         "flex h-9 items-center gap-2 rounded-md px-2 text-sm transition-colors",
         isActive
