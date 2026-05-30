@@ -50,7 +50,9 @@ import {
 import { buildGuestOpsPayload, type GuestOpsFormState } from "@/components/domain/guests/guest-ops-fields";
 import { normalizePhoneInput } from "@/lib/phone";
 import { useApp } from "@/components/providers/app-provider";
+import { useRealtimeBus } from "@/components/providers/realtime-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
+import { mergeGuestFromRealtime } from "@/lib/realtime/types";
 import { scopedEventHref } from "@/lib/design-tokens";
 
 const sampleCsv = `name,phone,email,category,group_size,pickup_location
@@ -116,6 +118,7 @@ const guestTableQueryFields = [
 
 export default function GuestsPage() {
   const { token, currentEventId, currentEvent, eventsLoaded, eventsLoading } = useApp();
+  const { subscribe: subscribeRealtime } = useRealtimeBus();
   const { canWrite } = useEventAccess();
   const {
     search,
@@ -252,6 +255,42 @@ export default function GuestsPage() {
   useEffect(() => {
     void Promise.resolve().then(loadGuests);
   }, [loadGuests]);
+
+  useEffect(() => {
+    return subscribeRealtime((message) => {
+      if (!message.guest?.id || message.eventId !== currentEventId) {
+        return;
+      }
+
+      const guestTypes = new Set([
+        "guest_added",
+        "guest_updated",
+        "rsvp_updated",
+        "checkin",
+        "call_started",
+        "call_answered",
+        "call_completed",
+      ]);
+
+      if (!guestTypes.has(message.type)) {
+        return;
+      }
+
+      setGuests((current) => {
+        const index = current.findIndex((row) => row.id === message.guest!.id);
+        if (index === -1) {
+          if (message.type === "guest_added") {
+            return [message.guest as GuestRecord, ...current];
+          }
+          return current;
+        }
+
+        const next = [...current];
+        next[index] = mergeGuestFromRealtime(current[index], message.guest!);
+        return next;
+      });
+    });
+  }, [currentEventId, subscribeRealtime]);
 
   const stats = useMemo(
     () => ({
