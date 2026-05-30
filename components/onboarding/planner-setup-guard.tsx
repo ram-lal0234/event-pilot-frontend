@@ -7,14 +7,12 @@ import { PlannerProfileDialog } from "@/components/onboarding/planner-profile-di
 import { BlockingDialog } from "@/components/onboarding/blocking-dialog";
 import { isAccountOwner } from "@/lib/event-access";
 import { needsPlannerProfileSetup } from "@/lib/onboarding";
-import { Button } from "@/components/ui/button";
-
 /**
  * Enforces planner setup in order: profile → first event (owners) → app.
  * Blocking dialogs cannot be closed until the step is completed.
  */
 export function PlannerSetupGuard({ children }: { children: ReactNode }) {
-  const { account, membership, events, eventsLoaded, user, logout } = useApp();
+  const { account, membership, events, eventsLoaded, user } = useApp();
 
   const isOwner = isAccountOwner(membership?.role ?? user.accountRole);
   const needsProfile = needsPlannerProfileSetup(membership, account, isOwner);
@@ -40,12 +38,8 @@ export function PlannerSetupGuard({ children }: { children: ReactNode }) {
       <BlockingDialog
         open={needsEventAssignment}
         title="No events assigned"
-        description="Ask your workspace owner to assign you to an event from Team settings."
-      >
-        <Button type="button" variant="outline" onClick={logout}>
-          Logout
-        </Button>
-      </BlockingDialog>
+        description="Ask your workspace owner to assign you to an event from Team settings. You can sign out from the menu in the top bar if needed."
+      />
     </>
   );
 }

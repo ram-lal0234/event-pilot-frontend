@@ -26,7 +26,7 @@ export function LiveOperationsFeed({ items }: { items: FeedItem[] }) {
     <Card className="border-border shadow-none">
       <CardHeader className="pb-2">
         <CardTitle className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Live Operations Feed
+          Operations feed
         </CardTitle>
       </CardHeader>
       <CardContent>

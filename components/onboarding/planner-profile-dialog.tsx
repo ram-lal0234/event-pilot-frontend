@@ -14,7 +14,7 @@ type PlannerProfileDialogProps = {
 };
 
 export function PlannerProfileDialog({ open }: PlannerProfileDialogProps) {
-  const { user, account, membership, completeOnboarding, logout } = useApp();
+  const { user, account, membership, completeOnboarding } = useApp();
   const isOwner = isAccountOwner(membership?.role ?? user.accountRole);
 
   const [name, setName] = useState("");
@@ -77,12 +77,9 @@ export function PlannerProfileDialog({ open }: PlannerProfileDialogProps) {
             />
           </Field>
         ) : null}
-        <div className="flex gap-2 pt-2">
-          <Button className="flex-1" type="submit" loading={busy} loadingText="Saving…">
+        <div className="pt-2">
+          <Button className="w-full" type="submit" loading={busy} loadingText="Saving…">
             Save and continue
-          </Button>
-          <Button type="button" variant="outline" onClick={logout}>
-            Logout
           </Button>
         </div>
       </form>
