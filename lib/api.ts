@@ -88,6 +88,7 @@ export type GuestRecord = {
   ivrRespondedAt: string | null;
   followUpStatus?: "NONE" | "NEEDS_FOLLOW_UP" | "CALLBACK_LATER" | "NO_ANSWER" | "VOICEMAIL" | "COMPLETED";
   callbackAt?: string | null;
+  callbackTriggered?: boolean;
   lastContactedAt?: string | null;
   assignedTo?: string | null;
   needsCab?: boolean | null;
@@ -518,6 +519,7 @@ export const api = {
       rsvpStatus?: RsvpStatus;
       followUpStatus?: GuestRecord["followUpStatus"];
       callbackAt?: string | null;
+      callbackTriggered?: boolean;
       lastContactedAt?: string | null;
       assignedTo?: string | null;
       needsCab?: boolean | null;
