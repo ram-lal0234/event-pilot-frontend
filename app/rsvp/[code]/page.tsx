@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { PublicRsvpShell } from "@/components/domain/public-rsvp/public-rsvp-shell";
 import { RsvpPageSkeleton } from "@/components/domain/public-rsvp/rsvp-page-skeleton";
@@ -34,9 +34,21 @@ function hasCompletedRsvp(invite: PublicRsvpInvite): boolean {
   return Boolean(invite.hasSubmitted) || invite.guest.rsvpStatus !== "PENDING";
 }
 
+function resolveInviteCode(
+  params: { code?: string | string[] } | null,
+  pathname: string | null,
+): string | undefined {
+  const fromParams = params?.code;
+  if (typeof fromParams === "string" && fromParams.length > 0) return fromParams;
+  if (Array.isArray(fromParams) && fromParams[0]) return fromParams[0];
+  const match = pathname?.match(/\/rsvp\/([^/?#]+)/);
+  return match?.[1];
+}
+
 export default function PublicRsvpPage() {
   const params = useParams<{ code: string }>();
-  const code = params?.code;
+  const pathname = usePathname();
+  const code = resolveInviteCode(params, pathname);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [invite, setInvite] = useState<PublicRsvpInvite | null>(null);
