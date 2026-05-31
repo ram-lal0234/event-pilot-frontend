@@ -5,7 +5,13 @@ import { Clock3, MapPin, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { OptionDropdown } from "@/components/ui/option-dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type CheckinLocationType, type GuestRecord } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
@@ -174,15 +180,20 @@ export default function CheckInPage() {
           <Badge variant="secondary" className="h-7 px-2 text-xs">
             {currentEvent?.name || "No event selected"}
           </Badge>
-          <OptionDropdown
-            triggerClassName="h-8 w-[140px] text-xs"
+          <Select
             value={locationType}
-            onValueChange={(value) => setLocationType(value as CheckinLocationType)}
-            options={[
-              { value: "EVENT_GATE", label: "Event gate" },
-              { value: "HOTEL", label: "Hotel" },
-            ]}
-          />
+            onValueChange={(value) => {
+              if (value != null) setLocationType(value as CheckinLocationType);
+            }}
+          >
+            <SelectTrigger size="sm" className="h-8 w-[140px] justify-between text-xs font-normal">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value="EVENT_GATE">Event gate</SelectItem>
+              <SelectItem value="HOTEL">Hotel</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </header>
 

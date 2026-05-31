@@ -214,7 +214,14 @@ export function LoginScreen({
             ) : null}
 
             {step === "email" ? (
-              <form noValidate className="mx-auto w-full max-w-[360px] space-y-4" onSubmit={(e) => void requestOtp(e)}>
+              <form
+                noValidate
+                className="mx-auto w-full max-w-[360px] space-y-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void requestOtp(event);
+                }}
+              >
                 <div className="space-y-1">
                   <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Sign in</h1>
                   <p className="text-sm text-muted-foreground">
@@ -295,7 +302,14 @@ export function LoginScreen({
                 </Button>
               </form>
             ) : (
-              <form noValidate className="mx-auto w-full max-w-[360px] space-y-4" onSubmit={(e) => void verifyOtp(e)}>
+              <form
+                noValidate
+                className="mx-auto w-full max-w-[360px] space-y-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void verifyOtp(event);
+                }}
+              >
                 <div className="flex items-start gap-2">
                   <Button
                     type="button"

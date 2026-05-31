@@ -2,7 +2,7 @@ import { nextReconnectDelayMs } from "@/lib/realtime/backoff";
 import type { RealtimeMessage } from "@/lib/realtime/types";
 
 /** Below API Gateway ~10m idle timeout; pair with pong watchdog. */
-const PING_INTERVAL_MS = 25_000;
+const PING_INTERVAL_MS = 30_000;
 const PONG_TIMEOUT_MS = 10_000;
 const MAX_RECONNECT_ATTEMPTS = 15;
 
@@ -29,33 +29,56 @@ export class RealtimeClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
   private stopped = false;
+  private displaced = false;
   private subscribedEventId: string | undefined;
   private awaitingPong = false;
   private visibilityHandler: (() => void) | null = null;
 
-  constructor(private readonly options: RealtimeClientOptions) {
+  constructor(private options: RealtimeClientOptions) {
     this.subscribedEventId = options.eventId;
   }
 
   start() {
+    if (
+      !this.stopped
+      && this.ws
+      && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+
     this.stopped = false;
+    this.displaced = false;
     this.reconnectAttempt = 0;
     this.bindVisibilityRecovery();
     this.connect();
   }
 
+  updateHandlers(
+    onMessage: RealtimeClientOptions["onMessage"],
+    onStateChange?: RealtimeClientOptions["onStateChange"],
+  ) {
+    this.options.onMessage = onMessage;
+    this.options.onStateChange = onStateChange;
+  }
+
   stop() {
     this.stopped = true;
+    this.awaitingPong = false;
     this.unbindVisibilityRecovery();
     this.clearTimers();
-    this.ws?.close();
-    this.ws = null;
+    this.closeActiveSocket();
     this.options.onStateChange?.("idle");
   }
 
   setEventId(eventId: string | undefined) {
     this.subscribedEventId = eventId;
     this.sendSubscribe();
+  }
+
+  /** Ignore events from sockets superseded by a newer connect(). */
+  private isActiveSocket(ws: WebSocket): boolean {
+    return ws === this.ws;
   }
 
   private bindVisibilityRecovery() {
@@ -68,9 +91,15 @@ export class RealtimeClient {
         return;
       }
 
-      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
         this.reconnectAttempt = 0;
         this.scheduleReconnect(0);
+        return;
+      }
+
+      // Half-open after idle: socket looks OPEN but server dropped it — probe now.
+      if (this.ws.readyState === WebSocket.OPEN && !this.awaitingPong) {
+        this.sendPing();
       }
     };
 
@@ -89,7 +118,17 @@ export class RealtimeClient {
       return;
     }
 
+    if (
+      this.ws?.readyState === WebSocket.OPEN
+      || this.ws?.readyState === WebSocket.CONNECTING
+    ) {
+      return;
+    }
+
     this.clearReconnect();
+    this.closeActiveSocket();
+    this.awaitingPong = false;
+    this.displaced = false;
     this.options.onStateChange?.(
       this.reconnectAttempt > 0 ? "reconnecting" : "connecting",
     );
@@ -113,7 +152,10 @@ export class RealtimeClient {
     this.ws = ws;
 
     ws.onopen = () => {
-      this.reconnectAttempt = 0;
+      if (!this.isActiveSocket(ws)) {
+        return;
+      }
+
       this.options.onStateChange?.("open");
       this.sendSubscribe();
       this.sendPing();
@@ -121,6 +163,10 @@ export class RealtimeClient {
     };
 
     ws.onmessage = (event) => {
+      if (!this.isActiveSocket(ws)) {
+        return;
+      }
+
       try {
         const message = JSON.parse(String(event.data)) as RealtimeMessage;
 
@@ -130,6 +176,7 @@ export class RealtimeClient {
         }
 
         if (message.type === "replaced") {
+          this.displaced = true;
           ws.close(4000, "replaced");
           return;
         }
@@ -144,12 +191,17 @@ export class RealtimeClient {
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      if (!this.isActiveSocket(ws)) {
+        return;
+      }
+
       this.stopPingLoop();
       this.clearPongWatchdog();
+      this.awaitingPong = false;
       this.ws = null;
 
-      if (this.stopped) {
+      if (this.stopped || this.displaced || event.code === 4000) {
         this.options.onStateChange?.("idle");
         return;
       }
@@ -158,12 +210,17 @@ export class RealtimeClient {
     };
 
     ws.onerror = () => {
+      if (!this.isActiveSocket(ws)) {
+        return;
+      }
+
       ws.close();
     };
   }
 
   private onPongReceived() {
     this.awaitingPong = false;
+    this.reconnectAttempt = 0;
     this.clearPongWatchdog();
   }
 
@@ -225,6 +282,8 @@ export class RealtimeClient {
       return;
     }
 
+    this.clearReconnect();
+
     if (this.reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
       this.options.onStateChange?.("failed");
       return;
@@ -241,6 +300,19 @@ export class RealtimeClient {
     this.reconnectTimer = setTimeout(() => {
       this.connect();
     }, delay);
+  }
+
+  private closeActiveSocket() {
+    if (!this.ws) {
+      return;
+    }
+
+    this.ws.onclose = null;
+    this.ws.onerror = null;
+    this.ws.onmessage = null;
+    this.ws.onopen = null;
+    this.ws.close();
+    this.ws = null;
   }
 
   private clearReconnect() {

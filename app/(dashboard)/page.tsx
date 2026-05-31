@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -14,9 +14,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { LiveCampaignTeaser } from "@/components/domain/dashboard/live-campaign-teaser";
+import { OutreachGuideCard } from "@/components/domain/outreach/outreach-guide-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type AuditRecord, type DashboardSummary } from "@/lib/api";
+import type { OutreachSummary } from "@/lib/outreach";
 import { scopedEventHref } from "@/lib/design-tokens";
 import { useApp } from "@/components/providers/app-provider";
 import { userDisplayName } from "@/lib/user-display";
@@ -25,9 +27,23 @@ export default function DashboardPage() {
   const { token, currentEventId, currentEvent, eventsLoaded, eventsLoading, user, membership } =
     useApp();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [outreach, setOutreach] = useState<OutreachSummary | null>(null);
   const [feed, setFeed] = useState<AuditRecord[]>([]);
   const [error, setError] = useState(false);
+  const [outreachLoading, setOutreachLoading] = useState(false);
   const loading = !eventsLoaded || eventsLoading || (Boolean(currentEventId) && !summary && !error);
+
+  const loadOutreach = useCallback(async () => {
+    if (!currentEventId || !token) return;
+    setOutreachLoading(true);
+    try {
+      setOutreach(await api.outreachSummary(token, currentEventId));
+    } catch {
+      setOutreach(null);
+    } finally {
+      setOutreachLoading(false);
+    }
+  }, [currentEventId, token]);
 
   useEffect(() => {
     if (!currentEventId) return;
@@ -44,7 +60,8 @@ export default function DashboardPage() {
         setError(true);
         toast.error(err instanceof Error ? err.message : "Could not load dashboard");
       });
-  }, [currentEventId, token]);
+    void loadOutreach();
+  }, [currentEventId, token, loadOutreach]);
 
   const welcomeName = useMemo(
     () => userDisplayName(membership?.name, user.email),
@@ -65,6 +82,16 @@ export default function DashboardPage() {
       </div>
 
       {currentEventId ? <LiveCampaignTeaser eventId={currentEventId} summary={summary} /> : null}
+
+      {currentEventId ? (
+        <OutreachGuideCard
+          eventId={currentEventId}
+          summary={summary}
+          outreach={outreach}
+          loading={outreachLoading}
+          onRefresh={() => void loadOutreach()}
+        />
+      ) : null}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Total guests" value={`${summary?.totalGuests || 0}`} />

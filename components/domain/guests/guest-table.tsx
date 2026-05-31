@@ -12,6 +12,7 @@ import { api, type GuestRecord, RsvpStatus } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
 import { StatusBadge } from "@/components/domain/status-badge";
+import { outreachStatusLabels, outreachStatusVariant } from "@/lib/outreach";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -24,7 +25,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { OptionDropdown } from "@/components/ui/option-dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetBody,
@@ -515,17 +522,22 @@ function GuestDetailsSheet({
               onSubmit={canWrite ? submitRsvp : (e) => e.preventDefault()}
             >
               <div className="grid gap-3 sm:grid-cols-2">
-                <OptionDropdown
+                <Select
                   value={rsvpStatus}
                   disabled={!canWrite}
-                  onValueChange={(status) => setRsvpStatus(status as RsvpStatus)}
-                  options={[
-                    { value: "PENDING", label: "Pending" },
-                    { value: "CONFIRMED", label: "Confirmed" },
-                    { value: "DECLINED", label: "Declined" },
-                  ]}
-                  placeholder="RSVP status"
-                />
+                  onValueChange={(status) => {
+                    if (status != null) setRsvpStatus(status as RsvpStatus);
+                  }}
+                >
+                  <SelectTrigger className="w-full justify-between font-normal">
+                    <SelectValue placeholder="RSVP status" />
+                  </SelectTrigger>
+                  <SelectContent align="start">
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                    <SelectItem value="DECLINED">Declined</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Input
                   type="number"
                   min={1}
@@ -706,6 +718,27 @@ export function GuestTable({
                   />
                   {guest.rsvpStatus}
                 </span>
+                {guest.outreachStatus && guest.outreachStatus !== "IDLE" ? (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <span className="mt-1 inline-flex">
+                          <StatusBadge variant={outreachStatusVariant(guest.outreachStatus)}>
+                            {outreachStatusLabels[guest.outreachStatus]}
+                          </StatusBadge>
+                        </span>
+                      }
+                    />
+                    <TooltipContent>
+                      {guest.whatsappInitialSentAt
+                        ? `WhatsApp: ${new Date(guest.whatsappInitialSentAt).toLocaleString()}`
+                        : "Outreach"}
+                      {guest.voiceAutoScheduledAt
+                        ? ` · Call scheduled: ${new Date(guest.voiceAutoScheduledAt).toLocaleString()}`
+                        : ""}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : null}
               </TableCell>
               <TableCell className="max-w-[220px] text-sm text-muted-foreground">
                 <p className="truncate">Group {guest.groupSize} · {guest.pickupLocation || "No pickup"}</p>

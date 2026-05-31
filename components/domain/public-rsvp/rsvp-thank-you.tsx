@@ -38,7 +38,7 @@ export function RsvpThankYou({
       : RSVP_LABELS[summary.rsvpStatus];
 
   return (
-    <main className="mx-auto max-w-xl space-y-6 p-6">
+    <div className="space-y-6">
       <div className="rounded-xl border border-border bg-card p-6 text-center shadow-sm">
         <CheckCircle2 className="mx-auto size-12 text-status-success" aria-hidden />
         <h1 className="mt-4 text-2xl font-bold text-foreground">
@@ -101,6 +101,6 @@ export function RsvpThankYou({
           Change my response
         </Button>
       ) : null}
-    </main>
+    </div>
   );
 }

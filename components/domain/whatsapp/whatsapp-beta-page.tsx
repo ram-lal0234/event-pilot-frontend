@@ -24,7 +24,13 @@ import { WhatsAppMessagePreview } from "@/components/domain/whatsapp/whatsapp-me
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { OptionDropdown } from "@/components/ui/option-dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 
@@ -151,12 +157,24 @@ export function WhatsAppBetaPage() {
           {guests.length > 0 ? (
             <label className="grid gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">Guest</span>
-              <OptionDropdown
+              <Select
                 value={previewGuestId || guests[0].id}
-                onValueChange={setPreviewGuestId}
-                options={guests.map((g) => ({ value: g.id, label: g.name }))}
-                placeholder="Select guest"
-              />
+                items={guests.map((g) => ({ value: g.id, label: g.name }))}
+                onValueChange={(id) => {
+                  if (id != null) setPreviewGuestId(id);
+                }}
+              >
+                <SelectTrigger className="w-full justify-between font-normal">
+                  <SelectValue placeholder="Select guest" />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {guests.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
           ) : (
             <p className="text-xs text-muted-foreground">Add guests to preview and send.</p>

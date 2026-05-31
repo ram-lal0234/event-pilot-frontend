@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { getOrCreateRealtimeClientId } from "@/lib/realtime/client-id";
 import {
-  RealtimeClient,
-  resolveRealtimeWsUrl,
-  type RealtimeClientState,
-} from "@/lib/realtime/client";
+  acquireSharedRealtimeClient,
+  getSharedRealtimeClient,
+  scheduleSharedClientStop,
+} from "@/lib/realtime/shared-client";
+import type { RealtimeClientState } from "@/lib/realtime/client";
+import { resolveRealtimeWsUrl } from "@/lib/realtime/client";
 import type { RealtimeMessage } from "@/lib/realtime/types";
 
 type UseRealtimeOptions = {
@@ -27,7 +28,6 @@ export function useRealtime({
   const handlerRef = useRef(onMessage);
   const stateHandlerRef = useRef(onStateChange);
   const tokenRef = useRef(token);
-  const clientRef = useRef<RealtimeClient | null>(null);
 
   handlerRef.current = onMessage;
   stateHandlerRef.current = onStateChange;
@@ -38,31 +38,23 @@ export function useRealtime({
 
     if (!enabled || !token || !url) {
       stateHandlerRef.current?.("idle");
-      return;
+      scheduleSharedClientStop();
+      return scheduleSharedClientStop;
     }
 
-    const clientId = getOrCreateRealtimeClientId();
-    const client = new RealtimeClient({
-      url,
-      clientId,
-      getToken: () => tokenRef.current || "",
+    acquireSharedRealtimeClient({
+      token,
       eventId,
       onMessage: (message) => handlerRef.current(message),
       onStateChange: (state) => stateHandlerRef.current?.(state),
     });
 
-    clientRef.current = client;
-    client.start();
-
-    return () => {
-      clientRef.current = null;
-      client.stop();
-    };
+    return scheduleSharedClientStop;
     // eventId changes handled in separate effect — avoid reconnect storm
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, token]);
 
   useEffect(() => {
-    clientRef.current?.setEventId(eventId);
+    getSharedRealtimeClient()?.setEventId(eventId);
   }, [eventId]);
 }

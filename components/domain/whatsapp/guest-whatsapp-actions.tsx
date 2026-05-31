@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Copy, ExternalLink, MessageCircle, Send } from "lucide-react";
 import { toast } from "sonner";
+import { resolvePublicRsvpUrl } from "@/lib/public-rsvp-url";
 import { api, type EventRecord, type GuestRecord } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
 import { buildWhatsAppBridgeSendPayload, sendViaWhatsAppBridge } from "@/lib/whatsapp-bridge";
@@ -31,9 +32,14 @@ type GuestWhatsAppActionsProps = {
 };
 
 async function resolveGuestRsvpUrl(token: string, guest: GuestRecord) {
-  if (guest.publicRsvpUrl) return guest.publicRsvpUrl;
-  const link = await api.getGuestRsvpLink(token, guest.id);
-  return link.publicRsvpUrl;
+  let inviteCode = guest.inviteCode;
+  let backendUrl = guest.publicRsvpUrl;
+  if (!inviteCode && !backendUrl) {
+    const link = await api.getGuestRsvpLink(token, guest.id);
+    inviteCode = link.inviteCode;
+    backendUrl = link.publicRsvpUrl;
+  }
+  return resolvePublicRsvpUrl(backendUrl, inviteCode);
 }
 
 export function GuestWhatsAppActions({

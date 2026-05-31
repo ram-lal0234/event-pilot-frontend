@@ -9,7 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { OptionDropdown } from "@/components/ui/option-dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -385,15 +391,24 @@ function CreateRoomCard({
       </CardHeader>
       <CardContent>
         <form className="space-y-2" onSubmit={onSubmit}>
-          <OptionDropdown
+          <Select
             value={form.hotelId}
-            onValueChange={(hotelId) => setForm({ ...form, hotelId })}
-            options={[
-              { value: "", label: "Select hotel" },
-              ...hotels.map((hotel) => ({ value: hotel.id, label: hotel.name })),
-            ]}
-            placeholder="Select hotel"
-          />
+            onValueChange={(hotelId) => {
+              if (hotelId != null) setForm({ ...form, hotelId });
+            }}
+          >
+            <SelectTrigger className="w-full justify-between font-normal">
+              <SelectValue placeholder="Select hotel" />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value="">Select hotel</SelectItem>
+              {hotels.map((hotel) => (
+                <SelectItem key={hotel.id} value={hotel.id}>
+                  {hotel.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Input value={form.roomNumber} onChange={(event) => setForm({ ...form, roomNumber: event.target.value })} placeholder="Room number" required />
           <Input value={form.roomType} onChange={(event) => setForm({ ...form, roomType: event.target.value })} placeholder="Room type" />
           <Input value={form.floor} onChange={(event) => setForm({ ...form, floor: event.target.value })} placeholder="Floor" />

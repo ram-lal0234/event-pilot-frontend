@@ -2,7 +2,13 @@
 
 import type { GuestRecord } from "@/lib/api";
 import { Input } from "@/components/ui/input";
-import { OptionDropdown } from "@/components/ui/option-dropdown";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 export type GuestOpsFormState = {
@@ -59,21 +65,29 @@ export function GuestOpsFields({
   return (
     <div className="space-y-3 border-t border-border pt-4">
       <p className="text-sm font-medium text-foreground">Follow-up & logistics</p>
-      <OptionDropdown
+      <Select
         value={form.followUpStatus}
-        onValueChange={(followUpStatus) =>
-          onChange({ ...form, followUpStatus: followUpStatus as GuestOpsFormState["followUpStatus"] })
-        }
-        options={[
-          { value: "NONE", label: "No follow-up" },
-          { value: "NEEDS_FOLLOW_UP", label: "Needs follow-up" },
-          { value: "CALLBACK_LATER", label: "Callback later" },
-          { value: "NO_ANSWER", label: "No answer" },
-          { value: "VOICEMAIL", label: "Voicemail" },
-          { value: "COMPLETED", label: "Completed" },
-        ]}
-        placeholder="Follow-up status"
-      />
+        onValueChange={(followUpStatus) => {
+          if (followUpStatus != null) {
+            onChange({
+              ...form,
+              followUpStatus: followUpStatus as GuestOpsFormState["followUpStatus"],
+            });
+          }
+        }}
+      >
+        <SelectTrigger className="w-full justify-between font-normal">
+          <SelectValue placeholder="Follow-up status" />
+        </SelectTrigger>
+        <SelectContent align="start">
+          <SelectItem value="NONE">No follow-up</SelectItem>
+          <SelectItem value="NEEDS_FOLLOW_UP">Needs follow-up</SelectItem>
+          <SelectItem value="CALLBACK_LATER">Callback later</SelectItem>
+          <SelectItem value="NO_ANSWER">No answer</SelectItem>
+          <SelectItem value="VOICEMAIL">Voicemail</SelectItem>
+          <SelectItem value="COMPLETED">Completed</SelectItem>
+        </SelectContent>
+      </Select>
       <Input
         type="datetime-local"
         value={form.callbackAt}
@@ -86,26 +100,40 @@ export function GuestOpsFields({
         placeholder="Assigned to"
       />
       <div className="grid grid-cols-2 gap-2">
-        <OptionDropdown
+        <Select
           value={form.needsCab}
-          onValueChange={(needsCab) => onChange({ ...form, needsCab: needsCab as GuestOpsFormState["needsCab"] })}
-          options={[
-            { value: "", label: "Needs cab?" },
-            { value: "true", label: "Needs cab" },
-            { value: "false", label: "No cab" },
-          ]}
-        />
-        <OptionDropdown
+          onValueChange={(needsCab) => {
+            if (needsCab != null) {
+              onChange({ ...form, needsCab: needsCab as GuestOpsFormState["needsCab"] });
+            }
+          }}
+        >
+          <SelectTrigger className="w-full justify-between font-normal">
+            <SelectValue placeholder="Needs cab?" />
+          </SelectTrigger>
+          <SelectContent align="start">
+            <SelectItem value="">Needs cab?</SelectItem>
+            <SelectItem value="true">Needs cab</SelectItem>
+            <SelectItem value="false">No cab</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
           value={form.needsHotel}
-          onValueChange={(needsHotel) =>
-            onChange({ ...form, needsHotel: needsHotel as GuestOpsFormState["needsHotel"] })
-          }
-          options={[
-            { value: "", label: "Needs hotel?" },
-            { value: "true", label: "Needs hotel" },
-            { value: "false", label: "No hotel" },
-          ]}
-        />
+          onValueChange={(needsHotel) => {
+            if (needsHotel != null) {
+              onChange({ ...form, needsHotel: needsHotel as GuestOpsFormState["needsHotel"] });
+            }
+          }}
+        >
+          <SelectTrigger className="w-full justify-between font-normal">
+            <SelectValue placeholder="Needs hotel?" />
+          </SelectTrigger>
+          <SelectContent align="start">
+            <SelectItem value="">Needs hotel?</SelectItem>
+            <SelectItem value="true">Needs hotel</SelectItem>
+            <SelectItem value="false">No hotel</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <Input
         value={form.language}
