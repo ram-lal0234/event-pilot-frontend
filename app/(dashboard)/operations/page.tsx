@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { Bed, Car, Hotel, Plus, RefreshCw, Users } from "lucide-react";
 import { toast } from "sonner";
 import { CreateCabSheet } from "@/components/domain/operations/create-cab-sheet";
+import { CreateRoomSheet } from "@/components/domain/operations/create-room-sheet";
 import { PageHeader } from "@/components/domain/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,16 +52,6 @@ export default function OperationsPage() {
   const [operationsLoaded, setOperationsLoaded] = useState(false);
 
   const [hotelForm, setHotelForm] = useState({ name: "", location: "" });
-  const [roomForm, setRoomForm] = useState({
-    hotelId: "",
-    roomNumber: "",
-    capacity: 2,
-    roomType: "",
-    floor: "",
-    roomStatus: "",
-    checkInDate: "",
-    checkOutDate: "",
-  });
   const [assignment, setAssignment] = useState<{ mode: AssignmentMode; targetId: string } | null>(null);
   const [selectedGuestIds, setSelectedGuestIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("assignments");
@@ -129,19 +120,6 @@ export default function OperationsPage() {
   const createHotel = (event: FormEvent) => {
     event.preventDefault();
     submit(() => api.createHotel(token, { eventId: currentEventId, ...hotelForm }), "Hotel created");
-  };
-
-  const createRoom = (event: FormEvent) => {
-    event.preventDefault();
-    submit(
-      () => api.createRoom(token, {
-        ...roomForm,
-        capacity: Number(roomForm.capacity),
-        checkInDate: roomForm.checkInDate ? new Date(roomForm.checkInDate).toISOString() : undefined,
-        checkOutDate: roomForm.checkOutDate ? new Date(roomForm.checkOutDate).toISOString() : undefined,
-      }),
-      "Room created"
-    );
   };
 
   const unassignCabGuest = (guestId: string) => submit(() => api.unassignCab(token, { guestId }), "Guest unassigned from cab");
@@ -252,6 +230,11 @@ export default function OperationsPage() {
           </TabsContent>
 
           <TabsContent value="hotels" className="space-y-4 p-4 pt-5">
+            {canWrite ? (
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <CreateRoomSheet token={token} hotels={hotels} onCreated={load} />
+              </div>
+            ) : null}
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
               <div className="space-y-4">
                 {hotels.map((hotel) => (
@@ -265,10 +248,7 @@ export default function OperationsPage() {
                 {!hotels.length && <EmptyPanel title="No hotels yet" body="Create a hotel, then add rooms inside it." />}
               </div>
               {canWrite ? (
-                <div className="space-y-4">
-                  <CreateHotelCard form={hotelForm} setForm={setHotelForm} onSubmit={createHotel} busy={busy} />
-                  <CreateRoomCard form={roomForm} setForm={setRoomForm} hotels={hotels} onSubmit={createRoom} busy={busy} />
-                </div>
+                <CreateHotelCard form={hotelForm} setForm={setHotelForm} onSubmit={createHotel} busy={busy} />
               ) : null}
             </div>
           </TabsContent>
@@ -362,61 +342,6 @@ function CreateHotelCard({
           <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Hotel name" required />
           <Input value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} placeholder="Location" required />
           <Button className="w-full gap-2" type="submit" loading={busy} loadingText="Creating hotel"><Plus className="size-4" />Hotel</Button>
-        </form>
-      </CardContent>
-    </Card>
-  );
-}
-
-function CreateRoomCard({
-  form,
-  setForm,
-  hotels,
-  onSubmit,
-  busy,
-}: {
-  form: { hotelId: string; roomNumber: string; capacity: number; roomType: string; floor: string; roomStatus: string; checkInDate: string; checkOutDate: string };
-  setForm: (form: { hotelId: string; roomNumber: string; capacity: number; roomType: string; floor: string; roomStatus: string; checkInDate: string; checkOutDate: string }) => void;
-  hotels: HotelRecord[];
-  onSubmit: (event: FormEvent) => void;
-  busy: boolean;
-}) {
-  return (
-    <Card className="border-border shadow-none">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Bed className="size-5 text-primary" />
-          Add Room
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form className="space-y-2" onSubmit={onSubmit}>
-          <Select
-            value={form.hotelId}
-            onValueChange={(hotelId) => {
-              if (hotelId != null) setForm({ ...form, hotelId });
-            }}
-          >
-            <SelectTrigger className="w-full justify-between font-normal">
-              <SelectValue placeholder="Select hotel" />
-            </SelectTrigger>
-            <SelectContent align="start">
-              <SelectItem value="">Select hotel</SelectItem>
-              {hotels.map((hotel) => (
-                <SelectItem key={hotel.id} value={hotel.id}>
-                  {hotel.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input value={form.roomNumber} onChange={(event) => setForm({ ...form, roomNumber: event.target.value })} placeholder="Room number" required />
-          <Input value={form.roomType} onChange={(event) => setForm({ ...form, roomType: event.target.value })} placeholder="Room type" />
-          <Input value={form.floor} onChange={(event) => setForm({ ...form, floor: event.target.value })} placeholder="Floor" />
-          <Input value={form.roomStatus} onChange={(event) => setForm({ ...form, roomStatus: event.target.value })} placeholder="Room status" />
-          <Input type="datetime-local" value={form.checkInDate} onChange={(event) => setForm({ ...form, checkInDate: event.target.value })} />
-          <Input type="datetime-local" value={form.checkOutDate} onChange={(event) => setForm({ ...form, checkOutDate: event.target.value })} />
-          <Input type="number" min={1} value={form.capacity} onChange={(event) => setForm({ ...form, capacity: Number(event.target.value) })} placeholder="Capacity" required />
-          <Button className="w-full gap-2" type="submit" disabled={!hotels.length} loading={busy} loadingText="Creating room"><Plus className="size-4" />Room</Button>
         </form>
       </CardContent>
     </Card>

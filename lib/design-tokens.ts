@@ -1,7 +1,9 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
+  Bed,
   CalendarDays,
+  Car,
   FileText,
   LayoutDashboard,
   PhoneCall,
@@ -96,6 +98,15 @@ export const eventViewItems: NavItem[] = [
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "Reports", href: "/reports", icon: FileText },
   { label: "Call Logs", href: "/call-logs", icon: PhoneCall },
+];
+
+export const driverNavItems: NavItem[] = [
+  { label: "Driver roster", href: "/fieldops/drivers", icon: Car },
+];
+
+export const hotelNavItems: NavItem[] = [
+  { label: "Hotel desk", href: "/fieldops/hotel-desk", icon: Bed },
+  { label: "Hotel check-in", href: "/fieldops/checkin", icon: ScanLine },
 ];
 
 /** Routes that are workspace-level, not tied to the selected event. */

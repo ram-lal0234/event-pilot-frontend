@@ -68,26 +68,18 @@ export function GuestFormFields({
         placeholder="Group size"
         required
       />
-      <Input
-        value={form.pickupLocation}
-        onChange={(event) => onChange({ ...form, pickupLocation: event.target.value })}
-        placeholder="Pickup location"
-        maxLength={formLimits.pickupLocation.maxLength}
-      />
-      <div className="grid grid-cols-2 gap-2">
+      <label className="block space-y-1 text-sm">
+        <span className="font-medium text-foreground">Pickup location</span>
+        <span className="block text-xs text-muted-foreground">
+          Same as CSV column <span className="font-mono">pickup_location</span> (e.g. Delhi Airport T3)
+        </span>
         <Input
-          value={form.pickupLat}
-          onChange={(event) => onChange({ ...form, pickupLat: event.target.value })}
-          placeholder="Lat"
-          maxLength={formLimits.latLng.maxLength}
+          value={form.pickupLocation}
+          onChange={(event) => onChange({ ...form, pickupLocation: event.target.value })}
+          placeholder="Pickup location"
+          maxLength={formLimits.pickupLocation.maxLength}
         />
-        <Input
-          value={form.pickupLng}
-          onChange={(event) => onChange({ ...form, pickupLng: event.target.value })}
-          placeholder="Lng"
-          maxLength={formLimits.latLng.maxLength}
-        />
-      </div>
+      </label>
     </div>
   );
 }

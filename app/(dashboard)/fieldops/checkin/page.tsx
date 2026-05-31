@@ -17,11 +17,15 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type CheckinLocationType, type GuestRecord } from "@/lib/api";
 import { formLimits } from "@/lib/form-limits";
+import { isHotelRole } from "@/lib/role-capabilities";
 
 export default function FieldOpsCheckinPage() {
-  const { token, eventsLoaded, eventsLoading } = useApp();
+  const { token, eventsLoaded, eventsLoading, user } = useApp();
+  const hotelOnly = isHotelRole(user.accountRole);
   const [qrCode, setQrCode] = useState("");
-  const [locationType, setLocationType] = useState<CheckinLocationType>("EVENT_GATE");
+  const [locationType, setLocationType] = useState<CheckinLocationType>(
+    hotelOnly ? "HOTEL" : "EVENT_GATE",
+  );
   const [guest, setGuest] = useState<GuestRecord | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -58,24 +62,32 @@ export default function FieldOpsCheckinPage() {
     <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col gap-4 bg-background p-4 pb-8">
       <div>
         <h1 className="text-xl font-semibold">Field check-in</h1>
-        <p className="text-sm text-muted-foreground">Paste or type guest QR code at the gate or hotel desk.</p>
+        <p className="text-sm text-muted-foreground">
+          {hotelOnly
+            ? "Paste or type guest QR code at the hotel desk."
+            : "Paste or type guest QR code at the gate or hotel desk."}
+        </p>
       </div>
 
       <form className="space-y-3 rounded-xl border border-border bg-card p-4" onSubmit={scan}>
-        <Select
-          value={locationType}
-          onValueChange={(value) => {
-            if (value != null) setLocationType(value as CheckinLocationType);
-          }}
-        >
-          <SelectTrigger className="w-full justify-between font-normal">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent align="start">
-            <SelectItem value="EVENT_GATE">Event gate</SelectItem>
-            <SelectItem value="HOTEL">Hotel desk</SelectItem>
-          </SelectContent>
-        </Select>
+        {hotelOnly ? (
+          <p className="text-sm font-medium text-foreground">Location: Hotel desk</p>
+        ) : (
+          <Select
+            value={locationType}
+            onValueChange={(value) => {
+              if (value != null) setLocationType(value as CheckinLocationType);
+            }}
+          >
+            <SelectTrigger className="w-full justify-between font-normal">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value="EVENT_GATE">Event gate</SelectItem>
+              <SelectItem value="HOTEL">Hotel desk</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
         <Input
           value={qrCode}
           onChange={(event) => setQrCode(event.target.value)}

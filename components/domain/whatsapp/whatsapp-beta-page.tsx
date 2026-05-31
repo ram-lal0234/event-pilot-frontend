@@ -20,6 +20,7 @@ import {
   renderWhatsAppMessage,
 } from "@/lib/whatsapp-invite";
 import { scopedEventHref } from "@/lib/design-tokens";
+import { resolvePublicRsvpUrl } from "@/lib/public-rsvp-url";
 import { WhatsAppMessagePreview } from "@/components/domain/whatsapp/whatsapp-message-preview";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -69,7 +70,8 @@ export function WhatsAppBetaPage() {
     if (!currentEvent || !previewGuest) {
       return settings.messageTemplate;
     }
-    const link = previewGuest.publicRsvpUrl ?? "…";
+    const link =
+      resolvePublicRsvpUrl(previewGuest.publicRsvpUrl, previewGuest.inviteCode) || "…";
     const context = buildTemplateContext(previewGuest, currentEvent, link);
     return renderWhatsAppMessage(settings.messageTemplate, context, {
       includeRsvpLink: settings.includeRsvpLink,

@@ -8,9 +8,11 @@ import { useApp } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type CabRecord } from "@/lib/api";
+import { useEventAccess } from "@/hooks/use-event-access";
 
 export default function DriversViewPage() {
   const { token, currentEventId } = useApp();
+  const { canManageOperations } = useEventAccess();
   const [cabs, setCabs] = useState<CabRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -82,10 +84,12 @@ export default function DriversViewPage() {
         </div>
       )}
 
-      <Button className="w-full gap-2" render={<Link href="/operations" />} nativeButton={false}>
-        <Car className="size-4" />
-        Manage cabs
-      </Button>
+      {canManageOperations ? (
+        <Button className="w-full gap-2" render={<Link href="/operations" />} nativeButton={false}>
+          <Car className="size-4" />
+          Manage cabs
+        </Button>
+      ) : null}
     </main>
   );
 }

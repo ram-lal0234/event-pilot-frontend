@@ -22,8 +22,8 @@ export const COACH_MARK_STEPS: CoachMarkStep[] = [
   },
   {
     id: "call",
-    title: "Trigger voice RSVP",
-    body: "Use Call all pending or the AI call button on a guest row to start outbound IVR/AI calls.",
+    title: "Call guests for RSVP",
+    body: "Use Call all pending or call a guest from their row. Choose assistant calls or keypad calls (press 1 or 2).",
     target: '[data-coach="guest-call"]',
     pathIncludes: ["/guests"],
     placement: "bottom-end",

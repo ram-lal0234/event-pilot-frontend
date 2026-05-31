@@ -42,17 +42,12 @@ async function resolveGuestRsvpUrl(token: string, guest: GuestRecord) {
   return resolvePublicRsvpUrl(backendUrl, inviteCode);
 }
 
-export function GuestWhatsAppActions({
-  guest,
-  event,
-  compact = false,
-  stacked = false,
-}: GuestWhatsAppActionsProps) {
+export function useGuestWhatsAppActions(guest: GuestRecord, event: EventRecord | null) {
   const { token, currentEventId } = useApp();
   const [busy, setBusy] = useState(false);
 
   const buildMessage = async () => {
-    if (!token || !currentEventId) {
+    if (!token || !currentEventId || !event) {
       throw new Error("Sign in and select an event first");
     }
 
@@ -133,6 +128,20 @@ export function GuestWhatsAppActions({
       setBusy(false);
     }
   };
+
+  return { busy, copyMessage, sendViaLocalBridge, openWhatsApp };
+}
+
+export function GuestWhatsAppActions({
+  guest,
+  event,
+  compact = false,
+  stacked = false,
+}: GuestWhatsAppActionsProps) {
+  const { busy, copyMessage, sendViaLocalBridge, openWhatsApp } = useGuestWhatsAppActions(
+    guest,
+    event,
+  );
 
   const trigger = (
     <Button

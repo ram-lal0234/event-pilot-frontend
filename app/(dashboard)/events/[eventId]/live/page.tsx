@@ -10,6 +10,7 @@ import { StatCard } from "@/components/domain/stat-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEventAccess } from "@/hooks/use-event-access";
+import { formatAuditAction, formatAuditEntityLabel } from "@/lib/audit-activity";
 import { api, type AuditRecord, type DashboardSummary } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
 
@@ -51,8 +52,8 @@ export default function LivePage() {
     () =>
       feed.map((item) => ({
         id: item.id,
-        title: item.action.replaceAll("_", " ").toLowerCase(),
-        subtitle: `${item.entityType} ${item.entityId.slice(0, 8)}`,
+        title: formatAuditAction(item.action),
+        subtitle: formatAuditEntityLabel(item),
         time: new Date(item.createdAt).toLocaleString(),
         type: item.action.includes("CHECK")
           ? ("checkin" as const)

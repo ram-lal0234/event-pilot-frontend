@@ -81,7 +81,7 @@ export default function CallLogsPage() {
       <div>
         <h1 className="text-lg font-bold text-foreground">Call Logs</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Review IVR and voice-call timelines for guests in {currentEvent?.name || "current event"}.
+          Review phone call history for guests in {currentEvent?.name || "this event"}.
         </p>
       </div>
 

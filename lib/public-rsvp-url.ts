@@ -1,28 +1,52 @@
 /**
- * Public RSVP link resolution (frontend fallback only).
+ * Public RSVP link resolution.
  *
- * 1. `publicRsvpUrl` from the API — preferred. Built on the backend from
- *    PUBLIC_RSVP_BASE_URL / PUBLIC_APP_URL for that deploy.
- * 2. `NEXT_PUBLIC_APP_URL` + invite code — only when the API did not include a URL.
+ * 1. Prefer `NEXT_PUBLIC_APP_URL` + invite code when the API URL is missing or
+ *    points at localhost/127.0.0.1 (common when backend env still has dev defaults).
+ * 2. Otherwise use `publicRsvpUrl` from the API.
+ * 3. Fall back to `NEXT_PUBLIC_APP_URL` + invite code when only code is known.
  *
- * We do not use window.location.origin: the dev port can change (3000 vs 3001),
- * and links must match what you configure for staging/production, not whatever
- * tab the organizer happened to have open.
- *
- * Set NEXT_PUBLIC_APP_URL in .env.local (local) and in your host's env (prod).
+ * Set NEXT_PUBLIC_APP_URL in .env.local (local) and in your host env (prod).
  */
+
+function configuredAppBase(): string {
+  return process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") || "";
+}
+
+function extractInviteCodeFromUrl(url: string): string | null {
+  try {
+    const match = new URL(url).pathname.match(/\/rsvp\/([^/]+)\/?$/);
+    return match?.[1]?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function isLocalDevOrigin(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
 export function resolvePublicRsvpUrl(
   backendUrl?: string | null,
   inviteCode?: string | null,
 ): string {
-  const url = backendUrl?.trim();
+  const base = configuredAppBase();
+  const url = backendUrl?.trim() || "";
+  const code =
+    inviteCode?.trim() ||
+    (url ? extractInviteCodeFromUrl(url) : null) ||
+    "";
+
+  if (base && code && (!url || isLocalDevOrigin(url))) {
+    return `${base}/rsvp/${code}`;
+  }
+
   if (url) return url;
-
-  const code = inviteCode?.trim();
-  if (!code) return "";
-
-  const base = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (!base) return "";
-
-  return `${base.replace(/\/$/, "")}/rsvp/${code}`;
+  if (base && code) return `${base}/rsvp/${code}`;
+  return "";
 }
