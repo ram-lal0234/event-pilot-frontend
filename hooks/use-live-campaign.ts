@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRealtimeBus } from "@/components/providers/realtime-provider";
 import type { DashboardSummary } from "@/lib/api";
 import type { RealtimeMessage } from "@/lib/realtime/types";
+import { liveCallStatusLabel } from "@/lib/voice-messages";
 
 export type CampaignRecentItem = {
   id: string;
@@ -23,13 +24,7 @@ export type ActiveCallState = {
 const MAX_RECENT = 8;
 
 function callStatusLabel(status?: string | null) {
-  const value = (status || "").toUpperCase();
-  if (value === "DIALING") return "Dialing…";
-  if (value === "RINGING") return "Ringing…";
-  if (value === "ANSWERED" || value === "AI_ACTIVE") return "On call…";
-  if (value === "COMPLETED") return "Completed";
-  if (value === "FAILED") return "Failed";
-  return "Calling…";
+  return liveCallStatusLabel(status);
 }
 
 function outcomeFromMessage(message: RealtimeMessage): {
@@ -151,10 +146,10 @@ export function useLiveCampaign(eventId: string | undefined, summary: DashboardS
     : 0;
 
   const connectionLabel = useMemo(() => {
-    if (!enabled) return "Realtime off";
+    if (!enabled) return "Updates paused";
     if (connectionState === "open") return "Live";
     if (connectionState === "reconnecting") return "Reconnecting…";
-    if (connectionState === "failed") return "Disconnected";
+    if (connectionState === "failed") return "Offline";
     return "Connecting…";
   }, [connectionState, enabled]);
 

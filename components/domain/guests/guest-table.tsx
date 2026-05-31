@@ -81,7 +81,13 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-export type VoiceCallMode = "ai" | "ivr";
+import {
+  voiceCallModeCopy,
+  voiceCallUi,
+  type VoiceCallMode,
+} from "@/lib/voice-messages";
+
+export type { VoiceCallMode };
 
 function categoryVariant(category: GuestRecord["category"]) {
   switch (category) {
@@ -204,16 +210,14 @@ const voiceCallConfirmCopy: Record<
   { title: string; description: string; confirmLabel: string }
 > = {
   ai: {
-    title: "Start voice call?",
-    description:
-      "We will place a voice call to this guest now. Make sure they are available to answer.",
-    confirmLabel: "Start call",
+    title: voiceCallModeCopy.ai.confirmTitle,
+    description: voiceCallModeCopy.ai.confirmDescription,
+    confirmLabel: voiceCallModeCopy.ai.confirmButton,
   },
   ivr: {
-    title: "Start keypad call?",
-    description:
-      "We will place a keypad voice call where the guest can confirm or decline using number keys.",
-    confirmLabel: "Start call",
+    title: voiceCallModeCopy.ivr.confirmTitle,
+    description: voiceCallModeCopy.ivr.confirmDescription,
+    confirmLabel: voiceCallModeCopy.ivr.confirmButton,
   },
 };
 
@@ -254,7 +258,7 @@ function GuestVoiceActionButtons({
     if (errorMessage) {
       toast.error(errorMessage);
     } else {
-      toast.success("Call request sent");
+      toast.success(voiceCallModeCopy[mode].successToast);
     }
     setVoiceBusy(null);
     setConfirmMode(null);
@@ -266,10 +270,10 @@ function GuestVoiceActionButtons({
   };
 
   const voiceTooltip = (mode: VoiceCallMode) => {
-    if (mode === "ai" && !aiCallEnabled) return "AI voice calls are off in event settings";
-    if (mode === "ivr" && !ivrCallEnabled) return "IVR calls are off in event settings";
-    if (voiceDisabled) return "RSVP must be pending";
-    return mode === "ai" ? "Trigger AI call" : "Trigger IVR";
+    if (mode === "ai" && !aiCallEnabled) return voiceCallModeCopy.ai.disabledInSettings;
+    if (mode === "ivr" && !ivrCallEnabled) return voiceCallModeCopy.ivr.disabledInSettings;
+    if (voiceDisabled) return voiceCallUi.pendingGuestOnly;
+    return mode === "ai" ? voiceCallModeCopy.ai.button : voiceCallModeCopy.ivr.button;
   };
 
   const confirmCopy = confirmMode ? voiceCallConfirmCopy[confirmMode] : null;
@@ -280,12 +284,12 @@ function GuestVoiceActionButtons({
       size={compact ? "icon-sm" : "sm"}
       className={compact ? undefined : "gap-2"}
       type="button"
-      aria-label="Trigger AI call"
+      aria-label={voiceCallModeCopy.ai.ariaLabel}
       disabled={isModeDisabled("ai")}
       onClick={() => openConfirm("ai")}
     >
       <Bot className="size-4" />
-      {!compact ? "Trigger AI call" : null}
+      {!compact ? voiceCallModeCopy.ai.button : null}
     </Button>
   );
 
@@ -295,12 +299,12 @@ function GuestVoiceActionButtons({
       size={compact ? "icon-sm" : "sm"}
       className={compact ? undefined : "gap-2"}
       type="button"
-      aria-label="Trigger IVR"
+      aria-label={voiceCallModeCopy.ivr.ariaLabel}
       disabled={isModeDisabled("ivr")}
       onClick={() => openConfirm("ivr")}
     >
       <Radio className="size-4" />
-      {!compact ? "Trigger IVR" : null}
+      {!compact ? voiceCallModeCopy.ivr.button : null}
     </Button>
   );
 
@@ -342,7 +346,7 @@ function GuestVoiceActionButtons({
               <Button
                 type="button"
                 loading={voiceBusy === confirmMode}
-                loadingText="Queueing call"
+                loadingText={voiceCallUi.startingCall}
                 onClick={() => void triggerCall(confirmMode)}
               >
                 {confirmCopy.confirmLabel}
@@ -376,7 +380,7 @@ function GuestVoiceActionButtons({
                 variant="ghost"
                 size="icon-sm"
                 type="button"
-                aria-label="Call guest"
+                aria-label={voiceCallUi.callGuest}
                 disabled={voiceDisabled || (!aiCallEnabled && !ivrCallEnabled)}
               >
                 <Phone className="size-4" />
@@ -387,13 +391,13 @@ function GuestVoiceActionButtons({
             {aiCallEnabled ? (
               <DropdownMenuItem disabled={isModeDisabled("ai")} onClick={() => openConfirm("ai")}>
                 <Bot className="size-4" />
-                AI call
+                {voiceCallModeCopy.ai.menu}
               </DropdownMenuItem>
             ) : null}
             {ivrCallEnabled ? (
               <DropdownMenuItem disabled={isModeDisabled("ivr")} onClick={() => openConfirm("ivr")}>
                 <Radio className="size-4" />
-                IVR call
+                {voiceCallModeCopy.ivr.menu}
               </DropdownMenuItem>
             ) : null}
           </DropdownMenuContent>
@@ -464,7 +468,7 @@ async function copyGuestRsvpLink(token: string, guest: GuestRecord) {
   }
   const url = resolvePublicRsvpUrl(backendUrl, inviteCode);
   if (!url) {
-    toast.error("Set NEXT_PUBLIC_APP_URL or configure PUBLIC_RSVP_BASE_URL on the API");
+    toast.error("We couldn't copy the RSVP link. Check your app settings and try again.");
     return;
   }
   await navigator.clipboard.writeText(url);
@@ -518,7 +522,7 @@ function GuestTableActionsMenu({
     if (errorMessage) {
       toast.error(errorMessage);
     } else {
-      toast.success("Call request sent");
+      toast.success(voiceCallModeCopy[mode].successToast);
     }
     setVoiceBusy(null);
     setConfirmMode(null);
@@ -594,13 +598,13 @@ function GuestTableActionsMenu({
           {aiCallEnabled ? (
             <DropdownMenuItem disabled={isVoiceModeDisabled("ai")} onClick={() => openConfirm("ai")}>
               <Bot className="size-4" />
-              AI voice call
+              {voiceCallModeCopy.ai.menu}
             </DropdownMenuItem>
           ) : null}
           {ivrCallEnabled ? (
             <DropdownMenuItem disabled={isVoiceModeDisabled("ivr")} onClick={() => openConfirm("ivr")}>
               <Radio className="size-4" />
-              IVR call
+              {voiceCallModeCopy.ivr.menu}
             </DropdownMenuItem>
           ) : null}
         </DropdownMenuContent>
@@ -646,7 +650,7 @@ function GuestTableActionsMenu({
                 <Button
                   type="button"
                   loading={voiceBusy === confirmMode}
-                  loadingText="Queueing call"
+                  loadingText={voiceCallUi.startingCall}
                   onClick={() => void triggerCall(confirmMode)}
                 >
                   {confirmCopy.confirmLabel}
@@ -685,7 +689,7 @@ function GuestRsvpLinkButton({
       }
       const url = resolvePublicRsvpUrl(backendUrl, inviteCode);
       if (!url) {
-        toast.error("Set NEXT_PUBLIC_APP_URL or configure PUBLIC_RSVP_BASE_URL on the API");
+        toast.error("We couldn't copy the RSVP link. Check your app settings and try again.");
         return;
       }
       await navigator.clipboard.writeText(url);
@@ -897,7 +901,7 @@ function GuestDetailsSheet({
                 type="submit"
                 className="min-h-11 w-full sm:w-auto sm:self-start"
                 loading={busy}
-                loadingText="Saving RSVP"
+                loadingText={voiceCallUi.savingRsvp}
                 disabled={!canWrite}
               >
                 Save RSVP

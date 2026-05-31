@@ -164,7 +164,7 @@ export function EventSettingsSheet({
               Event settings
             </SheetTitle>
             <SheetDescription>
-              Update event details and control voice calls / QR check-in.
+              Update event details and choose how guests can be contacted and checked in.
             </SheetDescription>
           </SheetHeader>
 
@@ -227,10 +227,10 @@ export function EventSettingsSheet({
                     <span className="min-w-0">
                       <span className="flex items-center gap-2 font-medium">
                         <Bot className="size-4 text-primary" />
-                        AI voice calls
+                        Assistant calls
                       </span>
                       <span className="mt-1 block text-sm text-muted-foreground">
-                        Allow AI agent outbound calls that capture RSVP conversationally.
+                        Call guests with a voice assistant that asks RSVP questions in a conversation.
                       </span>
                     </span>
                   </label>
@@ -243,10 +243,10 @@ export function EventSettingsSheet({
                     <span className="min-w-0">
                       <span className="flex items-center gap-2 font-medium">
                         <Hash className="size-4 text-primary" />
-                        IVR / keypad calls
+                        Keypad calls
                       </span>
                       <span className="mt-1 block text-sm text-muted-foreground">
-                        Allow keypad IVR calls where guests confirm or decline with number keys.
+                        Call guests with a short message — they press 1 to confirm or 2 to decline.
                       </span>
                     </span>
                   </label>
@@ -282,7 +282,7 @@ export function EventSettingsSheet({
                         Enable automated outreach
                       </span>
                       <span className="mt-1 block text-sm text-muted-foreground">
-                        Send RSVP link on WhatsApp, auto-call pending guests, then send one reminder.
+                        Send the RSVP link on WhatsApp, then call guests who have not replied, with one reminder if needed.
                       </span>
                     </span>
                   </label>
@@ -302,7 +302,7 @@ export function EventSettingsSheet({
                         </span>
                       </label>
                       <label className="block space-y-1 text-sm font-medium">
-                        <span>Voice call delay (hours)</span>
+                        <span>Hours to wait before calling</span>
                         <Input
                           type="number"
                           min={1}
@@ -313,15 +313,15 @@ export function EventSettingsSheet({
                         />
                       </label>
                       <label className="block space-y-1 text-sm font-medium">
-                        <span>Auto-call mode</span>
+                        <span>Automatic call type</span>
                         <select
                           className="flex h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
                           value={outreachAutoCallMode}
                           disabled={!canWrite}
                           onChange={(e) => setOutreachAutoCallMode(e.target.value as "ai" | "ivr")}
                         >
-                          <option value="ai">AI voice agent</option>
-                          <option value="ivr">IVR / keypad</option>
+                          <option value="ai">Assistant call</option>
+                          <option value="ivr">Keypad call</option>
                         </select>
                       </label>
                       <label className="flex cursor-pointer items-start gap-3">
@@ -373,9 +373,8 @@ export function EventSettingsSheet({
         <DialogHeader>
           <DialogTitle>WhatsApp-only outreach</DialogTitle>
           <DialogDescription>
-            You enabled WhatsApp outreach but disabled both AI voice calls and IVR calls.
-            Automated outreach will send WhatsApp messages only — no auto-calls or post-call
-            reminders will run until you turn a call type back on.
+            You turned on WhatsApp outreach but turned off both call types. Guests will only receive
+            WhatsApp messages — no automatic calls or reminders until you enable a call type again.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

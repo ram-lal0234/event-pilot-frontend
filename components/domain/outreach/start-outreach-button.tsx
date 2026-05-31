@@ -23,15 +23,15 @@ export function StartOutreachButton({
     if (!token) return;
     try {
       const result = await api.startOutreachBatch(token, eventId);
-      toast.success(`Queued WhatsApp for ${result.queued ?? result.sent} guest(s)`);
+      toast.success(`WhatsApp messages sent to ${result.queued ?? result.sent} guest${(result.queued ?? result.sent) === 1 ? "" : "s"}`);
       if (result.failed > 0) {
         toast.message(
-          `${result.failed} guest(s) could not be queued — check phone numbers and settings`,
+          `${result.failed} guest${result.failed === 1 ? "" : "s"} couldn't be reached — check phone numbers and settings`,
         );
       }
       onStarted?.();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not start outreach");
+      toast.error(err instanceof Error ? err.message : "We couldn't start outreach. Please try again.");
     }
   };
 

@@ -81,8 +81,8 @@ export function LiveCampaignCard({
 
         {lastBulk ? (
           <p className="rounded-md border border-border bg-surface-container-low px-3 py-2 text-xs text-muted-foreground">
-            Last bulk queue: <span className="font-medium text-foreground">{lastBulk.queued}</span>{" "}
-            queued
+            Last round of calls: <span className="font-medium text-foreground">{lastBulk.queued}</span>{" "}
+            started
             {lastBulk.skipped > 0 ? (
               <>
                 , <span className="font-medium text-foreground">{lastBulk.skipped}</span> skipped
@@ -103,7 +103,7 @@ export function LiveCampaignCard({
               </span>
             </p>
           ) : (
-            <p className="mt-1 text-sm text-muted-foreground">No active outbound call</p>
+            <p className="mt-1 text-sm text-muted-foreground">No one is being called right now</p>
           )}
         </div>
 

@@ -65,6 +65,7 @@ import { useRealtimeBus } from "@/components/providers/realtime-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
 import { mergeGuestFromRealtime } from "@/lib/realtime/types";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { getVoiceCallErrorMessage } from "@/lib/voice-messages";
 import { scopedEventHref } from "@/lib/design-tokens";
 import { resolvePublicRsvpUrl } from "@/lib/public-rsvp-url";
 
@@ -447,7 +448,7 @@ export default function GuestsPage() {
       await loadGuests();
 
       if (currentEvent?.setting?.outreachEnabled && !currentEvent?.setting?.outreachAutoStart) {
-        toast.message("Use Send invites now on this page when you're ready to queue WhatsApp outreach.");
+        toast.message("Use Send invites when you're ready to message guests on WhatsApp.");
       }
 
       return result.skipped?.length ? { skipped: result.skipped } : null;
@@ -481,10 +482,7 @@ export default function GuestsPage() {
       await api.triggerVoiceCall(token, guestId, callMode);
       return null;
     } catch (err) {
-      if (err instanceof ApiError) {
-        return err.message;
-      }
-      return "We couldn't start the call. Please try again.";
+      return getVoiceCallErrorMessage(err);
     }
   };
 

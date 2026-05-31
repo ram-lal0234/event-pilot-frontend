@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Bot } from "lucide-react";
 import { toast } from "sonner";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
+import { getVoiceCallErrorMessage, voiceCallModeCopy } from "@/lib/voice-messages";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -44,20 +45,18 @@ export function CallAllPendingButton({
       onQueued?.({ queued: result.queued, skipped: result.skipped });
       toast.success(
         result.queued
-          ? `Queued ${result.queued} AI call${result.queued === 1 ? "" : "s"}`
-          : "No calls were queued",
+          ? `Calling ${result.queued} guest${result.queued === 1 ? "" : "s"} now`
+          : "No calls were started",
         {
           description:
             result.skipped > 0
-              ? `${result.skipped} guest(s) skipped (already calling or error)`
+              ? `${result.skipped} guest${result.skipped === 1 ? "" : "s"} skipped — already on a call or unavailable`
               : undefined,
         },
       );
       setOpen(false);
     } catch (err) {
-      const message =
-        err instanceof ApiError ? err.message : "We couldn't start the campaign. Please try again.";
-      toast.error(message);
+      toast.error(getVoiceCallErrorMessage(err, "We couldn't start calling guests. Please try again."));
     } finally {
       setBusy(false);
     }
@@ -82,19 +81,19 @@ export function CallAllPendingButton({
       />
       <DialogContent showCloseButton={!busy}>
         <DialogHeader>
-          <DialogTitle>Call all pending guests?</DialogTitle>
+          <DialogTitle>Call all guests who haven't replied?</DialogTitle>
           <DialogDescription>
-            This queues an AI voice call for each guest with RSVP status Pending (
-            {pendingCount} guest{pendingCount === 1 ? "" : "s"}). Guests already on a call are
-            skipped. Calls run through the dialer queue one at a time.
+            We'll call each guest with a pending reply ({pendingCount} guest
+            {pendingCount === 1 ? "" : "s"}). {voiceCallModeCopy.ai.confirmDescription} Guests already
+            on a call will be skipped. Calls are placed one at a time.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-0">
           <Button type="button" variant="outline" disabled={busy} onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button type="button" loading={busy} loadingText="Queuing…" onClick={() => void run()}>
-            Queue {pendingCount} call{pendingCount === 1 ? "" : "s"}
+          <Button type="button" loading={busy} loadingText="Starting calls…" onClick={() => void run()}>
+            Call {pendingCount} guest{pendingCount === 1 ? "" : "s"}
           </Button>
         </DialogFooter>
       </DialogContent>

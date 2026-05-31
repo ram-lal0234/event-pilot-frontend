@@ -43,8 +43,7 @@ export function OutreachStartBanner({
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">WhatsApp outreach isn&apos;t started yet</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Queue WhatsApp invites for your guest list. Voice follow-up runs automatically after your
-            configured delay.
+            Send WhatsApp invites to your guest list. We'll call guests who haven't replied after the delay you set in event settings.
           </p>
         </div>
       </div>

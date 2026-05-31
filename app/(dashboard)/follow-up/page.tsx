@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ApiError, api, type GuestRecord } from "@/lib/api";
+import { getVoiceCallErrorMessage, voiceCallModeCopy } from "@/lib/voice-messages";
 import { formatCallbackAt } from "@/lib/format-callback-time";
 
 const ACTIVE_FOLLOW_UP =
@@ -47,7 +47,7 @@ export default function FollowUpPage() {
       });
       setGuests(result.items);
     } catch {
-      toast.error("Could not load follow-up queue");
+      toast.error("Couldn't load your follow-up list");
     } finally {
       setLoading(false);
     }
@@ -102,12 +102,10 @@ export default function FollowUpPage() {
     setBusyId(guestId);
     try {
       await api.triggerVoiceCall(token, guestId, "ai");
-      toast.success("Call queued");
+      toast.success(voiceCallModeCopy.ai.successToast);
       await load();
     } catch (err) {
-      const message =
-        err instanceof ApiError ? err.message : "Could not start the call";
-      toast.error(message);
+      toast.error(getVoiceCallErrorMessage(err));
     } finally {
       setBusyId(null);
     }
@@ -154,8 +152,8 @@ export default function FollowUpPage() {
 
   return (
     <DashboardPage
-      title="Follow-up queue"
-      description="Guests who need a callback or could not be reached on voice."
+      title="Follow-ups"
+      description="Guests who asked for a callback or couldn't be reached by phone."
       actions={
         <Button variant="outline" render={<Link href="/guests" />} nativeButton={false}>
           All guests
@@ -178,7 +176,7 @@ export default function FollowUpPage() {
                   <p className="text-sm text-muted-foreground">{guest.phone}</p>
                   <p className="mt-1 text-sm font-medium text-primary">
                     {formatCallbackAt(guest.callbackAt)}
-                    {guest.callbackTriggered ? " · dial queued" : ""}
+                    {guest.callbackTriggered ? " · call scheduled" : ""}
                   </p>
                   {guest.guestNotes ? (
                     <p className="mt-1 text-xs text-muted-foreground">{guest.guestNotes}</p>
@@ -284,7 +282,7 @@ export default function FollowUpPage() {
         ))}
         {!guests.length ? (
           <p className="rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            No guests in the follow-up queue. Use voice calls or edit a guest to set follow-up status.
+            No guests need follow-up right now. Call a guest from the guest list or mark follow-up status manually.
           </p>
         ) : null}
       </section>
