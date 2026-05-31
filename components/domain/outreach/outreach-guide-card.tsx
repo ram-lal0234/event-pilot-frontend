@@ -43,9 +43,9 @@ export function OutreachGuideCard({
     if (!token) return;
     try {
       const result = await api.startOutreachBatch(token, eventId);
-      toast.success(`WhatsApp sent to ${result.sent} guest(s)`);
+      toast.success(`Queued WhatsApp for ${result.queued ?? result.sent} guest(s)`);
       if (result.failed > 0) {
-        toast.message(`${result.failed} guest(s) could not be messaged — check WhatsApp bridge`);
+        toast.message(`${result.failed} guest(s) could not be queued — check phone numbers and settings`);
       }
       onRefresh();
     } catch (err) {

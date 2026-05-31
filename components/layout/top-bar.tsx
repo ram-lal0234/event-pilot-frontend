@@ -1,12 +1,14 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Building2, LogOut, ScanLine, Users } from "lucide-react";
+import { Building2, LogOut, ScanLine, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/components/providers/app-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
+import { EventSettingsSheet } from "@/components/domain/events/event-settings-sheet";
 import { scopedEventHref } from "@/lib/design-tokens";
+import { isPlannerRole } from "@/lib/role-capabilities";
 import { userDisplayName } from "@/lib/user-display";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/layout/user-avatar";
@@ -25,9 +27,11 @@ interface TopBarProps {
 
 export function TopBar({ mobileMenu }: TopBarProps) {
   const { user, logout, account, membership, currentEventId } = useApp();
-  const { isOwner } = useEventAccess();
+  const { isOwner, canWrite } = useEventAccess();
+  const [eventSettingsOpen, setEventSettingsOpen] = useState(false);
   const displayName = userDisplayName(membership?.name, user.email);
   const checkInHref = scopedEventHref(currentEventId, "/check-in");
+  const showEventSettings = Boolean(currentEventId) && isPlannerRole(user.accountRole);
 
   return (
     <header
@@ -48,6 +52,28 @@ export function TopBar({ mobileMenu }: TopBarProps) {
           <span className="hidden max-w-[140px] truncate text-sm font-medium text-foreground lg:inline">
             {account.name}
           </span>
+        ) : null}
+
+        {showEventSettings ? (
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              type="button"
+              className="size-9 shrink-0"
+              aria-label="Event settings"
+              title="Event settings"
+              onClick={() => setEventSettingsOpen(true)}
+            >
+              <Settings className="size-4" />
+            </Button>
+            <EventSettingsSheet
+              eventId={currentEventId}
+              canWrite={canWrite}
+              open={eventSettingsOpen}
+              onOpenChange={setEventSettingsOpen}
+            />
+          </>
         ) : null}
 
         <Button

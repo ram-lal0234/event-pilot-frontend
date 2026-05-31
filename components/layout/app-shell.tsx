@@ -5,10 +5,12 @@ import { Menu } from "lucide-react";
 import { pageLayout } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { RoleRouteGuard } from "@/components/auth/role-route-guard";
 import { PlannerSetupGuard } from "@/components/onboarding/planner-setup-guard";
 import { PlannerCoachMarks } from "@/components/onboarding/planner-coach-marks";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
+import { EventRouteSync } from "@/components/layout/event-route-sync";
 import { AppProvider } from "@/components/providers/app-provider";
 import { RealtimeProvider } from "@/components/providers/realtime-provider";
 import { Button } from "@/components/ui/button";
@@ -75,7 +77,11 @@ function AppShellInner({ children }: { children: ReactNode }) {
             pageLayout.shell.paddingTop,
           )}
         >
-          <PlannerSetupGuard>{children}</PlannerSetupGuard>
+          <EventRouteSync>
+            <RoleRouteGuard>
+              <PlannerSetupGuard>{children}</PlannerSetupGuard>
+            </RoleRouteGuard>
+          </EventRouteSync>
           <PlannerCoachMarks />
         </div>
       </main>

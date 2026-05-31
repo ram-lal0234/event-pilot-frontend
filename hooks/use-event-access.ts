@@ -1,7 +1,12 @@
 "use client";
 
 import { useApp } from "@/components/providers/app-provider";
-import { canTriggerVoice, canWriteEvent, isAccountOwner } from "@/lib/event-access";
+import {
+  canManageOperations,
+  canTriggerVoice,
+  canWriteEvent,
+  isAccountOwner,
+} from "@/lib/event-access";
 
 export function useEventAccess() {
   const { user, currentEvent, account } = useApp();
@@ -13,5 +18,6 @@ export function useEventAccess() {
     isOwner: isAccountOwner(accountRole),
     canWrite: canWriteEvent(accountRole, currentEvent),
     canTriggerVoice: canTriggerVoice(accountRole, currentEvent),
+    canManageOperations: canManageOperations(accountRole),
   };
 }

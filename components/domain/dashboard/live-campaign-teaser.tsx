@@ -22,7 +22,7 @@ export function LiveCampaignTeaser({ eventId, summary }: LiveCampaignTeaserProps
   return (
     <Link
       href={scopedEventHref(eventId, "/live")}
-      className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-surface-container-low"
+      className="flex h-full items-center justify-between gap-4 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-surface-container-low"
     >
       <div className="flex min-w-0 items-center gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">

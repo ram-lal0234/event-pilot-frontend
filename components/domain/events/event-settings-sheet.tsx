@@ -12,6 +12,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { formLimits } from "@/lib/form-limits";
 import { api, type EventRecord } from "@/lib/api";
 import { DEFAULT_WHATSAPP_MESSAGE_TEMPLATE } from "@/lib/whatsapp-invite";
+import { isOutreachWhatsAppOnly } from "@/lib/event-ops-settings";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Sheet,
   SheetBody,
@@ -34,13 +43,19 @@ export function EventSettingsSheet({
   eventId,
   canWrite,
   trigger,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: {
   eventId: string;
   canWrite: boolean;
-  trigger: ReactElement;
+  trigger?: ReactElement;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const { token, refreshEvents } = useApp();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
@@ -55,6 +70,7 @@ export function EventSettingsSheet({
   const [outreachAutoCallMode, setOutreachAutoCallMode] = useState<"ai" | "ivr">("ai");
   const [outreachReminderEnabled, setOutreachReminderEnabled] = useState(true);
   const [outreachMessageTemplate, setOutreachMessageTemplate] = useState(DEFAULT_WHATSAPP_MESSAGE_TEMPLATE);
+  const [confirmWhatsAppOnlyOpen, setConfirmWhatsAppOnlyOpen] = useState(false);
 
   const applyEvent = useCallback((event: EventRecord) => {
     setName(event.name);
@@ -92,13 +108,7 @@ export function EventSettingsSheet({
     }
   }, [load, open]);
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!canWrite) {
-      toast.error("Read-only access — you cannot change event settings");
-      return;
-    }
-
+  const persistSettings = async () => {
     setBusy(true);
     try {
       const updated = await api.updateEvent(token, eventId, {
@@ -118,6 +128,7 @@ export function EventSettingsSheet({
       applyEvent(updated);
       await refreshEvents();
       toast.success("Event settings saved");
+      setConfirmWhatsAppOnlyOpen(false);
       setOpen(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save settings");
@@ -126,9 +137,25 @@ export function EventSettingsSheet({
     }
   };
 
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!canWrite) {
+      toast.error("Read-only access — you cannot change event settings");
+      return;
+    }
+
+    if (isOutreachWhatsAppOnly(outreachEnabled, voiceAiEnabled, ivrEnabled)) {
+      setConfirmWhatsAppOnlyOpen(true);
+      return;
+    }
+
+    await persistSettings();
+  };
+
   return (
+    <>
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger render={trigger} />
+      {trigger ? <SheetTrigger render={trigger} /> : null}
       <SheetContent className="sm:max-w-md">
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={submit}>
           <SheetHeader>
@@ -340,5 +367,37 @@ export function EventSettingsSheet({
         </form>
       </SheetContent>
     </Sheet>
+
+    <Dialog open={confirmWhatsAppOnlyOpen} onOpenChange={setConfirmWhatsAppOnlyOpen}>
+      <DialogContent showCloseButton={!busy}>
+        <DialogHeader>
+          <DialogTitle>WhatsApp-only outreach</DialogTitle>
+          <DialogDescription>
+            You enabled WhatsApp outreach but disabled both AI voice calls and IVR calls.
+            Automated outreach will send WhatsApp messages only — no auto-calls or post-call
+            reminders will run until you turn a call type back on.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={() => setConfirmWhatsAppOnlyOpen(false)}
+          >
+            Go back
+          </Button>
+          <Button
+            type="button"
+            loading={busy}
+            loadingText="Saving settings"
+            onClick={() => void persistSettings()}
+          >
+            Save WhatsApp-only
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

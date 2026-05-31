@@ -7,11 +7,14 @@ import { BrandLogo } from "@/components/brand-logo";
 import { cn } from "@/lib/utils";
 import {
   brand,
+  driverNavItems,
   eventViewItems,
+  hotelNavItems,
   isEventHrefActive,
   navItems,
   scopedEventHref,
 } from "@/lib/design-tokens";
+import { isDriverRole, isHotelRole, isPlannerRole } from "@/lib/role-capabilities";
 import { useApp } from "@/components/providers/app-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
 import { Button } from "@/components/ui/button";
@@ -26,8 +29,12 @@ import {
 export function Sidebar({ className }: { className?: string }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { currentEvent, currentEventId, events, setCurrentEventId } = useApp();
+  const { currentEvent, currentEventId, events, setCurrentEventId, user } = useApp();
   const { isOwner } = useEventAccess();
+  const accountRole = user.accountRole;
+  const showPlannerNav = isPlannerRole(accountRole);
+  const showDriverNav = isDriverRole(accountRole);
+  const showHotelNav = isHotelRole(accountRole);
 
   const onEventSelect = (nextEventId: string) => {
     if (!nextEventId || nextEventId === currentEventId) return;
@@ -84,20 +91,53 @@ export function Sidebar({ className }: { className?: string }) {
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-4">
-        {navItems.map((item) => (
-          <SidebarLink key={item.href} item={item} pathname={pathname} currentEventId={currentEventId} />
-        ))}
-        <p className="px-2 pt-4 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Event Views
-        </p>
-        {eventViewItems.map((item) => (
-          <SidebarLink
-            key={item.href}
-            item={item}
-            pathname={pathname}
-            currentEventId={currentEventId}
-          />
-        ))}
+        {showPlannerNav
+          ? navItems.map((item) => (
+              <SidebarLink
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                currentEventId={currentEventId}
+              />
+            ))
+          : null}
+        {showDriverNav
+          ? driverNavItems.map((item) => (
+              <SidebarLink
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                currentEventId={currentEventId}
+                useGlobalHref
+              />
+            ))
+          : null}
+        {showHotelNav
+          ? hotelNavItems.map((item) => (
+              <SidebarLink
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                currentEventId={currentEventId}
+                useGlobalHref
+              />
+            ))
+          : null}
+        {showPlannerNav ? (
+          <>
+            <p className="px-2 pt-4 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Event Views
+            </p>
+            {eventViewItems.map((item) => (
+              <SidebarLink
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                currentEventId={currentEventId}
+              />
+            ))}
+          </>
+        ) : null}
       </nav>
       {isOwner ? (
         <div className="border-t border-border p-3">
@@ -132,17 +172,20 @@ function SidebarLink({
   item,
   pathname,
   currentEventId,
+  useGlobalHref = false,
 }: {
   item: { label: string; href: string; icon: React.ComponentType<{ className?: string }> };
   pathname: string;
   currentEventId: string;
+  useGlobalHref?: boolean;
 }) {
-  const isActive = isEventHrefActive(pathname, item.href);
+  const isActive = isEventHrefActive(pathname, item.href) || pathname === item.href;
   const Icon = item.icon;
+  const href = useGlobalHref ? item.href : scopedEventHref(currentEventId, item.href);
 
   return (
     <Link
-      href={scopedEventHref(currentEventId, item.href)}
+      href={href}
       data-coach={item.href === "/check-in" ? "nav-check-in" : undefined}
       className={cn(
         "flex h-9 items-center gap-2 rounded-md px-2 text-sm transition-colors",

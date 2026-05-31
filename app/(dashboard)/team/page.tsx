@@ -94,7 +94,11 @@ export default function TeamPage() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     {member.role}
                     {" · "}
-                    {member.status === "PENDING" ? "Pending invite" : "Active"}
+                    {member.status === "REVOKED"
+                      ? "Suspended"
+                      : member.status === "PENDING"
+                        ? "Pending invite"
+                        : "Active"}
                     {member.eventAccess.length
                       ? ` · ${member.eventAccess.length} event(s)`
                       : member.role !== "OWNER"
@@ -120,27 +124,66 @@ export default function TeamPage() {
                   ) : null}
                   {member.role !== "OWNER" ? (
                     <>
-                      <Button type="button" size="sm" variant="outline" onClick={() => setManageMember(member)}>
-                        Manage
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          void (async () => {
-                            try {
-                              await api.revokeTeamMember(token, member.id);
-                              toast.success("Member revoked");
-                              await load();
-                            } catch (err) {
-                              toast.error(err instanceof Error ? err.message : "Could not revoke");
-                            }
-                          })()
-                        }
-                      >
-                        Remove
-                      </Button>
+                      {member.status !== "REVOKED" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setManageMember(member)}
+                        >
+                          Manage
+                        </Button>
+                      ) : null}
+                      {member.status === "REVOKED" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            void (async () => {
+                              try {
+                                await api.reactivateTeamMember(token, member.id);
+                                toast.success("Member reactivated");
+                                await load();
+                              } catch (err) {
+                                toast.error(
+                                  err instanceof Error ? err.message : "Could not reactivate",
+                                );
+                              }
+                            })()
+                          }
+                        >
+                          Reactivate
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            void (async () => {
+                              if (
+                                !window.confirm(
+                                  `Suspend ${member.name || member.email}? They will lose access until you reactivate them.`,
+                                )
+                              ) {
+                                return;
+                              }
+                              try {
+                                await api.suspendTeamMember(token, member.id);
+                                toast.success("Member suspended");
+                                await load();
+                              } catch (err) {
+                                toast.error(
+                                  err instanceof Error ? err.message : "Could not suspend",
+                                );
+                              }
+                            })()
+                          }
+                        >
+                          Suspend
+                        </Button>
+                      )}
                     </>
                   ) : null}
                 </div>
@@ -211,14 +254,14 @@ function InviteMemberSheet({
   busy: boolean;
   onSubmit: (payload: {
     email: string;
-    role: "ADMIN" | "STAFF";
+    role: "ADMIN" | "STAFF" | "DRIVER" | "HOTEL";
     name?: string;
     eventAssignments?: Array<{ eventId: string; accessLevel: AccessLevel }>;
   }) => Promise<void>;
 }) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
-  const [role, setRole] = useState<"ADMIN" | "STAFF">("STAFF");
+  const [role, setRole] = useState<"ADMIN" | "STAFF" | "DRIVER" | "HOTEL">("STAFF");
   const [selectedEvents, setSelectedEvents] = useState<Record<string, AccessLevel>>({});
 
   const handleSubmit = (event: FormEvent) => {
@@ -259,7 +302,7 @@ function InviteMemberSheet({
           <Select
             value={role}
             onValueChange={(next) => {
-              if (next != null) setRole(next as "ADMIN" | "STAFF");
+              if (next != null) setRole(next as "ADMIN" | "STAFF" | "DRIVER" | "HOTEL");
             }}
           >
             <SelectTrigger className="w-full justify-between font-normal">
@@ -268,6 +311,8 @@ function InviteMemberSheet({
             <SelectContent align="start">
               <SelectItem value="STAFF">Staff</SelectItem>
               <SelectItem value="ADMIN">Admin</SelectItem>
+              <SelectItem value="DRIVER">Driver</SelectItem>
+              <SelectItem value="HOTEL">Hotel</SelectItem>
             </SelectContent>
           </Select>
           <div className="space-y-2">
@@ -335,17 +380,23 @@ function ManageMemberSheet({
   onClose: () => void;
   onSave: (
     memberId: string,
-    role: "ADMIN" | "STAFF",
+    role: "ADMIN" | "STAFF" | "DRIVER" | "HOTEL",
     eventAssignments: Array<{ eventId: string; accessLevel: AccessLevel }>,
   ) => Promise<void>;
   busy: boolean;
 }) {
-  const [role, setRole] = useState<"ADMIN" | "STAFF">("STAFF");
+  const [role, setRole] = useState<"ADMIN" | "STAFF" | "DRIVER" | "HOTEL">("STAFF");
   const [assignments, setAssignments] = useState<Record<string, AccessLevel>>({});
 
   useEffect(() => {
     if (!member) return;
-    setRole(member.role === "ADMIN" ? "ADMIN" : "STAFF");
+    setRole(
+      member.role === "ADMIN" ||
+        member.role === "DRIVER" ||
+        member.role === "HOTEL"
+        ? member.role
+        : "STAFF",
+    );
     const map: Record<string, AccessLevel> = {};
     member.eventAccess.forEach((grant) => {
       map[grant.eventId] = grant.accessLevel;
@@ -365,7 +416,7 @@ function ManageMemberSheet({
           <Select
             value={role}
             onValueChange={(next) => {
-              if (next != null) setRole(next as "ADMIN" | "STAFF");
+              if (next != null) setRole(next as "ADMIN" | "STAFF" | "DRIVER" | "HOTEL");
             }}
           >
             <SelectTrigger className="w-full justify-between font-normal">
@@ -374,6 +425,8 @@ function ManageMemberSheet({
             <SelectContent align="start">
               <SelectItem value="STAFF">Staff</SelectItem>
               <SelectItem value="ADMIN">Admin</SelectItem>
+              <SelectItem value="DRIVER">Driver</SelectItem>
+              <SelectItem value="HOTEL">Hotel</SelectItem>
             </SelectContent>
           </Select>
           <div className="space-y-2">

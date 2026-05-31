@@ -29,13 +29,21 @@ export function GuestEditSheet({
   onSave,
   compact = false,
   stacked = false,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  hideTrigger = false,
 }: {
   guest: GuestRecord;
   onSave: (guestId: string, form: GuestFormState, ops: GuestOpsFormState) => Promise<string | null>;
   compact?: boolean;
   stacked?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
   const [form, setForm] = useState(() => guestToFormState(guest));
   const [opsForm, setOpsForm] = useState(() => guestToOpsFormState(guest));
   const [busy, setBusy] = useState(false);
@@ -85,14 +93,16 @@ export function GuestEditSheet({
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      {compact ? (
-        <Tooltip>
-          <TooltipTrigger render={sheetTrigger} />
-          <TooltipContent>Edit guest</TooltipContent>
-        </Tooltip>
-      ) : (
-        sheetTrigger
-      )}
+      {!hideTrigger ? (
+        compact ? (
+          <Tooltip>
+            <TooltipTrigger render={sheetTrigger} />
+            <TooltipContent>Edit guest</TooltipContent>
+          </Tooltip>
+        ) : (
+          sheetTrigger
+        )
+      ) : null}
       <SheetContent className="sm:max-w-md">
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
           <SheetHeader>

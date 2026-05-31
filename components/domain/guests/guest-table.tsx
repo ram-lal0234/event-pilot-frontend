@@ -1,20 +1,48 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Bot, ChevronRight, Copy, Download, MapPin, Phone, QrCode, Radio } from "lucide-react";
+import {
+  Bot,
+  ChevronRight,
+  Copy,
+  Download,
+  ExternalLink,
+  MapPin,
+  MoreHorizontal,
+  Pencil,
+  Phone,
+  QrCode,
+  Radio,
+  Send,
+} from "lucide-react";
 import { GuestEditSheet } from "@/components/domain/guests/guest-edit-sheet";
-import { GuestWhatsAppActions } from "@/components/domain/whatsapp/guest-whatsapp-actions";
+import {
+  GuestWhatsAppActions,
+  useGuestWhatsAppActions,
+} from "@/components/domain/whatsapp/guest-whatsapp-actions";
 import type { GuestFormState } from "@/lib/guest-form";
 import type { GuestOpsFormState } from "@/components/domain/guests/guest-ops-fields";
 import { toast } from "sonner";
 import { QRCodeCanvas } from "qrcode.react";
+import { resolvePublicRsvpUrl } from "@/lib/public-rsvp-url";
 import { api, type GuestRecord, RsvpStatus } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
 import { StatusBadge } from "@/components/domain/status-badge";
 import { outreachStatusLabels, outreachStatusVariant } from "@/lib/outreach";
+import {
+  isAiVoiceEnabled,
+  isIvrEnabled,
+  isQrCheckinEnabled,
+} from "@/lib/event-ops-settings";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -77,7 +105,19 @@ function rsvpVariant(status: RsvpStatus) {
 
 type GuestActionLayout = "compact" | "inline" | "stacked";
 
-function GuestQrDialog({ guest, compact = false }: { guest: GuestRecord; compact?: boolean }) {
+function GuestQrDialog({
+  guest,
+  compact = false,
+  open,
+  onOpenChange,
+  hideTrigger = false,
+}: {
+  guest: GuestRecord;
+  compact?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
+}) {
   const qrCanvasId = `guest-qr-${guest.id}`;
 
   const downloadQr = () => {
@@ -115,15 +155,17 @@ function GuestQrDialog({ guest, compact = false }: { guest: GuestRecord; compact
   );
 
   return (
-    <Dialog>
-      {compact ? (
-        <Tooltip>
-          <TooltipTrigger render={dialogTrigger} />
-          <TooltipContent>View QR code</TooltipContent>
-        </Tooltip>
-      ) : (
-        dialogTrigger
-      )}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {!hideTrigger ? (
+        compact ? (
+          <Tooltip>
+            <TooltipTrigger render={dialogTrigger} />
+            <TooltipContent>View QR code</TooltipContent>
+          </Tooltip>
+        ) : (
+          dialogTrigger
+        )
+      ) : null}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{guest.name}</DialogTitle>
@@ -181,20 +223,31 @@ function GuestVoiceActionButtons({
   rsvpStatus,
   onTriggerVoiceCall,
   compact = false,
+  layout = "compact",
 }: {
   guestId: string;
   guestName?: string;
   rsvpStatus: RsvpStatus;
   onTriggerVoiceCall: (guestId: string, callMode: VoiceCallMode) => Promise<string | null>;
   compact?: boolean;
+  layout?: "compact" | "inline" | "menu";
 }) {
   const { canTriggerVoice } = useEventAccess();
+  const { currentEvent } = useApp();
+  const aiCallEnabled = isAiVoiceEnabled(currentEvent);
+  const ivrCallEnabled = isIvrEnabled(currentEvent);
   const [confirmMode, setConfirmMode] = useState<VoiceCallMode | null>(null);
   const [voiceBusy, setVoiceBusy] = useState<VoiceCallMode | null>(null);
   const voiceDisabled = rsvpStatus !== "PENDING" || !canTriggerVoice;
 
+  const isModeDisabled = (mode: VoiceCallMode) => {
+    if (voiceDisabled || voiceBusy) return true;
+    if (mode === "ai") return !aiCallEnabled;
+    return !ivrCallEnabled;
+  };
+
   const triggerCall = async (mode: VoiceCallMode) => {
-    if (voiceDisabled || voiceBusy) return;
+    if (isModeDisabled(mode)) return;
 
     setVoiceBusy(mode);
     const errorMessage = await onTriggerVoiceCall(guestId, mode);
@@ -208,8 +261,15 @@ function GuestVoiceActionButtons({
   };
 
   const openConfirm = (mode: VoiceCallMode) => {
-    if (voiceDisabled || voiceBusy) return;
+    if (isModeDisabled(mode)) return;
     setConfirmMode(mode);
+  };
+
+  const voiceTooltip = (mode: VoiceCallMode) => {
+    if (mode === "ai" && !aiCallEnabled) return "AI voice calls are off in event settings";
+    if (mode === "ivr" && !ivrCallEnabled) return "IVR calls are off in event settings";
+    if (voiceDisabled) return "RSVP must be pending";
+    return mode === "ai" ? "Trigger AI call" : "Trigger IVR";
   };
 
   const confirmCopy = confirmMode ? voiceCallConfirmCopy[confirmMode] : null;
@@ -221,7 +281,7 @@ function GuestVoiceActionButtons({
       className={compact ? undefined : "gap-2"}
       type="button"
       aria-label="Trigger AI call"
-      disabled={voiceDisabled || voiceBusy !== null}
+      disabled={isModeDisabled("ai")}
       onClick={() => openConfirm("ai")}
     >
       <Bot className="size-4" />
@@ -236,7 +296,7 @@ function GuestVoiceActionButtons({
       className={compact ? undefined : "gap-2"}
       type="button"
       aria-label="Trigger IVR"
-      disabled={voiceDisabled || voiceBusy !== null}
+      disabled={isModeDisabled("ivr")}
       onClick={() => openConfirm("ivr")}
     >
       <Radio className="size-4" />
@@ -294,13 +354,50 @@ function GuestVoiceActionButtons({
     </Dialog>
   );
 
-  if (!compact) {
+  if (layout === "inline" || !compact) {
     return (
       <>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {aiButton}
-          {ivrButton}
+          {aiCallEnabled ? aiButton : null}
+          {ivrCallEnabled ? ivrButton : null}
         </div>
+        {confirmDialog}
+      </>
+    );
+  }
+
+  if (layout === "menu") {
+    return (
+      <>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                type="button"
+                aria-label="Call guest"
+                disabled={voiceDisabled || (!aiCallEnabled && !ivrCallEnabled)}
+              >
+                <Phone className="size-4" />
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end" className="w-44">
+            {aiCallEnabled ? (
+              <DropdownMenuItem disabled={isModeDisabled("ai")} onClick={() => openConfirm("ai")}>
+                <Bot className="size-4" />
+                AI call
+              </DropdownMenuItem>
+            ) : null}
+            {ivrCallEnabled ? (
+              <DropdownMenuItem disabled={isModeDisabled("ivr")} onClick={() => openConfirm("ivr")}>
+                <Radio className="size-4" />
+                IVR call
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
         {confirmDialog}
       </>
     );
@@ -308,19 +405,257 @@ function GuestVoiceActionButtons({
 
   return (
     <>
-      <Tooltip>
-        <TooltipTrigger render={aiButton} />
-        <TooltipContent>
-          {voiceDisabled ? "RSVP must be pending" : "Trigger AI call"}
-        </TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger render={ivrButton} />
-        <TooltipContent>
-          {voiceDisabled ? "RSVP must be pending" : "Trigger IVR"}
-        </TooltipContent>
-      </Tooltip>
+      {aiCallEnabled ? (
+        <Tooltip>
+          <TooltipTrigger render={aiButton} />
+          <TooltipContent>{voiceTooltip("ai")}</TooltipContent>
+        </Tooltip>
+      ) : null}
+      {ivrCallEnabled ? (
+        <Tooltip>
+          <TooltipTrigger render={ivrButton} />
+          <TooltipContent>{voiceTooltip("ivr")}</TooltipContent>
+        </Tooltip>
+      ) : null}
       {confirmDialog}
+    </>
+  );
+}
+
+function GuestOperationsCell({ guest }: { guest: GuestRecord }) {
+  const logistics = [guest.needsCab ? "Cab" : null, guest.needsHotel ? "Hotel" : null].filter(
+    Boolean,
+  ) as string[];
+  const followUp =
+    guest.followUpStatus && guest.followUpStatus !== "NONE"
+      ? guest.followUpStatus.replaceAll("_", " ").toLowerCase()
+      : null;
+
+  return (
+    <div className="max-w-[240px] text-sm">
+      <p className="text-foreground">
+        Group {guest.groupSize}
+        {guest.pickupLocation ? ` · ${guest.pickupLocation}` : " · No pickup"}
+      </p>
+      {logistics.length > 0 || followUp ? (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          {logistics.map((label) => (
+            <span
+              key={label}
+              className="rounded-md bg-surface-container-low px-1.5 py-0.5 text-[11px] font-medium text-foreground"
+            >
+              {label}
+            </span>
+          ))}
+          {followUp ? <span className="text-xs text-muted-foreground capitalize">{followUp}</span> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+async function copyGuestRsvpLink(token: string, guest: GuestRecord) {
+  let backendUrl = guest.publicRsvpUrl;
+  let inviteCode = guest.inviteCode;
+  if (!backendUrl && !inviteCode) {
+    const link = await api.getGuestRsvpLink(token, guest.id);
+    backendUrl = link.publicRsvpUrl;
+    inviteCode = link.inviteCode;
+  }
+  const url = resolvePublicRsvpUrl(backendUrl, inviteCode);
+  if (!url) {
+    toast.error("Set NEXT_PUBLIC_APP_URL or configure PUBLIC_RSVP_BASE_URL on the API");
+    return;
+  }
+  await navigator.clipboard.writeText(url);
+  toast.success("RSVP link copied");
+}
+
+function GuestTableActionsMenu({
+  guest,
+  onTriggerVoiceCall,
+  onUpdateGuest,
+}: {
+  guest: GuestRecord;
+  onTriggerVoiceCall: (guestId: string, callMode: VoiceCallMode) => Promise<string | null>;
+  onUpdateGuest: (guestId: string, form: GuestFormState, ops: GuestOpsFormState) => Promise<string | null>;
+}) {
+  const { token, currentEvent } = useApp();
+  const { canWrite, canTriggerVoice } = useEventAccess();
+  const aiCallEnabled = isAiVoiceEnabled(currentEvent);
+  const ivrCallEnabled = isIvrEnabled(currentEvent);
+  const qrCheckinEnabled = isQrCheckinEnabled(currentEvent);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [copyBusy, setCopyBusy] = useState(false);
+  const [confirmMode, setConfirmMode] = useState<VoiceCallMode | null>(null);
+  const [voiceBusy, setVoiceBusy] = useState<VoiceCallMode | null>(null);
+  const voiceDisabled = guest.rsvpStatus !== "PENDING" || !canTriggerVoice;
+  const whatsapp = useGuestWhatsAppActions(guest, currentEvent);
+
+  const isVoiceModeDisabled = (mode: VoiceCallMode) => {
+    if (voiceDisabled || voiceBusy) return true;
+    if (mode === "ai") return !aiCallEnabled;
+    return !ivrCallEnabled;
+  };
+
+  const handleCopyLink = async () => {
+    setCopyBusy(true);
+    try {
+      await copyGuestRsvpLink(token, guest);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not get RSVP link");
+    } finally {
+      setCopyBusy(false);
+    }
+  };
+
+  const triggerCall = async (mode: VoiceCallMode) => {
+    if (isVoiceModeDisabled(mode)) return;
+
+    setVoiceBusy(mode);
+    const errorMessage = await onTriggerVoiceCall(guest.id, mode);
+    if (errorMessage) {
+      toast.error(errorMessage);
+    } else {
+      toast.success("Call request sent");
+    }
+    setVoiceBusy(null);
+    setConfirmMode(null);
+  };
+
+  const openConfirm = (mode: VoiceCallMode) => {
+    if (isVoiceModeDisabled(mode)) return;
+    setConfirmMode(mode);
+  };
+
+  const confirmCopy = confirmMode ? voiceCallConfirmCopy[confirmMode] : null;
+
+  return (
+    <>
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    type="button"
+                    aria-label={`Actions for ${guest.name}`}
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                }
+              />
+            }
+          />
+          <TooltipContent>Actions — RSVP link, WhatsApp, calls, QR</TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuItem disabled={copyBusy} onClick={() => void handleCopyLink()}>
+            <Copy className="size-4" />
+            Copy RSVP link
+          </DropdownMenuItem>
+          {qrCheckinEnabled ? (
+            <DropdownMenuItem onClick={() => setQrOpen(true)}>
+              <QrCode className="size-4" />
+              View QR code
+            </DropdownMenuItem>
+          ) : null}
+          {canWrite ? (
+            <DropdownMenuItem onClick={() => setEditOpen(true)}>
+              <Pencil className="size-4" />
+              Edit guest
+            </DropdownMenuItem>
+          ) : null}
+          {currentEvent ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={whatsapp.busy}
+                onClick={() => void whatsapp.sendViaLocalBridge()}
+              >
+                <Send className="size-4" />
+                Send WhatsApp (local API)
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={whatsapp.busy} onClick={() => void whatsapp.copyMessage()}>
+                <Copy className="size-4" />
+                Copy WhatsApp message
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={whatsapp.busy} onClick={() => void whatsapp.openWhatsApp()}>
+                <ExternalLink className="size-4" />
+                Open WhatsApp (wa.me)
+              </DropdownMenuItem>
+            </>
+          ) : null}
+          {aiCallEnabled || ivrCallEnabled ? <DropdownMenuSeparator /> : null}
+          {aiCallEnabled ? (
+            <DropdownMenuItem disabled={isVoiceModeDisabled("ai")} onClick={() => openConfirm("ai")}>
+              <Bot className="size-4" />
+              AI voice call
+            </DropdownMenuItem>
+          ) : null}
+          {ivrCallEnabled ? (
+            <DropdownMenuItem disabled={isVoiceModeDisabled("ivr")} onClick={() => openConfirm("ivr")}>
+              <Radio className="size-4" />
+              IVR call
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <GuestQrDialog guest={guest} open={qrOpen} onOpenChange={setQrOpen} hideTrigger />
+      {canWrite ? (
+        <GuestEditSheet
+          guest={guest}
+          onSave={onUpdateGuest}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          hideTrigger
+        />
+      ) : null}
+      <Dialog
+        open={confirmMode !== null}
+        onOpenChange={(open) => {
+          if (!open && !voiceBusy) {
+            setConfirmMode(null);
+          }
+        }}
+      >
+        <DialogContent showCloseButton={!voiceBusy}>
+          {confirmCopy && confirmMode ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{confirmCopy.title}</DialogTitle>
+                <DialogDescription>
+                  <span className="font-medium text-foreground">{guest.name}</span>
+                  {" — "}
+                  {confirmCopy.description}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={voiceBusy !== null}
+                  onClick={() => setConfirmMode(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  loading={voiceBusy === confirmMode}
+                  loadingText="Queueing call"
+                  onClick={() => void triggerCall(confirmMode)}
+                >
+                  {confirmCopy.confirmLabel}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -341,10 +676,17 @@ function GuestRsvpLinkButton({
   const copyLink = async () => {
     setBusy(true);
     try {
-      let url = guest.publicRsvpUrl;
-      if (!url) {
+      let backendUrl = guest.publicRsvpUrl;
+      let inviteCode = guest.inviteCode;
+      if (!backendUrl && !inviteCode) {
         const link = await api.getGuestRsvpLink(token, guest.id);
-        url = link.publicRsvpUrl;
+        backendUrl = link.publicRsvpUrl;
+        inviteCode = link.inviteCode;
+      }
+      const url = resolvePublicRsvpUrl(backendUrl, inviteCode);
+      if (!url) {
+        toast.error("Set NEXT_PUBLIC_APP_URL or configure PUBLIC_RSVP_BASE_URL on the API");
+        return;
       }
       await navigator.clipboard.writeText(url);
       toast.success("RSVP link copied");
@@ -391,22 +733,13 @@ function GuestTableQuickActions({
   onTriggerVoiceCall: (guestId: string, callMode: VoiceCallMode) => Promise<string | null>;
   onUpdateGuest: (guestId: string, form: GuestFormState, ops: GuestOpsFormState) => Promise<string | null>;
 }) {
-  const { canWrite } = useEventAccess();
-  const { currentEvent } = useApp();
-
   return (
-    <div className="flex items-center justify-end gap-0.5">
-      <GuestRsvpLinkButton guest={guest} compact />
-      {currentEvent ? <GuestWhatsAppActions guest={guest} event={currentEvent} compact /> : null}
-      {canWrite ? <GuestEditSheet guest={guest} onSave={onUpdateGuest} compact /> : null}
-      <GuestVoiceActionButtons
-        guestId={guest.id}
-        guestName={guest.name}
-        rsvpStatus={guest.rsvpStatus}
+    <div className="flex items-center justify-end">
+      <GuestTableActionsMenu
+        guest={guest}
         onTriggerVoiceCall={onTriggerVoiceCall}
-        compact
+        onUpdateGuest={onUpdateGuest}
       />
-      <GuestQrDialog guest={guest} compact />
     </div>
   );
 }
@@ -430,10 +763,21 @@ function GuestDetailsSheet({
   const [busy, setBusy] = useState(false);
   const { canWrite, canTriggerVoice } = useEventAccess();
   const { currentEvent } = useApp();
+  const aiCallEnabled = isAiVoiceEnabled(currentEvent);
+  const ivrCallEnabled = isIvrEnabled(currentEvent);
+  const qrCheckinEnabled = isQrCheckinEnabled(currentEvent);
   const voiceDisabled = savedRsvpStatus !== "PENDING" || !canTriggerVoice;
+  const voiceCallsConfigured = aiCallEnabled || ivrCallEnabled;
+  const publicRsvpLink = resolvePublicRsvpUrl(guest.publicRsvpUrl, guest.inviteCode);
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
+    if (nextOpen) {
+      setRsvpStatus(guest.rsvpStatus);
+      setGroupSize(guest.groupSize);
+      setSavedRsvpStatus(guest.rsvpStatus);
+      setSavedGroupSize(guest.groupSize);
+    }
   };
 
   const submitRsvp = async (event: FormEvent) => {
@@ -482,13 +826,13 @@ function GuestDetailsSheet({
                 <GuestEditSheet guest={guest} onSave={onUpdateGuest} stacked />
               ) : null}
             </div>
-            {guest.publicRsvpUrl ? (
+            {publicRsvpLink ? (
               <div className="mt-3 rounded-md border border-border bg-surface-container-low px-3 py-2">
                 <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
                   Public RSVP link
                 </p>
-                <p className="mt-1 line-clamp-2 font-mono text-xs text-foreground" title={guest.publicRsvpUrl}>
-                  {guest.publicRsvpUrl}
+                <p className="mt-1 line-clamp-2 font-mono text-xs text-foreground" title={publicRsvpLink}>
+                  {publicRsvpLink}
                 </p>
               </div>
             ) : null}
@@ -581,46 +925,51 @@ function GuestDetailsSheet({
             ) : null}
           </section>
 
-          <section className="rounded-lg border border-border bg-card p-4">
-            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Voice outreach
-            </p>
-            {voiceDisabled ? (
-              <p className="mt-3 rounded-md border border-dashed border-border bg-surface-container-low px-3 py-2 text-sm text-muted-foreground">
-                Outbound calls are only available while RSVP is{" "}
-                <span className="font-medium text-foreground">Pending</span>. Change RSVP above to
-                call this guest.
+          {voiceCallsConfigured ? (
+            <section className="rounded-lg border border-border bg-card p-4">
+              <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                Voice outreach
               </p>
-            ) : (
-              <>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {guest.ivrRespondedAt
-                    ? `Last voice response ${new Date(guest.ivrRespondedAt).toLocaleString()}`
-                    : "No voice response yet."}
+              {voiceDisabled ? (
+                <p className="mt-3 rounded-md border border-dashed border-border bg-surface-container-low px-3 py-2 text-sm text-muted-foreground">
+                  Outbound calls are only available while RSVP is{" "}
+                  <span className="font-medium text-foreground">Pending</span>. Change RSVP above to
+                  call this guest.
                 </p>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  <GuestVoiceActionButtons
-                    guestId={guest.id}
-                    guestName={guest.name}
-                    rsvpStatus={savedRsvpStatus}
-                    onTriggerVoiceCall={onTriggerVoiceCall}
-                  />
-                </div>
-              </>
-            )}
-          </section>
+              ) : (
+                <>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {guest.ivrRespondedAt
+                      ? `Last voice response ${new Date(guest.ivrRespondedAt).toLocaleString()}`
+                      : "No voice response yet."}
+                  </p>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <GuestVoiceActionButtons
+                      guestId={guest.id}
+                      guestName={guest.name}
+                      rsvpStatus={savedRsvpStatus}
+                      onTriggerVoiceCall={onTriggerVoiceCall}
+                      layout="inline"
+                    />
+                  </div>
+                </>
+              )}
+            </section>
+          ) : null}
 
-          <section className="rounded-lg border border-border bg-card p-4">
-            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Check-in QR
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Gate scan code for this guest — available regardless of RSVP status.
-            </p>
-            <div className="mt-3">
-              <GuestQrDialog guest={guest} />
-            </div>
-          </section>
+          {qrCheckinEnabled ? (
+            <section className="rounded-lg border border-border bg-card p-4">
+              <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                Check-in QR
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Gate scan code for this guest — available regardless of RSVP status.
+              </p>
+              <div className="mt-3">
+                <GuestQrDialog guest={guest} />
+              </div>
+            </section>
+          ) : null}
         </SheetBody>
 
         <SheetFooter className="grid grid-cols-2 gap-2 border-t border-border bg-surface-container-low/50 p-4">
@@ -667,25 +1016,21 @@ export function GuestTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <Table className="min-w-[920px]">
+      <Table className="min-w-[860px]">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-10" />
             <TableHead>Guest Name</TableHead>
             <TableHead>Category</TableHead>
             <TableHead>RSVP</TableHead>
             <TableHead>Operations</TableHead>
             <TableHead>Check-In</TableHead>
-            <TableHead className="w-[11rem] text-right">Quick actions</TableHead>
+            <TableHead className="w-[7.5rem] text-right">Actions</TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {guests.length ? guests.map((guest) => (
             <TableRow key={guest.id}>
-              <TableCell>
-                <Checkbox readOnly />
-              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-3">
                   <Avatar className="size-9">
@@ -740,15 +1085,8 @@ export function GuestTable({
                   </Tooltip>
                 ) : null}
               </TableCell>
-              <TableCell className="max-w-[220px] text-sm text-muted-foreground">
-                <p className="truncate">Group {guest.groupSize} · {guest.pickupLocation || "No pickup"}</p>
-                <p className="mt-1 truncate text-xs">
-                  {guest.needsCab === true ? "Cab " : ""}
-                  {guest.needsHotel === true ? "Hotel " : ""}
-                  {guest.followUpStatus && guest.followUpStatus !== "NONE"
-                    ? guest.followUpStatus.replaceAll("_", " ").toLowerCase()
-                    : ""}
-                </p>
+              <TableCell>
+                <GuestOperationsCell guest={guest} />
               </TableCell>
               <TableCell>
                 <StatusBadge
@@ -787,7 +1125,7 @@ export function GuestTable({
             </TableRow>
           )) : (
             <TableRow>
-              <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
                 No guests found.
               </TableCell>
             </TableRow>

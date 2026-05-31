@@ -29,6 +29,8 @@ const roleLabels: Record<AccountRole, string> = {
   OWNER: "Account owner",
   ADMIN: "Admin",
   STAFF: "Staff",
+  DRIVER: "Driver",
+  HOTEL: "Hotel",
 };
 
 function displayLabel(name: string, email: string) {

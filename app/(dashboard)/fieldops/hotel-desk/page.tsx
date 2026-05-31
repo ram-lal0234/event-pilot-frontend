@@ -8,9 +8,11 @@ import { useApp } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type GuestRecord } from "@/lib/api";
+import { useEventAccess } from "@/hooks/use-event-access";
 
 export default function HotelDeskPage() {
   const { token, currentEventId } = useApp();
+  const { canManageOperations } = useEventAccess();
   const [guests, setGuests] = useState<GuestRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -81,10 +83,12 @@ export default function HotelDeskPage() {
         </div>
       )}
 
-      <Button className="w-full gap-2" render={<Link href="/operations" />} nativeButton={false}>
-        <Bed className="size-4" />
-        Room assignments
-      </Button>
+      {canManageOperations ? (
+        <Button className="w-full gap-2" render={<Link href="/operations" />} nativeButton={false}>
+          <Bed className="size-4" />
+          Room assignments
+        </Button>
+      ) : null}
     </main>
   );
 }

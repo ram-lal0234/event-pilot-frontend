@@ -65,9 +65,7 @@ export function buildGuestCreatePayload(form: GuestFormState, eventId: string) {
     email: form.email || undefined,
     category: form.category,
     groupSize: Number(form.groupSize),
-    pickupLocation: form.pickupLocation || undefined,
-    pickupLat: form.pickupLat ? Number(form.pickupLat) : undefined,
-    pickupLng: form.pickupLng ? Number(form.pickupLng) : undefined,
+    pickupLocation: form.pickupLocation.trim() || undefined,
   };
 }
 

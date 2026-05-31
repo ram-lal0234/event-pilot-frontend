@@ -7,7 +7,7 @@ export type ApiEnvelope<T> = {
 };
 
 export type UserRole = "ADMIN" | "STAFF";
-export type AccountRole = "OWNER" | "ADMIN" | "STAFF";
+export type AccountRole = "OWNER" | "ADMIN" | "STAFF" | "DRIVER" | "HOTEL";
 export type AccessLevel = "FULL" | "READ_ONLY";
 export type InviteStatus = "PENDING" | "ACCEPTED" | "REVOKED";
 export type GuestCategory = "VIP" | "FAMILY" | "GENERAL";
@@ -378,7 +378,7 @@ export const api = {
     token: string,
     payload: {
       email: string;
-      role: "ADMIN" | "STAFF";
+      role: "ADMIN" | "STAFF" | "DRIVER" | "HOTEL";
       name?: string;
       phone?: string;
       eventAssignments?: Array<{ eventId: string; accessLevel?: AccessLevel }>;
@@ -391,12 +391,28 @@ export const api = {
     });
   },
   revokeTeamMember(token: string, memberId: string) {
-    return request<{ id: string }>(`/account/members/${memberId}/revoke`, {
+    return request<{ id: string; status: string }>(`/account/members/${memberId}/revoke`, {
       method: "POST",
       token,
     });
   },
-  updateTeamMemberRole(token: string, memberId: string, role: "ADMIN" | "STAFF") {
+  suspendTeamMember(token: string, memberId: string) {
+    return request<{ id: string; status: string }>(`/account/members/${memberId}/suspend`, {
+      method: "POST",
+      token,
+    });
+  },
+  reactivateTeamMember(token: string, memberId: string) {
+    return request<TeamMemberRecord>(`/account/members/${memberId}/reactivate`, {
+      method: "POST",
+      token,
+    });
+  },
+  updateTeamMemberRole(
+    token: string,
+    memberId: string,
+    role: "ADMIN" | "STAFF" | "DRIVER" | "HOTEL",
+  ) {
     return request<TeamMemberRecord>(`/account/members/${memberId}`, {
       method: "PATCH",
       token,
@@ -437,6 +453,21 @@ export const api = {
   },
   listEvents(token: string) {
     return request<EventRecord[]>("/events", { token });
+  },
+  listArchivedEvents(token: string) {
+    return request<EventRecord[]>("/events/archived/list", { token });
+  },
+  archiveEvent(token: string, eventId: string) {
+    return request<{ id: string; archived: boolean }>(`/events/${eventId}/archive`, {
+      method: "POST",
+      token,
+    });
+  },
+  restoreEvent(token: string, eventId: string) {
+    return request<{ id: string; archived: boolean }>(`/events/${eventId}/restore`, {
+      method: "POST",
+      token,
+    });
   },
   createEvent(
     token: string,
@@ -493,7 +524,7 @@ export const api = {
     });
   },
   startOutreachBatch(token: string, eventId: string) {
-    return request<{ total: number; sent: number; failed: number }>(
+    return request<{ total: number; sent: number; queued: number; failed: number }>(
       `/events/${eventId}/outreach/start`,
       { method: "POST", token, body: JSON.stringify({}) },
     );
@@ -567,7 +598,11 @@ export const api = {
     });
   },
   uploadGuestCsv(token: string, eventId: string, csv: string) {
-    return request<{ inserted: number; guests: GuestRecord[] }>(
+    return request<{
+      inserted: number;
+      guests: GuestRecord[];
+      skipped: Array<{ row: number; phone: string; name: string; reason: string }>;
+    }>(
       `/guests/upload-csv${query({ eventId })}`,
       {
         method: "POST",

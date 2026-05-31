@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   CheckCircle2,
+  ChevronsRight,
   FileText,
   Phone,
   PhoneForwarded,
@@ -14,14 +15,16 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { LiveCampaignTeaser } from "@/components/domain/dashboard/live-campaign-teaser";
-import { OutreachGuideCard } from "@/components/domain/outreach/outreach-guide-card";
+import { OutreachTeaser } from "@/components/domain/dashboard/outreach-teaser";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type AuditRecord, type DashboardSummary } from "@/lib/api";
 import type { OutreachSummary } from "@/lib/outreach";
 import { scopedEventHref } from "@/lib/design-tokens";
 import { useApp } from "@/components/providers/app-provider";
+import { formatAuditAction, formatAuditEntityLabel } from "@/lib/audit-activity";
 import { userDisplayName } from "@/lib/user-display";
+import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
   const { token, currentEventId, currentEvent, eventsLoaded, eventsLoading, user, membership } =
@@ -81,18 +84,6 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {currentEventId ? <LiveCampaignTeaser eventId={currentEventId} summary={summary} /> : null}
-
-      {currentEventId ? (
-        <OutreachGuideCard
-          eventId={currentEventId}
-          summary={summary}
-          outreach={outreach}
-          loading={outreachLoading}
-          onRefresh={() => void loadOutreach()}
-        />
-      ) : null}
-
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Total guests" value={`${summary?.totalGuests || 0}`} />
         <Metric label="Confirmed" value={`${summary?.confirmed || 0}`} />
@@ -100,9 +91,24 @@ export default function DashboardPage() {
         <Metric label="Pending RSVP" value={`${summary?.pendingRsvp || 0}`} />
       </section>
 
+      {currentEventId ? (
+        <section className="grid gap-3 lg:grid-cols-2">
+          <LiveCampaignTeaser eventId={currentEventId} summary={summary} />
+          {outreachLoading ? (
+            <Skeleton className="h-[4.25rem] w-full rounded-lg" />
+          ) : (
+            <OutreachTeaser
+              eventId={currentEventId}
+              outreach={outreach}
+              pendingRsvp={summary?.pendingRsvp}
+            />
+          )}
+        </section>
+      ) : null}
+
       <section>
         <h2 className="mb-4 text-base font-bold text-foreground">Let&apos;s get you started</h2>
-        <div className="grid gap-3 xl:grid-cols-3">
+        <div className="relative grid gap-3 xl:grid-cols-3">
           <WorkflowPanel
             title="Guests & outreach"
             description="Import guests, call individuals, or start a bulk campaign from Live."
@@ -137,6 +143,8 @@ export default function DashboardPage() {
               { label: "Reports", caption: "Export guest and RSVP data", icon: FileText, href: "/reports" },
             ]}
           />
+          <WorkflowFlowConnector className="left-[calc((100%-1.5rem)/3+0.375rem)]" />
+          <WorkflowFlowConnector className="left-[calc(2*(100%-1.5rem)/3+1.125rem)]" />
         </div>
       </section>
 
@@ -162,10 +170,10 @@ export default function DashboardPage() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium capitalize text-foreground">
-                  {item.action.replaceAll("_", " ").toLowerCase()}
+                  {formatAuditAction(item.action)}
                 </span>
                 <span className="block truncate text-xs text-muted-foreground">
-                  {item.entityType} {item.entityId.slice(0, 8)}
+                  {formatAuditEntityLabel(item)}
                 </span>
               </span>
               <span className="text-xs text-muted-foreground">
@@ -219,13 +227,31 @@ export default function DashboardPage() {
   );
 }
 
+function WorkflowFlowConnector({ className }: { className: string }) {
+  return (
+    <div
+      className={cn(
+        "pointer-events-none absolute top-1/2 z-10 hidden -translate-x-1/2 -translate-y-1/2 xl:block",
+        className,
+      )}
+      aria-hidden
+    >
+      <span className="flex size-11 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm">
+        <ChevronsRight className="size-5" />
+      </span>
+    </div>
+  );
+}
+
 function WorkflowPanel({
   title,
   description,
   actions,
+  className,
 }: {
   title: string;
   description: string;
+  className?: string;
   actions: Array<{
     label: string;
     caption: string;
@@ -236,7 +262,7 @@ function WorkflowPanel({
   const { currentEventId } = useApp();
 
   return (
-    <div className="rounded-lg bg-surface-container-low p-6">
+    <div className={cn("rounded-lg bg-surface-container-low p-6", className)}>
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       <p className="mt-2 text-sm text-muted-foreground">{description}</p>
       <div className="mt-5 space-y-3">
@@ -277,15 +303,18 @@ function DashboardSkeleton() {
   return (
     <div className="space-y-7">
       <Skeleton className="h-9 w-56" />
-      <Skeleton className="h-16 w-full rounded-lg" />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
           <Skeleton key={index} className="h-24 rounded-lg" />
         ))}
       </div>
-      <div className="grid gap-3 xl:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Skeleton className="h-[4.25rem] rounded-lg" />
+        <Skeleton className="h-[4.25rem] rounded-lg" />
+      </div>
+      <div className="flex flex-col gap-3 xl:flex-row">
         {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-52 rounded-lg" />
+          <Skeleton key={index} className="h-52 min-w-0 flex-1 rounded-lg" />
         ))}
       </div>
     </div>

@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import Link from "next/link";
 import { z } from "zod";
-import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, FileUp, PhoneCall, Plus, RefreshCw, Upload, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, FileUp, Plus, Upload, XCircle } from "lucide-react";
 import { toast } from "sonner";
-import { CallAllPendingButton } from "@/components/domain/guests/call-all-pending-button";
+import {
+  GuestListHeaderActions,
+  GuestListSecondaryActions,
+} from "@/components/domain/guests/guest-list-toolbar";
+import { OutreachStartBanner } from "@/components/domain/outreach/outreach-start-banner";
 import { GuestTable } from "@/components/domain/guests/guest-table";
 import { GuestFormFields } from "@/components/domain/guests/guest-form-fields";
 import { DataTableShell } from "@/components/data-table/data-table-shell";
@@ -20,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Textarea } from "@/components/ui/textarea";
 import { useDataTableQuery } from "@/hooks/use-data-table-query";
 import type { DataTableFilterConfig } from "@/lib/data-table/types";
@@ -60,7 +64,9 @@ import { useApp } from "@/components/providers/app-provider";
 import { useRealtimeBus } from "@/components/providers/realtime-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
 import { mergeGuestFromRealtime } from "@/lib/realtime/types";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { scopedEventHref } from "@/lib/design-tokens";
+import { resolvePublicRsvpUrl } from "@/lib/public-rsvp-url";
 
 const sampleCsv = `name,phone,email,category,group_size,pickup_location
 Rahul Sharma,9876543210,rahul@email.com,VIP,3,Delhi Airport
@@ -156,6 +162,11 @@ export default function GuestsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [guestsLoaded, setGuestsLoaded] = useState(false);
   const [pendingRsvpTotal, setPendingRsvpTotal] = useState(0);
+  const [eventMetrics, setEventMetrics] = useState({
+    confirmed: 0,
+    declined: 0,
+    pendingRsvp: 0,
+  });
   const fetchGenerationRef = useRef(0);
   const hasLoadedOnceRef = useRef(false);
   const [pagination, setPagination] = useState<PaginationMeta>({
@@ -294,8 +305,18 @@ export default function GuestsPage() {
 
     void api
       .dashboardSummary(token, currentEventId)
-      .then((result) => setPendingRsvpTotal(result.pendingRsvp ?? 0))
-      .catch(() => setPendingRsvpTotal(0));
+      .then((result) => {
+        setPendingRsvpTotal(result.pendingRsvp ?? 0);
+        setEventMetrics({
+          pendingRsvp: result.pendingRsvp ?? 0,
+          confirmed: result.confirmed ?? 0,
+          declined: result.declined ?? 0,
+        });
+      })
+      .catch(() => {
+        setPendingRsvpTotal(0);
+        setEventMetrics({ pendingRsvp: 0, confirmed: 0, declined: 0 });
+      });
   }, [currentEventId, token]);
 
   useEffect(() => {
@@ -353,9 +374,10 @@ export default function GuestsPage() {
       const created = await api.createGuest(token, payload);
       setGuestForm(emptyGuestForm());
 
-      if (created.publicRsvpUrl) {
+      const rsvpUrl = resolvePublicRsvpUrl(created.publicRsvpUrl, created.inviteCode);
+      if (rsvpUrl) {
         try {
-          await navigator.clipboard.writeText(created.publicRsvpUrl);
+          await navigator.clipboard.writeText(rsvpUrl);
         } catch {
           // Clipboard may be blocked on some mobile browsers.
         }
@@ -368,7 +390,7 @@ export default function GuestsPage() {
           const context = buildTemplateContext(
             created,
             currentEvent,
-            created.publicRsvpUrl || "",
+            rsvpUrl || "",
           );
           const message = renderWhatsAppMessage(settings.messageTemplate, context, {
             includeRsvpLink: settings.includeRsvpLink,
@@ -384,7 +406,7 @@ export default function GuestsPage() {
         }
       };
 
-      toast.success(created.publicRsvpUrl ? "Guest created — RSVP link copied" : "Guest created", {
+      toast.success(rsvpUrl ? "Guest created — RSVP link copied" : "Guest created", {
         action:
           currentEvent && created.phone
             ? { label: "Open WhatsApp", onClick: openWhatsApp }
@@ -394,7 +416,7 @@ export default function GuestsPage() {
       await loadGuests();
       return null;
     } catch (err) {
-      return "We couldn't create this guest. Please try again.";
+      return getApiErrorMessage(err, "We couldn't create this guest. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -415,23 +437,22 @@ export default function GuestsPage() {
     setBusy(true);
     try {
       const result = await api.uploadGuestCsv(token, currentEventId, csvToImport);
-      toast.success(`${result.inserted} guests imported`);
+      if (result.inserted > 0) {
+        toast.success(
+          result.skipped?.length
+            ? `${result.inserted} guest${result.inserted === 1 ? "" : "s"} imported (${result.skipped.length} skipped)`
+            : `${result.inserted} guest${result.inserted === 1 ? "" : "s"} imported`,
+        );
+      }
       await loadGuests();
 
       if (currentEvent?.setting?.outreachEnabled && !currentEvent?.setting?.outreachAutoStart) {
-        toast.message("Start WhatsApp outreach from the dashboard when you're ready.", {
-          action: {
-            label: "Open dashboard",
-            onClick: () => {
-              window.location.href = scopedEventHref(currentEventId, "/");
-            },
-          },
-        });
+        toast.message("Use Send invites now on this page when you're ready to queue WhatsApp outreach.");
       }
 
-      return null;
+      return result.skipped?.length ? { skipped: result.skipped } : null;
     } catch (err) {
-      return "We couldn't import this file. Please check it and try again.";
+      return { error: getApiErrorMessage(err, "We couldn't import this file. Please check it and try again.") };
     } finally {
       setBusy(false);
     }
@@ -494,9 +515,33 @@ export default function GuestsPage() {
       <div className="mb-5">
         <h1 className="text-lg font-bold text-foreground">Guests</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage guests for {currentEvent?.name || "your event"}
+          {currentEvent?.name || "Your event"}
+          {pagination.total > 0 ? (
+            <>
+              {" · "}
+              {pagination.total} guest{pagination.total === 1 ? "" : "s"}
+              {" · "}
+              {eventMetrics.pendingRsvp} pending RSVP
+              {" · "}
+              {eventMetrics.confirmed} confirmed
+            </>
+          ) : (
+            " — manage your guest list"
+          )}
         </p>
       </div>
+
+      {currentEventId &&
+      canWrite &&
+      currentEvent?.setting?.outreachEnabled &&
+      !currentEvent?.setting?.outreachAutoStart ? (
+        <OutreachStartBanner
+          eventId={currentEventId}
+          guestCount={pagination.total}
+          onStarted={() => void refreshGuestList()}
+        />
+      ) : null}
+
       <DataTableShell
         tabs={{
           value: rsvpTab,
@@ -509,72 +554,40 @@ export default function GuestsPage() {
           ],
         }}
         headerActions={
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button
-              variant="outline"
-              type="button"
-              size="sm"
-              className="gap-2"
-              onClick={exportGuests}
-              disabled={!pagination.total}
-              loading={busy}
-              loadingText="Exporting"
-            >
-              <Download className="size-4" />
-              Export
-            </Button>
-            <Button
-              variant="outline"
-              type="button"
-              size="sm"
-              className="gap-2"
-              onClick={() => void refreshGuestList()}
-              loading={refreshing}
-              loadingText="Refreshing"
-            >
-              <RefreshCw className="size-4" />
-              Refresh
-            </Button>
-            <Button
-              variant="outline"
-              type="button"
-              size="sm"
-              className="gap-2"
-              render={<Link href={scopedEventHref(currentEventId, "/call-logs")} />}
-              nativeButton={false}
-            >
-              <PhoneCall className="size-4" />
-              Call Logs
-            </Button>
-            {canTriggerVoice ? (
-              <div data-coach="guest-call">
-                <CallAllPendingButton
-                  token={token}
-                  eventId={currentEventId}
-                  pendingCount={pendingRsvpTotal}
-                  className="gap-2"
-                  onQueued={() => {
-                    void loadGuests();
-                    void api
-                      .dashboardSummary(token, currentEventId)
-                      .then((result) => setPendingRsvpTotal(result.pendingRsvp ?? 0))
-                      .catch(() => undefined);
-                  }}
-                />
-              </div>
-            ) : null}
-            {canWrite ? (
-              <div className="flex items-center gap-2" data-coach="guest-import">
-                <CsvSheet csv={csv} setCsv={setCsv} uploadCsv={uploadCsv} busy={busy} />
-                <GuestSheet
-                  form={guestForm}
-                  setForm={setGuestForm}
-                  onSubmit={addGuest}
-                  busy={busy}
-                />
-              </div>
-            ) : null}
-          </div>
+          <GuestListHeaderActions
+            currentEventId={currentEventId}
+            token={token}
+            pendingRsvpTotal={pendingRsvpTotal}
+            canTriggerVoice={canTriggerVoice}
+            canWrite={canWrite}
+            refreshing={refreshing}
+            onRefresh={() => void refreshGuestList()}
+            onCallAllQueued={() => {
+              void loadGuests();
+              void api
+                .dashboardSummary(token, currentEventId)
+                .then((result) => {
+                  setPendingRsvpTotal(result.pendingRsvp ?? 0);
+                  setEventMetrics({
+                    pendingRsvp: result.pendingRsvp ?? 0,
+                    confirmed: result.confirmed ?? 0,
+                    declined: result.declined ?? 0,
+                  });
+                })
+                .catch(() => undefined);
+            }}
+            importControl={
+              <CsvSheet csv={csv} setCsv={setCsv} uploadCsv={uploadCsv} busy={busy} />
+            }
+            createControl={
+              <GuestSheet
+                form={guestForm}
+                setForm={setGuestForm}
+                onSubmit={addGuest}
+                busy={busy}
+              />
+            }
+          />
         }
         toolbar={
           <DataTableToolbar
@@ -587,6 +600,14 @@ export default function GuestsPage() {
             filters={tableFilters}
             isFiltered={isFiltered}
             onReset={resetFilters}
+            actions={
+              <GuestListSecondaryActions
+                currentEventId={currentEventId}
+                exportDisabled={!pagination.total}
+                exportBusy={busy}
+                onExport={() => void exportGuests()}
+              />
+            }
           />
         }
       >
@@ -664,7 +685,12 @@ function GuestSheet({
   return (
     <Sheet>
       <SheetTrigger
-        render={<Button className="h-9 gap-2 rounded-md bg-foreground px-4 text-background hover:bg-foreground/90" type="button" />}
+        render={
+          <Button
+            className="h-9 shrink-0 gap-2 whitespace-nowrap rounded-md bg-foreground px-4 text-background hover:bg-foreground/90"
+            type="button"
+          />
+        }
       >
         <Plus className="size-4" />
         Create Guest
@@ -686,19 +712,31 @@ function GuestSheet({
   );
 }
 
+type CsvImportSkipped = {
+  row: number;
+  phone: string;
+  name: string;
+  reason: string;
+};
+
 function CsvSheet({
   csv,
   setCsv,
   uploadCsv,
   busy,
+  iconOnly = false,
 }: {
   csv: string;
   setCsv: (csv: string) => void;
-  uploadCsv: (csvToImport: string) => Promise<string | null>;
+  uploadCsv: (
+    csvToImport: string,
+  ) => Promise<{ skipped?: CsvImportSkipped[]; error?: string } | null>;
   busy: boolean;
+  iconOnly?: boolean;
 }) {
   const [pasteMode, setPasteMode] = useState(false);
   const [fileName, setFileName] = useState("");
+  const [importSkipped, setImportSkipped] = useState<CsvImportSkipped[]>([]);
   const preview = useMemo(() => parseGuestCsv(csv), [csv]);
   const validRows = preview.filter((row) => row.valid && row.data);
   const invalidRows = preview.length - validRows.length;
@@ -716,18 +754,46 @@ function CsvSheet({
   };
 
   const importValidRows = async () => {
-    const errorMessage = await uploadCsv(buildGuestCsv(validRows.map((row) => row.data as CsvGuestRow)));
-    if (errorMessage) toast.error(errorMessage);
+    const result = await uploadCsv(buildGuestCsv(validRows.map((row) => row.data as CsvGuestRow)));
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+    setImportSkipped(result?.skipped ?? []);
   };
+
+  const importTrigger = (
+    <SheetTrigger
+      id="guest-import-trigger"
+      render={
+        <Button
+          variant="outline"
+          type="button"
+          className={
+            iconOnly
+              ? "size-8 shrink-0"
+              : "h-9 gap-2 rounded-md bg-card px-4"
+          }
+          size={iconOnly ? "icon-sm" : "default"}
+          aria-label="Import guests"
+        />
+      }
+    >
+      <FileUp className="size-4" />
+      {iconOnly ? null : "Import Guest"}
+    </SheetTrigger>
+  );
 
   return (
     <Sheet>
-      <SheetTrigger
-        render={<Button variant="outline" className="h-9 gap-2 rounded-md bg-card px-4" type="button" />}
-      >
-        <FileUp className="size-4" />
-        Import Guest
-      </SheetTrigger>
+      {iconOnly ? (
+        <Tooltip>
+          <TooltipTrigger render={importTrigger} />
+          <TooltipContent>Import guests</TooltipContent>
+        </Tooltip>
+      ) : (
+        importTrigger
+      )}
       <SheetContent className="flex w-[min(100vw,44rem)] max-w-none flex-col sm:max-w-none">
         <SheetHeader>
           <SheetTitle>Upload Guest CSV</SheetTitle>
@@ -851,6 +917,24 @@ function CsvSheet({
               </Table>
             </div>
           </div>
+          {importSkipped.length > 0 ? (
+            <div className="rounded-lg border border-status-warning/30 bg-status-warning-bg/40 p-4">
+              <p className="text-sm font-semibold text-foreground">
+                Not imported ({importSkipped.length})
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                These rows were skipped because the phone number already exists for this event.
+              </p>
+              <ul className="mt-3 max-h-40 space-y-2 overflow-y-auto text-sm">
+                {importSkipped.map((row) => (
+                  <li key={`${row.row}-${row.phone}`} className="rounded-md border border-border bg-card px-3 py-2">
+                    <span className="font-medium">{row.name || "Unknown"}</span>
+                    <span className="text-muted-foreground"> · row {row.row} · {row.phone}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </SheetBody>
         <SheetFooter>
           <Button className="w-full" type="button" onClick={importValidRows} disabled={!canImport} loading={busy} loadingText="Importing guests">
