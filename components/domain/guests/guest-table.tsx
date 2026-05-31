@@ -12,6 +12,7 @@ import { api, type GuestRecord, RsvpStatus } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
 import { StatusBadge } from "@/components/domain/status-badge";
+import { outreachStatusLabels, outreachStatusVariant } from "@/lib/outreach";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -717,6 +718,27 @@ export function GuestTable({
                   />
                   {guest.rsvpStatus}
                 </span>
+                {guest.outreachStatus && guest.outreachStatus !== "IDLE" ? (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <span className="mt-1 inline-flex">
+                          <StatusBadge variant={outreachStatusVariant(guest.outreachStatus)}>
+                            {outreachStatusLabels[guest.outreachStatus]}
+                          </StatusBadge>
+                        </span>
+                      }
+                    />
+                    <TooltipContent>
+                      {guest.whatsappInitialSentAt
+                        ? `WhatsApp: ${new Date(guest.whatsappInitialSentAt).toLocaleString()}`
+                        : "Outreach"}
+                      {guest.voiceAutoScheduledAt
+                        ? ` · Call scheduled: ${new Date(guest.voiceAutoScheduledAt).toLocaleString()}`
+                        : ""}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : null}
               </TableCell>
               <TableCell className="max-w-[220px] text-sm text-muted-foreground">
                 <p className="truncate">Group {guest.groupSize} · {guest.pickupLocation || "No pickup"}</p>

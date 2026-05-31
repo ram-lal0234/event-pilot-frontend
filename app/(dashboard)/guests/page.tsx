@@ -417,6 +417,18 @@ export default function GuestsPage() {
       const result = await api.uploadGuestCsv(token, currentEventId, csvToImport);
       toast.success(`${result.inserted} guests imported`);
       await loadGuests();
+
+      if (currentEvent?.setting?.outreachEnabled && !currentEvent?.setting?.outreachAutoStart) {
+        toast.message("Start WhatsApp outreach from the dashboard when you're ready.", {
+          action: {
+            label: "Open dashboard",
+            onClick: () => {
+              window.location.href = scopedEventHref(currentEventId, "/");
+            },
+          },
+        });
+      }
+
       return null;
     } catch (err) {
       return "We couldn't import this file. Please check it and try again.";

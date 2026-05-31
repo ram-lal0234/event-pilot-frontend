@@ -63,6 +63,13 @@ export type EventSettingRecord = {
   voiceAiEnabled: boolean;
   ivrEnabled: boolean;
   qrEnabled: boolean;
+  outreachEnabled?: boolean;
+  outreachAutoStart?: boolean;
+  outreachVoiceDelayHours?: number;
+  outreachAutoCallMode?: "ai" | "ivr";
+  outreachReminderEnabled?: boolean;
+  outreachMessageTemplate?: string | null;
+  outreachReminderTemplate?: string | null;
 };
 
 export type EventRecord = {
@@ -104,6 +111,12 @@ export type GuestRecord = {
   language?: string | null;
   inviteCode?: string | null;
   publicRsvpUrl?: string | null;
+  outreachStatus?: import("@/lib/outreach").OutreachStatus;
+  whatsappInitialSentAt?: string | null;
+  voiceAutoScheduledAt?: string | null;
+  voiceAutoTriggeredAt?: string | null;
+  whatsappReminderSentAt?: string | null;
+  outreachPausedAt?: string | null;
   createdAt: string;
   checkins?: { id: string; method: CheckinMethod; locationType: string; checkinTime?: string }[];
   cabAssignments?: { id: string; cabId: string }[];
@@ -448,6 +461,13 @@ export const api = {
       voiceAiEnabled?: boolean;
       ivrEnabled?: boolean;
       qrEnabled?: boolean;
+      outreachEnabled?: boolean;
+      outreachAutoStart?: boolean;
+      outreachVoiceDelayHours?: number;
+      outreachAutoCallMode?: "ai" | "ivr";
+      outreachReminderEnabled?: boolean;
+      outreachMessageTemplate?: string | null;
+      outreachReminderTemplate?: string | null;
     },
   ) {
     return request<EventRecord>(`/events/${eventId}`, {
@@ -465,6 +485,31 @@ export const api = {
   dashboardFeed(token: string, eventId: string) {
     return request<AuditRecord[]>(`/dashboard/feed${query({ eventId })}`, {
       token,
+    });
+  },
+  outreachSummary(token: string, eventId: string) {
+    return request<import("@/lib/outreach").OutreachSummary>(`/events/${eventId}/outreach/summary`, {
+      token,
+    });
+  },
+  startOutreachBatch(token: string, eventId: string) {
+    return request<{ total: number; sent: number; failed: number }>(
+      `/events/${eventId}/outreach/start`,
+      { method: "POST", token, body: JSON.stringify({}) },
+    );
+  },
+  startGuestOutreach(token: string, guestId: string) {
+    return request<{ sent: boolean; reason?: string }>(`/guests/${guestId}/outreach/start`, {
+      method: "POST",
+      token,
+      body: JSON.stringify({}),
+    });
+  },
+  pauseGuestOutreach(token: string, guestId: string) {
+    return request<GuestRecord>(`/guests/${guestId}/outreach/pause`, {
+      method: "POST",
+      token,
+      body: JSON.stringify({}),
     });
   },
   listGuests(token: string, eventId: string) {
