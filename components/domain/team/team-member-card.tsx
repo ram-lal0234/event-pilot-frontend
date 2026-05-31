@@ -142,7 +142,7 @@ export function TeamMemberCard({
 
       {!isOwner ? (
         <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
-          {member.status === "PENDING" && member.inviteUrl ? (
+          {member.status === "PENDING" && (member.inviteUrl || member.inviteCode) ? (
             <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={onCopyInvite}>
               <Copy className="size-3.5" />
               Copy invite

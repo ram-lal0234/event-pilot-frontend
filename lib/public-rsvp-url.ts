@@ -1,21 +1,20 @@
 /**
- * Public RSVP link resolution.
+ * Public app link resolution for RSVP and team join URLs.
  *
- * 1. Prefer `NEXT_PUBLIC_APP_URL` + invite code when the API URL is missing or
- *    points at localhost/127.0.0.1 (common when backend env still has dev defaults).
- * 2. Otherwise use `publicRsvpUrl` from the API.
- * 3. Fall back to `NEXT_PUBLIC_APP_URL` + invite code when only code is known.
+ * Shared links always prefer `NEXT_PUBLIC_APP_URL` when set (local .env.local or Amplify).
+ * Backend-generated URLs are only used when they point at a non-localhost origin and
+ * NEXT_PUBLIC_APP_URL is unset.
  *
- * Set NEXT_PUBLIC_APP_URL in .env.local (local) and in your host env (prod).
+ * Set NEXT_PUBLIC_APP_URL in .env.local (local) and in your host env (prod/staging).
  */
 
-function configuredAppBase(): string {
+export function getConfiguredAppBase(): string {
   return process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") || "";
 }
 
-function extractInviteCodeFromUrl(url: string): string | null {
+function extractPathToken(url: string, segment: "rsvp" | "join"): string | null {
   try {
-    const match = new URL(url).pathname.match(/\/rsvp\/([^/]+)\/?$/);
+    const match = new URL(url).pathname.match(new RegExp(`\\/${segment}\\/([^/]+)\\/?$`));
     return match?.[1]?.trim() || null;
   } catch {
     return null;
@@ -31,22 +30,43 @@ function isLocalDevOrigin(url: string): boolean {
   }
 }
 
+function resolvePublicAppPath(
+  segment: "rsvp" | "join",
+  backendUrl?: string | null,
+  token?: string | null,
+): string {
+  const base = getConfiguredAppBase();
+  const url = backendUrl?.trim() || "";
+  const code =
+    token?.trim() ||
+    (url ? extractPathToken(url, segment) : null) ||
+    "";
+
+  if (base && code) {
+    return `${base}/${segment}/${code}`;
+  }
+
+  if (url && !isLocalDevOrigin(url)) {
+    return url;
+  }
+
+  return "";
+}
+
+export function buildPublicRsvpUrl(inviteCode: string): string {
+  return resolvePublicAppPath("rsvp", null, inviteCode);
+}
+
 export function resolvePublicRsvpUrl(
   backendUrl?: string | null,
   inviteCode?: string | null,
 ): string {
-  const base = configuredAppBase();
-  const url = backendUrl?.trim() || "";
-  const code =
-    inviteCode?.trim() ||
-    (url ? extractInviteCodeFromUrl(url) : null) ||
-    "";
+  return resolvePublicAppPath("rsvp", backendUrl, inviteCode);
+}
 
-  if (base && code && (!url || isLocalDevOrigin(url))) {
-    return `${base}/rsvp/${code}`;
-  }
-
-  if (url) return url;
-  if (base && code) return `${base}/rsvp/${code}`;
-  return "";
+export function resolvePublicJoinUrl(
+  backendUrl?: string | null,
+  inviteCode?: string | null,
+): string {
+  return resolvePublicAppPath("join", backendUrl, inviteCode);
 }

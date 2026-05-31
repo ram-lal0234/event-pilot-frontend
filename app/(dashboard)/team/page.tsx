@@ -11,6 +11,7 @@ import {
 } from "@/components/layout/dashboard-page";
 import { TeamMemberCard } from "@/components/domain/team/team-member-card";
 import { api, type AccessLevel, type TeamMemberRecord } from "@/lib/api";
+import { resolvePublicJoinUrl } from "@/lib/public-rsvp-url";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -122,8 +123,12 @@ export default function TeamPage() {
                 member={member}
                 onManage={() => setManageMember(member)}
                 onCopyInvite={() => {
-                  if (!member.inviteUrl) return;
-                  void navigator.clipboard.writeText(member.inviteUrl);
+                  const inviteUrl = resolvePublicJoinUrl(member.inviteUrl, member.inviteCode);
+                  if (!inviteUrl) {
+                    toast.error("Invite link is not configured. Set NEXT_PUBLIC_APP_URL and try again.");
+                    return;
+                  }
+                  void navigator.clipboard.writeText(inviteUrl);
                   toast.success("Invite link copied");
                 }}
                 onSuspend={() => setSuspendTarget(member)}
@@ -168,8 +173,9 @@ export default function TeamPage() {
           try {
             const result = await api.inviteTeamMember(token, payload);
             toast.success("Invitation sent");
-            if (result.inviteUrl) {
-              await navigator.clipboard.writeText(result.inviteUrl);
+            const inviteUrl = resolvePublicJoinUrl(result.inviteUrl, result.inviteCode);
+            if (inviteUrl) {
+              await navigator.clipboard.writeText(inviteUrl);
               toast.message("Invite link copied to clipboard");
             }
             setInviteOpen(false);
