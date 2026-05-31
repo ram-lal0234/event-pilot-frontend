@@ -53,7 +53,38 @@ export type DashboardPageSkeletonVariant =
   | "card-grid"
   | "list"
   | "dashboard-home"
-  | "guests-table";
+  | "guests-table"
+  | "follow-up";
+
+function FollowUpCardSkeleton() {
+  return (
+    <div className="flex h-full min-h-[13.5rem] flex-col rounded-lg border border-border bg-card p-4 shadow-sm">
+      <div className="flex items-start gap-3">
+        <Skeleton className="size-10 shrink-0 rounded-full" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-4 w-3/4 max-w-[9rem]" />
+          <Skeleton className="h-3 w-1/2 max-w-[6rem]" />
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            <Skeleton className="h-5 w-[5.5rem] rounded-full" />
+            <Skeleton className="h-5 w-14 rounded-full" />
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 space-y-1.5">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-4/5" />
+      </div>
+      <div className="mt-4 flex-1" />
+      <div className="mt-4 space-y-2">
+        <Skeleton className="h-9 w-full rounded-md" />
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-8 w-[5.5rem] rounded-md" />
+          <Skeleton className="h-8 w-[7.25rem] rounded-md" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function DashboardPageSkeleton({
   spacing = "default",
@@ -67,11 +98,22 @@ export function DashboardPageSkeleton({
   variant?: DashboardPageSkeletonVariant;
 }) {
   const header = !hideHeader ? (
-    <div className="mb-6 space-y-2">
-      <Skeleton className="h-3 w-28" />
-      <Skeleton className="h-8 w-52" />
-      <Skeleton className="h-4 w-80 max-w-full" />
-    </div>
+    variant === "follow-up" ? (
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-8 w-36" />
+          <Skeleton className="h-4 w-full max-w-md" />
+        </div>
+        <Skeleton className="h-9 w-24 shrink-0 rounded-md" />
+      </div>
+    ) : (
+      <div className="mb-6 space-y-2">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-8 w-52" />
+        <Skeleton className="h-4 w-80 max-w-full" />
+      </div>
+    )
   ) : null;
 
   return (
@@ -111,6 +153,17 @@ export function DashboardPageSkeleton({
           {Array.from({ length: cards }).map((_, index) => (
             <Skeleton key={index} className="h-28 w-full rounded-lg" />
           ))}
+        </div>
+      ) : null}
+
+      {variant === "follow-up" ? (
+        <div className="space-y-4">
+          <Skeleton className="h-4 w-48" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: cards }).map((_, index) => (
+              <FollowUpCardSkeleton key={index} />
+            ))}
+          </div>
         </div>
       ) : null}
 

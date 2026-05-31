@@ -2,30 +2,27 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { PhoneCall } from "lucide-react";
+import { Users } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/components/providers/app-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
+import {
+  FollowUpGuestCard,
+  ScheduledCallbackCard,
+} from "@/components/domain/follow-up/follow-up-guest-card";
 import {
   DashboardPage,
   DashboardPageSkeleton,
 } from "@/components/layout/dashboard-page";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { api, type GuestRecord } from "@/lib/api";
 import { getVoiceCallErrorMessage, voiceCallModeCopy } from "@/lib/voice-messages";
-import { formatCallbackAt } from "@/lib/format-callback-time";
 
 const ACTIVE_FOLLOW_UP =
   "NEEDS_FOLLOW_UP,CALLBACK_LATER,NO_ANSWER,VOICEMAIL";
+
+type FollowUpStatus = NonNullable<GuestRecord["followUpStatus"]>;
 
 export default function FollowUpPage() {
   const { token, currentEventId, eventsLoaded, eventsLoading } = useApp();
@@ -34,6 +31,7 @@ export default function FollowUpPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [cancelCallbackGuestId, setCancelCallbackGuestId] = useState<string | null>(null);
+  const [clearFollowUpGuestId, setClearFollowUpGuestId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!currentEventId) {
@@ -85,10 +83,7 @@ export default function FollowUpPage() {
     [guests],
   );
 
-  const updateStatus = async (
-    guestId: string,
-    followUpStatus: NonNullable<GuestRecord["followUpStatus"]>,
-  ) => {
+  const updateStatus = async (guestId: string, followUpStatus: FollowUpStatus) => {
     setBusyId(guestId);
     try {
       await api.updateGuest(token, guestId, { followUpStatus });
@@ -149,8 +144,16 @@ export default function FollowUpPage() {
     }
   };
 
+  const handleStatusChange = (guestId: string, status: FollowUpStatus) => {
+    if (status === "NONE") {
+      setClearFollowUpGuestId(guestId);
+      return;
+    }
+    void updateStatus(guestId, status);
+  };
+
   if (!eventsLoaded || eventsLoading || loading) {
-    return <DashboardPageSkeleton variant="list" cards={4} />;
+    return <DashboardPageSkeleton variant="follow-up" cards={8} />;
   }
 
   return (
@@ -163,132 +166,77 @@ export default function FollowUpPage() {
         </Button>
       }
     >
+      {guests.length > 0 ? (
+        <p className="mb-4 text-sm text-muted-foreground">
+          {guests.length} follow-up{guests.length === 1 ? "" : "s"}
+          {scheduledCallbacks.length > 0
+            ? ` · ${scheduledCallbacks.length} scheduled`
+            : ""}
+        </p>
+      ) : null}
+
       {scheduledCallbacks.length > 0 ? (
-        <section className="space-y-3">
+        <section className="mb-8 space-y-3">
           <h2 className="text-sm font-semibold text-foreground">
             Scheduled callbacks ({scheduledCallbacks.length})
           </h2>
-          {scheduledCallbacks.map((guest) => (
-            <div
-              key={guest.id}
-              className="rounded-lg border border-primary/20 bg-card p-4"
-            >
-              <div className="flex flex-col gap-3">
-                <div>
-                  <p className="font-semibold">{guest.name}</p>
-                  <p className="text-sm text-muted-foreground">{guest.phone}</p>
-                  <p className="mt-1 text-sm font-medium text-primary">
-                    {formatCallbackAt(guest.callbackAt)}
-                    {guest.callbackTriggered ? " · call scheduled" : ""}
-                  </p>
-                  {guest.guestNotes ? (
-                    <p className="mt-1 text-xs text-muted-foreground">{guest.guestNotes}</p>
-                  ) : null}
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  {canTriggerVoice ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="min-h-11 gap-2"
-                      disabled={busyId === guest.id || guest.rsvpStatus !== "PENDING"}
-                      onClick={() => void callNow(guest.id)}
-                    >
-                      <PhoneCall className="size-4" />
-                      Call now
-                    </Button>
-                  ) : null}
-                  {canWrite ? (
-                    <>
-                      <Input
-                        type="datetime-local"
-                        className="min-h-11 sm:max-w-[220px]"
-                        defaultValue={
-                          guest.callbackAt
-                            ? guest.callbackAt.slice(0, 16)
-                            : ""
-                        }
-                        disabled={busyId === guest.id}
-                        onBlur={(event) => {
-                          if (event.target.value) {
-                            void reschedule(guest, event.target.value);
-                          }
-                        }}
-                        aria-label={`Reschedule callback for ${guest.name}`}
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="min-h-11"
-                        disabled={busyId === guest.id}
-                        onClick={() => setCancelCallbackGuestId(guest.id)}
-                      >
-                        Cancel
-                      </Button>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          ))}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {scheduledCallbacks.map((guest) => (
+              <ScheduledCallbackCard
+                key={guest.id}
+                guest={guest}
+                busy={busyId === guest.id}
+                canWrite={canWrite}
+                canTriggerVoice={canTriggerVoice}
+                onCallNow={(guestId) => void callNow(guestId)}
+                onReschedule={(g, value) => void reschedule(g, value)}
+                onCancel={() => setCancelCallbackGuestId(guest.id)}
+              />
+            ))}
+          </div>
         </section>
       ) : null}
 
       <section className="space-y-3">
-        {scheduledCallbacks.length > 0 ? (
+        {scheduledCallbacks.length > 0 && otherFollowUps.length > 0 ? (
           <h2 className="text-sm font-semibold text-foreground">Other follow-ups</h2>
         ) : null}
-        {otherFollowUps.map((guest) => (
-          <div
-            key={guest.id}
-            className="rounded-lg border border-border bg-card p-4"
-          >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="font-semibold">{guest.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {guest.phone}
-                  {guest.email ? ` · ${guest.email}` : ""}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  RSVP {guest.rsvpStatus}
-                  {guest.guestNotes ? ` · ${guest.guestNotes}` : ""}
-                </p>
-              </div>
-              <Select
-                value={guest.followUpStatus || "NEEDS_FOLLOW_UP"}
-                disabled={!canWrite || busyId === guest.id}
-                onValueChange={(status) => {
-                  if (status != null) {
-                    void updateStatus(
-                      guest.id,
-                      status as NonNullable<GuestRecord["followUpStatus"]>,
-                    );
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full justify-between font-normal sm:w-52">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="start">
-                  <SelectItem value="NEEDS_FOLLOW_UP">Needs follow-up</SelectItem>
-                  <SelectItem value="CALLBACK_LATER">Callback later</SelectItem>
-                  <SelectItem value="NO_ANSWER">No answer</SelectItem>
-                  <SelectItem value="VOICEMAIL">Voicemail</SelectItem>
-                  <SelectItem value="COMPLETED">Completed</SelectItem>
-                  <SelectItem value="NONE">Clear</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        {otherFollowUps.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {otherFollowUps.map((guest) => (
+              <FollowUpGuestCard
+                key={guest.id}
+                guest={guest}
+                currentEventId={currentEventId}
+                busy={busyId === guest.id}
+                canWrite={canWrite}
+                canTriggerVoice={canTriggerVoice}
+                onStatusChange={handleStatusChange}
+                onCallNow={(guestId) => void callNow(guestId)}
+              />
+            ))}
           </div>
-        ))}
-        {!guests.length ? (
-          <p className="rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            No guests need follow-up right now. Call a guest from the guest list or mark follow-up status manually.
-          </p>
+        ) : !scheduledCallbacks.length ? (
+          <div className="rounded-lg border border-dashed border-border bg-card p-10 text-center">
+            <span className="mx-auto flex size-12 items-center justify-center rounded-lg bg-surface-container-low text-primary">
+              <Users className="size-6" />
+            </span>
+            <p className="mt-4 text-sm font-medium text-foreground">No follow-ups right now</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Mark follow-up status on the guest list or schedule callbacks from voice calls.
+            </p>
+            <Button
+              className="mt-5"
+              variant="outline"
+              render={<Link href="/guests" />}
+              nativeButton={false}
+            >
+              Open guests
+            </Button>
+          </div>
         ) : null}
       </section>
+
       <ConfirmDialog
         open={Boolean(cancelCallbackGuestId)}
         onOpenChange={(open) => !open && setCancelCallbackGuestId(null)}
@@ -301,6 +249,21 @@ export default function FollowUpPage() {
           if (!cancelCallbackGuestId) return;
           await cancelCallback(cancelCallbackGuestId);
           setCancelCallbackGuestId(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(clearFollowUpGuestId)}
+        onOpenChange={(open) => !open && setClearFollowUpGuestId(null)}
+        title="Clear follow-up?"
+        description="This guest will be removed from the follow-up list until you mark them again."
+        confirmLabel="Clear follow-up"
+        variant="destructive"
+        loading={busyId === clearFollowUpGuestId}
+        onConfirm={async () => {
+          if (!clearFollowUpGuestId) return;
+          await updateStatus(clearFollowUpGuestId, "NONE");
+          setClearFollowUpGuestId(null);
         }}
       />
     </DashboardPage>
