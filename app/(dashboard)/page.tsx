@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { LiveCampaignTeaser } from "@/components/domain/dashboard/live-campaign-teaser";
 import { OutreachTeaser } from "@/components/domain/dashboard/outreach-teaser";
 import { Button } from "@/components/ui/button";
+import { DashboardPageSkeleton } from "@/components/layout/dashboard-page";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type AuditRecord, type DashboardSummary } from "@/lib/api";
 import type { OutreachSummary } from "@/lib/outreach";
@@ -72,7 +73,7 @@ export default function DashboardPage() {
   );
 
   return loading ? (
-    <DashboardSkeleton />
+    <DashboardPageSkeleton variant="dashboard-home" hideHeader />
   ) : (
     <div className="space-y-7">
       <div>
@@ -299,24 +300,3 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DashboardSkeleton() {
-  return (
-    <div className="space-y-7">
-      <Skeleton className="h-9 w-56" />
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-24 rounded-lg" />
-        ))}
-      </div>
-      <div className="grid gap-3 lg:grid-cols-2">
-        <Skeleton className="h-[4.25rem] rounded-lg" />
-        <Skeleton className="h-[4.25rem] rounded-lg" />
-      </div>
-      <div className="flex flex-col gap-3 xl:flex-row">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-52 min-w-0 flex-1 rounded-lg" />
-        ))}
-      </div>
-    </div>
-  );
-}

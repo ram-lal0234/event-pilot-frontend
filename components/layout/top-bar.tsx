@@ -11,6 +11,7 @@ import { scopedEventHref } from "@/lib/design-tokens";
 import { isPlannerRole } from "@/lib/role-capabilities";
 import { userDisplayName } from "@/lib/user-display";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { UserAvatar } from "@/components/layout/user-avatar";
 import {
   DropdownMenu,
@@ -28,6 +29,7 @@ interface TopBarProps {
 export function TopBar({ mobileMenu }: TopBarProps) {
   const { user, logout, account, membership, currentEventId } = useApp();
   const { isOwner, canWrite } = useEventAccess();
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const [eventSettingsOpen, setEventSettingsOpen] = useState(false);
   const displayName = userDisplayName(membership?.name, user.email);
   const checkInHref = scopedEventHref(currentEventId, "/check-in");
@@ -143,7 +145,7 @@ export function TopBar({ mobileMenu }: TopBarProps) {
               <DropdownMenuItem
                 variant="destructive"
                 className="gap-3 px-2 py-2"
-                onClick={logout}
+                onClick={() => setLogoutOpen(true)}
               >
                 <LogOut className="size-4" />
                 Log out
@@ -152,6 +154,18 @@ export function TopBar({ mobileMenu }: TopBarProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <ConfirmDialog
+        open={logoutOpen}
+        onOpenChange={setLogoutOpen}
+        title="Log out?"
+        description="You will need to sign in again to access EventPilot."
+        confirmLabel="Log out"
+        variant="destructive"
+        onConfirm={() => {
+          setLogoutOpen(false);
+          logout();
+        }}
+      />
     </header>
   );
 }

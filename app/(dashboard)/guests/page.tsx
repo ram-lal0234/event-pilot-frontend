@@ -11,6 +11,7 @@ import {
 import { OutreachStartBanner } from "@/components/domain/outreach/outreach-start-banner";
 import { GuestTable } from "@/components/domain/guests/guest-table";
 import { GuestFormFields } from "@/components/domain/guests/guest-form-fields";
+import { DashboardPageSkeleton } from "@/components/layout/dashboard-page";
 import { DataTableShell } from "@/components/data-table/data-table-shell";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { Button } from "@/components/ui/button";
@@ -632,34 +633,11 @@ export default function GuestsPage() {
 function GuestsSkeleton() {
   return (
     <div>
-      <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div className="space-y-3">
-          <Skeleton className="h-3 w-40" />
-          <Skeleton className="h-8 w-56" />
-        </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-8 w-24" />
-          <Skeleton className="h-8 w-20" />
-          <Skeleton className="h-8 w-24" />
-        </div>
+      <div className="mb-5 space-y-2">
+        <Skeleton className="h-6 w-24" />
+        <Skeleton className="h-4 w-72 max-w-full" />
       </div>
-      <div className="rounded-lg border border-border bg-card">
-        <div className="grid grid-cols-6 gap-4 border-b border-border p-4">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <Skeleton key={index} className="h-4 w-full" />
-          ))}
-        </div>
-        <div className="divide-y divide-border">
-          {Array.from({ length: 7 }).map((_, index) => (
-            <div key={index} className="grid grid-cols-6 gap-4 p-4">
-              {Array.from({ length: 6 }).map((__, cellIndex) => (
-                <Skeleton key={cellIndex} className="h-8 w-full" />
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-      <Skeleton className="mt-4 h-14 w-full rounded-lg" />
+      <DashboardPageSkeleton variant="guests-table" hideHeader spacing="default" />
     </div>
   );
 }

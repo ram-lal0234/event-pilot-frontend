@@ -13,6 +13,7 @@ import {
   DashboardPageSkeleton,
 } from "@/components/layout/dashboard-page";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { scopedEventHref } from "@/lib/design-tokens";
 import { eventStatusLabel, getEventTimeStatus } from "@/lib/event-status";
 import type { EventRecord } from "@/lib/api";
@@ -27,6 +28,8 @@ export default function EventsPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [archivedEvents, setArchivedEvents] = useState<EventRecord[]>([]);
   const [archivedLoading, setArchivedLoading] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<EventRecord | null>(null);
+  const [archiveBusy, setArchiveBusy] = useState(false);
 
   const loadArchived = useCallback(async () => {
     if (!isOwner) return;
@@ -60,7 +63,7 @@ export default function EventsPage() {
   );
 
   if (!eventsLoaded || eventsLoading) {
-    return <DashboardPageSkeleton cards={3} />;
+    return <DashboardPageSkeleton variant="card-grid" cards={6} />;
   }
 
   return (
@@ -116,23 +119,7 @@ export default function EventsPage() {
               isOwner={isOwner}
               archived={false}
               onOpen={() => setCurrentEventId(event.id)}
-              onArchive={async () => {
-                if (
-                  !window.confirm(
-                    `Archive "${event.name}"? Team members will lose access until you restore it.`,
-                  )
-                ) {
-                  return;
-                }
-                try {
-                  await api.archiveEvent(token, event.id);
-                  toast.success("Event archived");
-                  await refreshEvents();
-                  if (showArchived) await loadArchived();
-                } catch (err) {
-                  toast.error(err instanceof Error ? err.message : "Could not archive event");
-                }
-              }}
+              onArchive={() => setArchiveTarget(event)}
             />
           ))}
         </div>
@@ -173,6 +160,31 @@ export default function EventsPage() {
           )}
         </section>
       ) : null}
+
+      <ConfirmDialog
+        open={Boolean(archiveTarget)}
+        onOpenChange={(open) => !open && setArchiveTarget(null)}
+        title={archiveTarget ? `Archive "${archiveTarget.name}"?` : "Archive event?"}
+        description="Team members will lose access until you restore this event."
+        confirmLabel="Archive event"
+        variant="destructive"
+        loading={archiveBusy}
+        onConfirm={async () => {
+          if (!archiveTarget) return;
+          setArchiveBusy(true);
+          try {
+            await api.archiveEvent(token, archiveTarget.id);
+            toast.success("Event archived");
+            setArchiveTarget(null);
+            await refreshEvents();
+            if (showArchived) await loadArchived();
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Could not archive event");
+          } finally {
+            setArchiveBusy(false);
+          }
+        }}
+      />
     </DashboardPage>
   );
 }
@@ -191,7 +203,7 @@ function EventCard({
   isOwner: boolean;
   archived: boolean;
   onOpen: () => void;
-  onArchive?: () => Promise<void>;
+  onArchive?: () => void;
   onRestore?: () => Promise<void>;
 }) {
   const status = getEventTimeStatus(event.date);

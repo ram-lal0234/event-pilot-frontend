@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Copy, UserPlus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/components/providers/app-provider";
 import { useEventAccess } from "@/hooks/use-event-access";
@@ -9,8 +9,11 @@ import {
   DashboardPage,
   DashboardPageSkeleton,
 } from "@/components/layout/dashboard-page";
+import { TeamMemberCard } from "@/components/domain/team/team-member-card";
 import { api, type AccessLevel, type TeamMemberRecord } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -36,6 +39,7 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [manageMember, setManageMember] = useState<TeamMemberRecord | null>(null);
+  const [suspendTarget, setSuspendTarget] = useState<TeamMemberRecord | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -54,6 +58,26 @@ export default function TeamPage() {
     else setLoading(false);
   }, [isOwner, load]);
 
+  const sortedMembers = useMemo(() => {
+    const rank = (member: TeamMemberRecord) => {
+      if (member.role === "OWNER") return 0;
+      if (member.status === "ACCEPTED") return 1;
+      if (member.status === "PENDING") return 2;
+      return 3;
+    };
+    return [...members].sort((a, b) => {
+      const byRank = rank(a) - rank(b);
+      if (byRank !== 0) return byRank;
+      return (a.name || a.email).localeCompare(b.name || b.email);
+    });
+  }, [members]);
+
+  const memberStats = useMemo(() => {
+    const pending = members.filter((m) => m.status === "PENDING").length;
+    const suspended = members.filter((m) => m.status === "REVOKED").length;
+    return { pending, suspended };
+  }, [members]);
+
   if (!isOwner) {
     return (
       <DashboardPage
@@ -69,7 +93,7 @@ export default function TeamPage() {
   }
 
   if (loading) {
-    return <DashboardPageSkeleton />;
+    return <DashboardPageSkeleton variant="card-grid" cards={6} />;
   }
 
   return (
@@ -84,113 +108,55 @@ export default function TeamPage() {
         </Button>
       }
     >
-      <div className="space-y-3">
-          {members.map((member) => (
-            <div key={member.id} className="rounded-lg border border-border bg-card p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="font-semibold">{member.name || member.email}</p>
-                  <p className="text-sm text-muted-foreground">{member.email}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {member.role}
-                    {" · "}
-                    {member.status === "REVOKED"
-                      ? "Suspended"
-                      : member.status === "PENDING"
-                        ? "Pending invite"
-                        : "Active"}
-                    {member.eventAccess.length
-                      ? ` · ${member.eventAccess.length} event(s)`
-                      : member.role !== "OWNER"
-                        ? " · No events assigned"
-                        : ""}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {member.status === "PENDING" && member.inviteUrl ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="gap-2"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(member.inviteUrl!);
-                        toast.success("Invite link copied");
-                      }}
-                    >
-                      <Copy className="size-4" />
-                      Copy invite
-                    </Button>
-                  ) : null}
-                  {member.role !== "OWNER" ? (
-                    <>
-                      {member.status !== "REVOKED" ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setManageMember(member)}
-                        >
-                          Manage
-                        </Button>
-                      ) : null}
-                      {member.status === "REVOKED" ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            void (async () => {
-                              try {
-                                await api.reactivateTeamMember(token, member.id);
-                                toast.success("Member reactivated");
-                                await load();
-                              } catch (err) {
-                                toast.error(
-                                  err instanceof Error ? err.message : "Could not reactivate",
-                                );
-                              }
-                            })()
-                          }
-                        >
-                          Reactivate
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            void (async () => {
-                              if (
-                                !window.confirm(
-                                  `Suspend ${member.name || member.email}? They will lose access until you reactivate them.`,
-                                )
-                              ) {
-                                return;
-                              }
-                              try {
-                                await api.suspendTeamMember(token, member.id);
-                                toast.success("Member suspended");
-                                await load();
-                              } catch (err) {
-                                toast.error(
-                                  err instanceof Error ? err.message : "Could not suspend",
-                                );
-                              }
-                            })()
-                          }
-                        >
-                          Suspend
-                        </Button>
-                      )}
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          ))}
-      </div>
+      {members.length > 0 ? (
+        <>
+          <p className="mb-4 text-sm text-muted-foreground">
+            {members.length} member{members.length === 1 ? "" : "s"}
+            {memberStats.pending > 0 ? ` · ${memberStats.pending} pending` : ""}
+            {memberStats.suspended > 0 ? ` · ${memberStats.suspended} suspended` : ""}
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {sortedMembers.map((member) => (
+              <TeamMemberCard
+                key={member.id}
+                member={member}
+                onManage={() => setManageMember(member)}
+                onCopyInvite={() => {
+                  if (!member.inviteUrl) return;
+                  void navigator.clipboard.writeText(member.inviteUrl);
+                  toast.success("Invite link copied");
+                }}
+                onSuspend={() => setSuspendTarget(member)}
+                onReactivate={() =>
+                  void (async () => {
+                    try {
+                      await api.reactivateTeamMember(token, member.id);
+                      toast.success("Member reactivated");
+                      await load();
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Could not reactivate");
+                    }
+                  })()
+                }
+              />
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="rounded-lg border border-dashed border-border bg-card p-10 text-center">
+          <span className="mx-auto flex size-12 items-center justify-center rounded-lg bg-surface-container-low text-primary">
+            <Users className="size-6" />
+          </span>
+          <p className="mt-4 text-sm font-medium text-foreground">No team members yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Invite staff, drivers, or hotel desk users and assign them to specific events.
+          </p>
+          <Button className="mt-5 gap-2" type="button" onClick={() => setInviteOpen(true)}>
+            <UserPlus className="size-4" />
+            Invite member
+          </Button>
+        </div>
+      )}
 
       <InviteMemberSheet
         open={inviteOpen}
@@ -210,6 +176,30 @@ export default function TeamPage() {
             await load();
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "Could not invite");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(suspendTarget)}
+        onOpenChange={(open) => !open && setSuspendTarget(null)}
+        title={suspendTarget ? `Suspend ${suspendTarget.name || suspendTarget.email}?` : "Suspend member?"}
+        description="They will lose access to this workspace until you reactivate them."
+        confirmLabel="Suspend member"
+        variant="destructive"
+        loading={busy}
+        onConfirm={async () => {
+          if (!suspendTarget) return;
+          setBusy(true);
+          try {
+            await api.suspendTeamMember(token, suspendTarget.id);
+            toast.success("Member suspended");
+            setSuspendTarget(null);
+            await load();
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Could not suspend");
           } finally {
             setBusy(false);
           }
@@ -315,47 +305,12 @@ function InviteMemberSheet({
               <SelectItem value="HOTEL">Hotel</SelectItem>
             </SelectContent>
           </Select>
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Initial event access (optional)</p>
-            {events.map((event) => (
-              <label key={event.id} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={Boolean(selectedEvents[event.id])}
-                  onChange={(e) => {
-                    setSelectedEvents((prev) => {
-                      const next = { ...prev };
-                      if (e.target.checked) next[event.id] = "FULL";
-                      else delete next[event.id];
-                      return next;
-                    });
-                  }}
-                />
-                <span className="flex-1">{event.name}</span>
-                {selectedEvents[event.id] ? (
-                  <Select
-                    value={selectedEvents[event.id]}
-                    onValueChange={(level) => {
-                      if (level != null) {
-                        setSelectedEvents((prev) => ({
-                          ...prev,
-                          [event.id]: level as AccessLevel,
-                        }));
-                      }
-                    }}
-                  >
-                    <SelectTrigger size="sm" className="h-8 w-28 justify-between font-normal">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent align="start">
-                      <SelectItem value="FULL">Full</SelectItem>
-                      <SelectItem value="READ_ONLY">Read only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : null}
-              </label>
-            ))}
-          </div>
+          <EventAccessList
+            title="Initial event access (optional)"
+            assignments={selectedEvents}
+            events={events}
+            onChange={setSelectedEvents}
+          />
           </SheetBody>
           <SheetFooter>
             <Button type="submit" loading={busy} loadingText="Sending">
@@ -365,6 +320,70 @@ function InviteMemberSheet({
         </form>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function EventAccessList({
+  title,
+  assignments,
+  events,
+  onChange,
+}: {
+  title: string;
+  assignments: Record<string, AccessLevel>;
+  events: Array<{ id: string; name: string }>;
+  onChange: (next: Record<string, AccessLevel>) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium">{title}</p>
+      <div className="space-y-2">
+        {events.map((event) => {
+          const accessLevel = assignments[event.id];
+          const checked = Boolean(accessLevel);
+
+          return (
+            <div
+              key={event.id}
+              className="flex items-center gap-3 rounded-md border border-border bg-card px-3 py-2.5"
+            >
+              <Checkbox
+                checked={checked}
+                aria-label={`Access to ${event.name}`}
+                onChange={(e) => {
+                  const next = { ...assignments };
+                  if (e.target.checked) {
+                    next[event.id] = accessLevel ?? "FULL";
+                  } else {
+                    delete next[event.id];
+                  }
+                  onChange(next);
+                }}
+              />
+              <span className="min-w-0 flex-1 text-sm font-medium text-foreground">{event.name}</span>
+              {checked ? (
+                <Select
+                  value={accessLevel}
+                  onValueChange={(level) => {
+                    if (level != null) {
+                      onChange({ ...assignments, [event.id]: level as AccessLevel });
+                    }
+                  }}
+                >
+                  <SelectTrigger size="sm" className="h-8 w-[7.25rem] shrink-0 justify-between font-normal">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    <SelectItem value="FULL">Full</SelectItem>
+                    <SelectItem value="READ_ONLY">Read only</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -429,47 +448,12 @@ function ManageMemberSheet({
               <SelectItem value="HOTEL">Hotel</SelectItem>
             </SelectContent>
           </Select>
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Event access</p>
-            {events.map((event) => (
-              <label key={event.id} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={Boolean(assignments[event.id])}
-                  onChange={(e) => {
-                    setAssignments((prev) => {
-                      const next = { ...prev };
-                      if (e.target.checked) next[event.id] = "FULL";
-                      else delete next[event.id];
-                      return next;
-                    });
-                  }}
-                />
-                <span className="flex-1">{event.name}</span>
-                {assignments[event.id] ? (
-                  <Select
-                    value={assignments[event.id]}
-                    onValueChange={(level) => {
-                      if (level != null) {
-                        setAssignments((prev) => ({
-                          ...prev,
-                          [event.id]: level as AccessLevel,
-                        }));
-                      }
-                    }}
-                  >
-                    <SelectTrigger size="sm" className="h-8 w-28 justify-between font-normal">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent align="start">
-                      <SelectItem value="FULL">Full</SelectItem>
-                      <SelectItem value="READ_ONLY">Read only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : null}
-              </label>
-            ))}
-          </div>
+          <EventAccessList
+            title="Event access"
+            assignments={assignments}
+            events={events}
+            onChange={setAssignments}
+          />
         </SheetBody>
         <SheetFooter>
           <Button

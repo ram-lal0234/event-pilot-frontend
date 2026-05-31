@@ -11,6 +11,7 @@ import {
   DashboardPageSkeleton,
 } from "@/components/layout/dashboard-page";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -19,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { api, type GuestRecord } from "@/lib/api";
 import { getVoiceCallErrorMessage, voiceCallModeCopy } from "@/lib/voice-messages";
 import { formatCallbackAt } from "@/lib/format-callback-time";
 
@@ -31,6 +33,7 @@ export default function FollowUpPage() {
   const [guests, setGuests] = useState<GuestRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [cancelCallbackGuestId, setCancelCallbackGuestId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!currentEventId) {
@@ -147,7 +150,7 @@ export default function FollowUpPage() {
   };
 
   if (!eventsLoaded || eventsLoading || loading) {
-    return <DashboardPageSkeleton cards={2} />;
+    return <DashboardPageSkeleton variant="list" cards={4} />;
   }
 
   return (
@@ -219,7 +222,7 @@ export default function FollowUpPage() {
                         variant="outline"
                         className="min-h-11"
                         disabled={busyId === guest.id}
-                        onClick={() => void cancelCallback(guest.id)}
+                        onClick={() => setCancelCallbackGuestId(guest.id)}
                       >
                         Cancel
                       </Button>
@@ -286,6 +289,20 @@ export default function FollowUpPage() {
           </p>
         ) : null}
       </section>
+      <ConfirmDialog
+        open={Boolean(cancelCallbackGuestId)}
+        onOpenChange={(open) => !open && setCancelCallbackGuestId(null)}
+        title="Cancel scheduled callback?"
+        description="The guest will be removed from the callback queue. You can schedule again later from this list."
+        confirmLabel="Cancel callback"
+        variant="destructive"
+        loading={busyId === cancelCallbackGuestId}
+        onConfirm={async () => {
+          if (!cancelCallbackGuestId) return;
+          await cancelCallback(cancelCallbackGuestId);
+          setCancelCallbackGuestId(null);
+        }}
+      />
     </DashboardPage>
   );
 }

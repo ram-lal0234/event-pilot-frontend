@@ -49,7 +49,6 @@ export function OutreachGuideCard({
           `${result.failed} guest${result.failed === 1 ? "" : "s"} couldn't be reached — check phone numbers and settings`,
         );
       }
-      }
       onRefresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not start outreach");
