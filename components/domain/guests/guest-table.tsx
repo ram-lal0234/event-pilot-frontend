@@ -579,10 +579,10 @@ function GuestTableActionsMenu({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 disabled={whatsapp.busy}
-                onClick={() => void whatsapp.sendViaLocalBridge()}
+                onClick={() => void whatsapp.sendWhatsAppMessage()}
               >
                 <Send className="size-4" />
-                Send WhatsApp (local API)
+                Send WhatsApp message
               </DropdownMenuItem>
               <DropdownMenuItem disabled={whatsapp.busy} onClick={() => void whatsapp.copyMessage()}>
                 <Copy className="size-4" />

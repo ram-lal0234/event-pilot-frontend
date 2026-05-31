@@ -15,8 +15,6 @@ export type WhatsAppInviteSettings = {
   includeRsvpLink: boolean;
   imageDataUrl: string | null;
   imageName: string | null;
-  /** Override for local bridge; empty uses NEXT_PUBLIC_WHATSAPP_BRIDGE_URL or localhost:8080 */
-  bridgeApiUrl: string;
 };
 
 export type WhatsAppTemplateContext = {
@@ -33,7 +31,6 @@ export function defaultWhatsAppInviteSettings(): WhatsAppInviteSettings {
     includeRsvpLink: true,
     imageDataUrl: null,
     imageName: null,
-    bridgeApiUrl: "",
   };
 }
 
@@ -58,7 +55,6 @@ export function loadWhatsAppInviteSettings(eventId: string): WhatsAppInviteSetti
       includeRsvpLink: parsed.includeRsvpLink !== false,
       imageDataUrl: typeof parsed.imageDataUrl === "string" ? parsed.imageDataUrl : null,
       imageName: typeof parsed.imageName === "string" ? parsed.imageName : null,
-      bridgeApiUrl: typeof parsed.bridgeApiUrl === "string" ? parsed.bridgeApiUrl : "",
     };
   } catch {
     return defaultWhatsAppInviteSettings();
@@ -152,4 +148,17 @@ export async function readImageFileAsDataUrl(file: File): Promise<{ dataUrl: str
   });
 
   return { dataUrl, name: file.name };
+}
+
+export function whatsAppMediaPayload(
+  settings: Pick<WhatsAppInviteSettings, "imageDataUrl" | "imageName">,
+): { mediaBase64?: string; mediaFilename?: string } {
+  if (!settings.imageDataUrl?.startsWith("data:")) {
+    return {};
+  }
+
+  return {
+    mediaBase64: settings.imageDataUrl,
+    mediaFilename: settings.imageName || "invite.jpg",
+  };
 }

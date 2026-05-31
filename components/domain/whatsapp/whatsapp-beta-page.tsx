@@ -8,16 +8,12 @@ import { useApp } from "@/components/providers/app-provider";
 import { useWhatsAppInviteSettings } from "@/hooks/use-whatsapp-invite-settings";
 import { api, type GuestRecord } from "@/lib/api";
 import {
-  buildWhatsAppBridgeSendPayload,
-  DEFAULT_WHATSAPP_BRIDGE_API_URL,
-  sendViaWhatsAppBridge,
-} from "@/lib/whatsapp-bridge";
-import {
   buildTemplateContext,
   DEFAULT_WHATSAPP_MESSAGE_TEMPLATE,
   phoneToWhatsAppRecipient,
   readImageFileAsDataUrl,
   renderWhatsAppMessage,
+  whatsAppMediaPayload,
 } from "@/lib/whatsapp-invite";
 import { scopedEventHref } from "@/lib/design-tokens";
 import { resolvePublicRsvpUrl } from "@/lib/public-rsvp-url";
@@ -33,7 +29,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 
 const PLACEHOLDERS =
   "{{guestName}}, {{eventName}}, {{rsvpLink}}, {{eventDate}}, {{eventLocation}}";
@@ -96,7 +91,15 @@ export function WhatsAppBetaPage() {
     }
   };
 
-  const sendTestViaBridge = async () => {
+  const sendTestMessage = async () => {
+    if (!token) {
+      toast.error("Sign in to send WhatsApp messages");
+      return;
+    }
+    if (!previewGuest) {
+      toast.error("Select a guest with a phone number");
+      return;
+    }
     const phone = testPhone || previewGuest?.phone || "";
     const recipient = phoneToWhatsAppRecipient(phone);
     if (!recipient) {
@@ -113,17 +116,17 @@ export function WhatsAppBetaPage() {
     }
 
     setSendingTest(true);
-    const result = await sendViaWhatsAppBridge(
-      settings.bridgeApiUrl,
-      buildWhatsAppBridgeSendPayload(recipient, previewMessage, {
-        imageDataUrl: settings.imageDataUrl,
-        imageName: settings.imageName,
-      }),
-    );
-    setSendingTest(false);
-
-    if (result.success) toast.success(result.message);
-    else toast.error(result.message);
+    try {
+      const result = await api.sendGuestWhatsApp(token, previewGuest.id, {
+        message: previewMessage,
+        ...whatsAppMediaPayload(settings),
+      });
+      toast.success(result.message || "WhatsApp message sent");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not send message");
+    } finally {
+      setSendingTest(false);
+    }
   };
 
   if (!currentEventId || !currentEvent) {
@@ -141,9 +144,6 @@ export function WhatsAppBetaPage() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold text-foreground">WhatsApp (Beta)</h1>
-          <Badge variant="outline" className="border-warning/40 bg-warning-bg text-[10px] text-warning">
-            Local
-          </Badge>
         </div>
         <Link
           href={scopedEventHref(currentEventId, "/guests")}
@@ -152,6 +152,9 @@ export function WhatsAppBetaPage() {
           Send from Guests →
         </Link>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Template and test sends go through Event Pilot — the bridge URL stays on the server.
+      </p>
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         {/* Left: settings + send */}
@@ -195,7 +198,7 @@ export function WhatsAppBetaPage() {
             <Button
               type="button"
               size="sm"
-              onClick={() => void sendTestViaBridge()}
+              onClick={() => void sendTestMessage()}
               loading={sendingTest}
               loadingText="…"
               disabled={!previewGuest?.phone?.trim()}
@@ -224,7 +227,7 @@ export function WhatsAppBetaPage() {
           </label>
 
           <div className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground">Image (sent with message via bridge)</span>
+            <span className="text-xs font-medium text-muted-foreground">Image (optional attachment)</span>
             <div className="flex flex-wrap items-center gap-2">
               <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs hover:bg-muted/60">
                 <ImagePlus className="size-3.5" />
@@ -268,22 +271,6 @@ export function WhatsAppBetaPage() {
               Reset
             </Button>
           </div>
-
-          <details className="text-xs text-muted-foreground">
-            <summary className="cursor-pointer font-medium text-foreground/80">Local bridge API</summary>
-            <p className="mt-2">
-              <code className="rounded bg-muted px-1 py-0.5 text-[10px]">
-                cd whatsapp-mcp/whatsapp-bridge && go run main.go
-              </code>
-            </p>
-            <Input
-              type="url"
-              className="mt-2 h-8 text-xs"
-              placeholder={DEFAULT_WHATSAPP_BRIDGE_API_URL}
-              value={settings.bridgeApiUrl}
-              onChange={(e) => setSettings({ ...settings, bridgeApiUrl: e.target.value })}
-            />
-          </details>
         </div>
 
         {/* Right: live WhatsApp mockup */}

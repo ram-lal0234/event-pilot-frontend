@@ -28,7 +28,6 @@ export type OutreachSummary = {
   voiceDelayHours: number;
   autoCallMode: "ai" | "ivr";
   reminderEnabled: boolean;
-  whatsappSenderUrl: string;
   counts: {
     idle: number;
     awaiting: number;

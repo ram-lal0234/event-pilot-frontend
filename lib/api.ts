@@ -543,6 +543,16 @@ export const api = {
       body: JSON.stringify({}),
     });
   },
+  sendGuestWhatsApp(
+    token: string,
+    guestId: string,
+    body: { message: string; mediaBase64?: string | null; mediaFilename?: string | null },
+  ) {
+    return request<{ success: boolean; message: string; guestId: string }>(
+      `/guests/${guestId}/whatsapp/send`,
+      { method: "POST", token, body: JSON.stringify(body) },
+    );
+  },
   listGuests(token: string, eventId: string) {
     return request<GuestRecord[]>(`/guests${query({ eventId })}`, { token });
   },

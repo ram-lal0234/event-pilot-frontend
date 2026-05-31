@@ -6,13 +6,13 @@ import { toast } from "sonner";
 import { resolvePublicRsvpUrl } from "@/lib/public-rsvp-url";
 import { api, type EventRecord, type GuestRecord } from "@/lib/api";
 import { useApp } from "@/components/providers/app-provider";
-import { buildWhatsAppBridgeSendPayload, sendViaWhatsAppBridge } from "@/lib/whatsapp-bridge";
 import {
   buildTemplateContext,
   buildWhatsAppWebUrl,
   loadWhatsAppInviteSettings,
   phoneToWhatsAppRecipient,
   renderWhatsAppMessage,
+  whatsAppMediaPayload,
 } from "@/lib/whatsapp-invite";
 import { Button } from "@/components/ui/button";
 import {
@@ -79,7 +79,11 @@ export function useGuestWhatsAppActions(guest: GuestRecord, event: EventRecord |
     }
   };
 
-  const sendViaLocalBridge = async () => {
+  const sendWhatsAppMessage = async () => {
+    if (!token) {
+      toast.error("Sign in to send WhatsApp messages");
+      return;
+    }
     if (!currentEventId) {
       toast.error("Select an event first");
       return;
@@ -93,18 +97,11 @@ export function useGuestWhatsAppActions(guest: GuestRecord, event: EventRecord |
       }
       const settings = loadWhatsAppInviteSettings(currentEventId);
       const message = await buildMessage();
-      const result = await sendViaWhatsAppBridge(
-        settings.bridgeApiUrl,
-        buildWhatsAppBridgeSendPayload(recipient, message, {
-          imageDataUrl: settings.imageDataUrl,
-          imageName: settings.imageName,
-        }),
-      );
-      if (result.success) {
-        toast.success(result.message);
-      } else {
-        toast.error(result.message);
-      }
+      const result = await api.sendGuestWhatsApp(token, guest.id, {
+        message,
+        ...whatsAppMediaPayload(settings),
+      });
+      toast.success(result.message || "WhatsApp message sent");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not send message");
     } finally {
@@ -129,7 +126,7 @@ export function useGuestWhatsAppActions(guest: GuestRecord, event: EventRecord |
     }
   };
 
-  return { busy, copyMessage, sendViaLocalBridge, openWhatsApp };
+  return { busy, copyMessage, sendWhatsAppMessage, openWhatsApp };
 }
 
 export function GuestWhatsAppActions({
@@ -138,7 +135,7 @@ export function GuestWhatsAppActions({
   compact = false,
   stacked = false,
 }: GuestWhatsAppActionsProps) {
-  const { busy, copyMessage, sendViaLocalBridge, openWhatsApp } = useGuestWhatsAppActions(
+  const { busy, copyMessage, sendWhatsAppMessage, openWhatsApp } = useGuestWhatsAppActions(
     guest,
     event,
   );
@@ -161,9 +158,9 @@ export function GuestWhatsAppActions({
     <DropdownMenu>
       <DropdownMenuTrigger render={trigger} />
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem onClick={() => void sendViaLocalBridge()}>
+        <DropdownMenuItem onClick={() => void sendWhatsAppMessage()}>
           <Send className="size-4" />
-          Send via local API
+          Send WhatsApp message
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => void copyMessage()}>
           <Copy className="size-4" />
@@ -181,7 +178,7 @@ export function GuestWhatsAppActions({
     return (
       <Tooltip>
         <TooltipTrigger render={menu} />
-        <TooltipContent>WhatsApp (Beta) — local API, copy, or wa.me</TooltipContent>
+        <TooltipContent>Send via Event Pilot API, copy message, or open wa.me</TooltipContent>
       </Tooltip>
     );
   }
